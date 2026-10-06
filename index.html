@@ -368,7 +368,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .v-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 6px 8px;min-height:0;gap:8px}
 .v-body img{width:100%;height:calc(100% - 40px);max-width:100%;max-height:calc(100% - 40px);object-fit:contain;border-radius:6px;image-rendering:auto}
 .v-body video{max-width:100%;max-height:calc(100% - 40px);object-fit:contain;border-radius:6px}
-.v-body img.hq-view{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;image-rendering:auto}
+.v-body img.hq-view{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;image-rendering:auto;cursor:zoom-in}
+.v-body.hq-mode{overflow:auto;display:block;text-align:center;padding:8px}
+.v-body.hq-mode img.hq-view{display:block;margin:auto}
+.v-body.hq-mode img.hq-view.hq-zoom{width:auto;height:auto;max-width:none;max-height:none;object-fit:none;cursor:zoom-out}
 .v-body p{margin:0;max-width:900px;text-align:center}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:rgba(0,0,0,.84);color:#fff;padding:10px 16px;border-radius:10px;z-index:95;font-size:14px;max-width:90vw}
 .ntf{position:fixed;top:14px;right:14px;background:var(--bg);box-shadow:var(--shadow);border-radius:12px;padding:10px 14px;display:flex;gap:10px;align-items:center;z-index:90;width:330px;max-width:calc(100vw - 28px);cursor:pointer;animation:pop .10s}
@@ -1197,11 +1200,32 @@ function hydrate(root){if(!root)return;
  $$('[data-href]',root).forEach(el=>{const id=el.dataset.href;el.removeAttribute('data-href');el.classList.add('loading');fileUrl(id).then(u=>{el.classList.remove('loading');$$(`[data-pfid="${cssq(id)}"]`,el).forEach(x=>x.remove());if(u)el.href=u;else{el.classList.add('missing');el.removeAttribute('download');el.querySelector('small')?.append(' · topilmadi')}})})}
 async function shrink(file,max=320,q=.85){try{const bmp=await createImageBitmap(file);const k=Math.min(1,max/Math.max(bmp.width,bmp.height));const cv=document.createElement('canvas');cv.width=Math.round(bmp.width*k);cv.height=Math.round(bmp.height*k);cv.getContext('2d',{alpha:false}).drawImage(bmp,0,0,cv.width,cv.height);return cv.toDataURL('image/jpeg',q)}catch{return''}}
 const dataToBlob=async d=>(await fetch(d)).blob();
+async function imageBlobAt(file,maxDim,quality=.98){
+ const bmp=await createImageBitmap(file),mx=Math.max(bmp.width,bmp.height),k=Math.min(1,maxDim/mx);
+ const cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(bmp.width*k));cv.height=Math.max(1,Math.round(bmp.height*k));
+ const cx=cv.getContext('2d',{alpha:false});cx.imageSmoothingEnabled=true;cx.imageSmoothingQuality='high';cx.drawImage(bmp,0,0,cv.width,cv.height);
+ try{bmp.close?.()}catch{}
+ return await new Promise((ok,fail)=>cv.toBlob(b=>b?ok(b):fail({code:'image-convert'}),'image/jpeg',quality))
+}
 async function hqImageBlob(file){
  if(!file)throw{code:'bad-file'};
- if(file.size<=MAXFILE)return file; // 25 MB gacha — asl faylning o‘zi, sifat yo‘qolmaydi.
- for(const [mx,q] of [[4096,.95],[3200,.94],[2560,.92],[2048,.90]]){
-  const d=await shrink(file,mx,q);if(!d)continue;const b=await dataToBlob(d);if(b.size<=MAXFILE)return b
+ let bmp=null,w=0,h=0;try{bmp=await createImageBitmap(file);w=bmp.width;h=bmp.height;bmp.close?.()}catch{}
+ const longest=Math.max(w,h);
+
+ // 25 MB ichida bo‘lsa original bitlari o‘zgarishsiz saqlanadi.
+ // Asl rasm 8K bo‘lsa, 8K holicha qoladi.
+ if(file.size<=MAXFILE)return file;
+
+ // Avval rezolyutsiyani saqlab, faqat JPEG sifatini ehtiyotkor pasaytiramiz.
+ const keepDim=Math.max(1,Math.min(longest||7680,7680));
+ for(const q of [.99,.97,.95,.93,.90,.87]){
+  try{const b=await imageBlobAt(file,keepDim,q);if(b.size<=MAXFILE)return b}catch{}
+ }
+
+ // Faqat 25 MB ga sig‘masa, keyin o‘lcham bosqichma-bosqich kamayadi.
+ for(const [mx,q] of [[7680,.92],[6144,.94],[5120,.95],[4096,.96],[3200,.95],[2560,.94]]){
+  if(longest&&mx>=longest)continue;
+  try{const b=await imageBlobAt(file,mx,q);if(b.size<=MAXFILE)return b}catch{}
  }
  throw{code:'too-big'}
 }
@@ -2802,8 +2826,9 @@ function viewMedia(mid){const m=findMsg(mid);if(!m||!hasF(m))return;if(!canOpenA
  $('#vInfo').innerHTML=`<b>${esc(senderTitle(m,c))}</b><small>${dayLabel(m.createdAt)}, ${hm(m.createdAt)}</small>`;
  $('#vBody').innerHTML=(m.type==='video'?`<video controls autoplay playsinline ${msrc(m)}></video>`:`<img ${msrc(m)} alt="">`)+(m.body?`<p>${esc(m.body)}</p>`:'');hydrate($('#vBody'));
  $('#vDl').onclick=()=>download(m);$('#vFwd').onclick=()=>{closeViewer();forwardModal(m)};$('#viewer').classList.remove('hidden')}
-function closeViewer(){$('#viewer').classList.add('hidden');$('#vBody').innerHTML=''}
+function closeViewer(){$('#viewer').classList.add('hidden');$('#vBody').classList.remove('hq-mode');$('#vBody').innerHTML=''}
 $('#vX').onclick=closeViewer;$('#vBody').onclick=e=>{if(e.target.id==='vBody')closeViewer()};
+$('#vBody').ondblclick=e=>{const im=e.target.closest('img.hq-view');if(!im)return;im.classList.toggle('hq-zoom');if(!im.classList.contains('hq-zoom')){$('#vBody').scrollTop=0;$('#vBody').scrollLeft=0}};
 
 /* ---------- header / chat actions ---------- */
 $('#cinfo').onclick=()=>toggleInfo(true);
@@ -2958,8 +2983,12 @@ function openInfoVisual(kind,index=0){
   const posts=photoPostsOf(c),p=posts[index],fid=photoPostFileId(p);if(!fid)return;
   title=`${c.title} · Rasm ${index+1}/${posts.length}`;html=`<img class="hq-view" ${fsrc(fid)} alt="">`;
  }
- $('#vInfo').innerHTML=`<b>${esc(title)}</b><small>${kind==='avatar'?'Profil rasmi':'Rasm posti'}</small>`;
- $('#vBody').innerHTML=html;hydrate($('#vBody'));$('#vFwd').classList.add('hidden');$('#vDl').classList.add('hidden');$('#viewer').classList.remove('hidden')
+ $('#vInfo').innerHTML=`<b>${esc(title)}</b><small id="hqMeta">${kind==='avatar'?'Profil rasmi':'Rasm posti'} · HQ</small>`;
+ $('#vBody').classList.add('hq-mode');$('#vBody').innerHTML=html;hydrate($('#vBody'));$('#vFwd').classList.add('hidden');$('#vDl').classList.add('hidden');$('#viewer').classList.remove('hidden');
+ const im=$('#vBody img.hq-view');if(im){const meta=()=>{const w=im.naturalWidth||0,h=im.naturalHeight||0,tag=Math.max(w,h)>=7680?' · 8K original':Math.max(w,h)>=3840?' · 4K+':'';
+  const m=$('#hqMeta');if(m&&w&&h)m.textContent=`${kind==='avatar'?'Profil rasmi':'Rasm posti'} · ${w}×${h}${tag} · ikki marta bosing: 1:1 zoom`;
+  if(im.complete)meta();else im.addEventListener('load',meta,{once:true})
+ }}
 }
 async function addGroupPhotoPosts(){
  const g=active;if(!g||!isGroup(g)||!isAdmin(g))return;const old=photoPostsOf(g),left=PHOTO_POST_LIMIT-old.length;if(left<=0)return toast('100 ta rasm post limiti to‘lgan');
