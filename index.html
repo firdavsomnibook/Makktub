@@ -302,6 +302,16 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .info-head b{font-size:17px;font-weight:600}
 .info-body{flex:1;overflow-y:auto}
 .info-top{display:flex;flex-direction:column;align-items:center;padding:20px 16px 12px;text-align:center;gap:4px}
+.info-avatar-btn{display:block;border:0;background:transparent;padding:0;margin:0 auto;cursor:zoom-in;border-radius:50%}
+.info-avatar-btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.photo-posts{padding:10px 14px 14px;border-top:1px solid var(--line)}
+.photo-posts-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}.photo-posts-head b{flex:1;font-size:14px}.photo-posts-head small{color:var(--muted)}
+.photo-post-add{height:32px;padding:0 10px;border-radius:16px;background:var(--accent);color:#fff;font-size:13px;font-weight:600}
+.photo-post-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+.photo-post{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--bg2);cursor:zoom-in;border:0;padding:0}
+.photo-post img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-post-empty{color:var(--muted);font-size:13px;padding:6px 0}
+@media(max-width:760px){.photo-post-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .info-name{font-size:20px;font-weight:600;margin-top:8px;word-break:break-word}
 .info-item{display:flex;gap:20px;padding:10px 22px;align-items:flex-start}
 .info-item .i{color:var(--muted);margin-top:1px}
@@ -2778,6 +2788,7 @@ $('#tobottom').onclick=()=>msgsEl.scrollTo({top:msgsEl.scrollHeight,behavior:'sm
 
 /* ---------- viewer ---------- */
 function viewMedia(mid){const m=findMsg(mid);if(!m||!hasF(m))return;if(!canOpenAttachment(m))return toast('Bu faylni ochish uchun sizga ruxsat berilmagan',6000);const c=active;
+ $('#vFwd').classList.remove('hidden');$('#vDl').classList.remove('hidden');
  $('#vInfo').innerHTML=`<b>${esc(senderTitle(m,c))}</b><small>${dayLabel(m.createdAt)}, ${hm(m.createdAt)}</small>`;
  $('#vBody').innerHTML=(m.type==='video'?`<video controls autoplay playsinline ${msrc(m)}></video>`:`<img ${msrc(m)} alt="">`)+(m.body?`<p>${esc(m.body)}</p>`:'');hydrate($('#vBody'));
  $('#vDl').onclick=()=>download(m);$('#vFwd').onclick=()=>{closeViewer();forwardModal(m)};$('#viewer').classList.remove('hidden')}
@@ -2921,17 +2932,47 @@ function setRestriction(g,id,seconds){if(!isAdmin(g)||id===g.ownerId)return;cons
  const until=seconds===0?0:srvNow()+seconds*1000;updateDoc(chatRef(g.id),{[key]:{until,by:me.id,at:srvNow()}}).catch(fail);if(g.type!=='channel')pushMsg(g.id,{type:'service',body:`${me.displayName} ${u?.displayName||''}ga ${seconds===0?'cheksiz':seconds===3600?'1 soat':seconds===86400?'24 soat':'7 kun'} yozish cheklovi qo‘ydi`}).catch(()=>{})}
 function removeMember(g,id){if(!isAdmin(g)||id===g.ownerId)return;const u=user(id);confirmModal(`${u?.displayName||'Foydalanuvchi'}ni ${g.type==='channel'?'kanaldan':'guruhdan'} chiqarasizmi?`,'Chiqarish',()=>{const go=()=>updateDoc(chatRef(g.id),{members:arrayRemove(id),admins:arrayRemove(id),[`restrictions.${id}`]:deleteField()}).catch(fail);if(g.type!=='channel')pushMsg(g.id,{type:'service',body:`${me.displayName} ${u?.displayName||''}ni guruhdan chiqardi`}).then(go,go);else go()})}
 
+/* ---------- profil rasmi + rasm postlari ---------- */
+const PHOTO_POST_LIMIT=100;
+const photoPostsOf=c=>Array.isArray(c?.photoPosts)?c.photoPosts.slice(0,PHOTO_POST_LIMIT):[];
+const photoPostFileId=p=>typeof p==='string'?p:(p?.fileId||'');
+function openInfoVisual(kind,index=0){
+ if(!active)return;const c=active;let title=c.title,html='';
+ if(kind==='avatar'){
+  const u=c.type==='direct'?c.peer:null;
+  if(u?.videoId)html=`<video controls autoplay playsinline ${fsrc(u.videoId)}></video>`;
+  else{const src=u?.photo||c.photo;if(!src)return toast('Profil rasmi yo‘q');html=`<img src="${esc(src)}" alt="">`}
+ }else{
+  const posts=photoPostsOf(c),p=posts[index],fid=photoPostFileId(p);if(!fid)return;
+  title=`${c.title} · Rasm ${index+1}/${posts.length}`;html=`<img ${fsrc(fid)} alt="">`;
+ }
+ $('#vInfo').innerHTML=`<b>${esc(title)}</b><small>${kind==='avatar'?'Profil rasmi':'Rasm posti'}</small>`;
+ $('#vBody').innerHTML=html;hydrate($('#vBody'));$('#vFwd').classList.add('hidden');$('#vDl').classList.add('hidden');$('#viewer').classList.remove('hidden')
+}
+async function addGroupPhotoPosts(){
+ const g=active;if(!g||!isGroup(g)||!isAdmin(g))return;const old=photoPostsOf(g),left=PHOTO_POST_LIMIT-old.length;if(left<=0)return toast('100 ta rasm post limiti to‘lgan');
+ const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;inp.onchange=async()=>{
+  const files=[...inp.files].filter(f=>f.type.startsWith('image/')).slice(0,left);if(!files.length)return;if(inp.files.length>left)toast(`Faqat yana ${left} ta rasm qo‘shish mumkin`);
+  const btn=$('[data-add-photo-post]');busy(btn,true);const added=[];
+  try{for(let i=0;i<files.length;i++){const f=files[i];toast(`Rasm ${i+1}/${files.length} yuklanmoqda…`,0);const d=await shrink(f,1600,.84);const blob=d?await dataToBlob(d):f;const fid=await uploadFile(blob,f.name||`post-${i+1}.jpg`,null,{openTo:g.members});added.push({fileId:fid,at:srvNow(),by:me.id})}
+   const posts=[...old,...added].slice(-PHOTO_POST_LIMIT);await updateDoc(chatRef(g.id),{photoPosts:posts,updatedAt:srvNow()});g.photoPosts=posts;const cg=C.get(g.id);if(cg)C.set(g.id,{...cg,photoPosts:posts});renderInfo();toast(`${added.length} ta rasm post qo‘shildi`)}
+  catch(e){toast(errText(e),5000)}finally{busy(btn,false)}
+ };inp.click()
+}
+
 /* ---------- info panel ---------- */
 function toggleInfo(v){infoOpen=v;$('#info').classList.toggle('hidden',!v);if(v)renderInfo()}
 $('#infoX').onclick=()=>toggleInfo(false);
 const rank=(u,c)=>c.ownerId===u.id?2:(c.admins||[]).includes(u.id)?1:0;
 function renderInfo(){if(!active||!infoOpen)return;const c=active;if(isGroup(c))loadGroupMembers(c);let h='';
  const big=c.type==='direct'&&c.peer?.videoId?`<div class="av xl" style="background:${color(c.peerId)}"><video autoplay muted loop playsinline ${fsrc(c.peer.videoId)}></video></div>`:convAvatar(c,'xl');
+ const hasBig=!!(c.type==='direct'?(c.peer?.photo||c.peer?.videoId):c.photo);
  const sub=c.type==='direct'?seen(c.peer):c.type==='saved'?'Faqat sizga ko‘rinadi':`${c.members.length} ${c.type==='channel'?'obunachi':'a’zo'}`;
- h+=`<div class="info-top">${big}<div class="info-name">${esc(c.title)}</div><div class="muted">${esc(sub)}</div></div>`;
+ h+=`<div class="info-top">${hasBig?`<button type="button" class="info-avatar-btn" data-profile-avatar title="Rasmni kattalashtirish">${big}</button>`:big}<div class="info-name">${esc(c.title)}</div><div class="muted">${esc(sub)}</div></div>`;
  const item=(i,v,l)=>`<div class="info-item">${ic(i)}<div><div>${esc(v)}</div><small>${l}</small></div></div>`;
  if(c.type==='direct'&&c.peer){const u=c.peer;h+=item('user','@'+u.username,'Nickname');if(u.bio)h+=item('info',u.bio,'Bio');if(alias(u.id))h+=item('edit',u.displayName,'Asl ismi')}
- if(isGroup(c)){if(c.description)h+=item('info',c.description,'Tavsif');h+=item(c.type==='channel'?'megaphone':c.type==='supergroup'?'hash':'users',typeName(c.type)+(c.type==='supergroup'?` · ${(c.topics||[]).length||1} mavzu`:''),'Turi')}
+ if(isGroup(c)){if(c.description)h+=item('info',c.description,'Tavsif');h+=item(c.type==='channel'?'megaphone':c.type==='supergroup'?'hash':'users',typeName(c.type)+(c.type==='supergroup'?` · ${(c.topics||[]).length||1} mavzu`:''),'Turi');
+  const posts=photoPostsOf(c);h+=`<div class="photo-posts"><div class="photo-posts-head"><b>Rasm postlari</b><small>${posts.length}/${PHOTO_POST_LIMIT}</small>${isAdmin(c)&&posts.length<PHOTO_POST_LIMIT?`<button type="button" class="photo-post-add" data-add-photo-post>+ Rasm qo‘shish</button>`:''}</div>${posts.length?`<div class="photo-post-grid">${posts.map((p,i)=>`<button type="button" class="photo-post" data-photo-post="${i}" title="Rasmni kattalashtirish"><img ${fsrc(photoPostFileId(p))} alt="Rasm posti"></button>`).join('')}</div>`:`<div class="photo-post-empty">Hali rasm post yo‘q</div>`}</div>`}
  const acts=[];
  if(c.type==='direct'&&c.peer)acts.push(['edit','Kontakt nomini o‘zgartirish','alias']);
  if(isAdmin(c))acts.push(['pencil','Tahrirlash','edit'],['userplus',c.type==='channel'?'Obunachi qo‘shish':'A’zo qo‘shish','add']);
@@ -2948,6 +2989,9 @@ function renderInfoTab(){const box=$('#itab');if(!box||!active)return;const ms=M
  else{a=ms.filter(m=>infoTab==='files'?(m.type==='file'||m.type==='audio'):m.type==='voice');if(a.length)h=`<div class="flist">${a.map(m=>`<div class="fitem">${m.type==='voice'?voicePlayerHtml(m):fileBox(m)}<small class="muted">${esc(senderTitle(m,active))} · ${dayLabel(m.createdAt)}, ${hm(m.createdAt)}</small></div>`).join('')}</div>`}
  box.innerHTML=h||`<div class="empty-list">${infoTab==='media'?'Rasm va videolar yo‘q':infoTab==='files'?'Fayllar yo‘q':'Ovozli xabarlar yo‘q'}</div>`;hydrate(box)}
 $('#infoBody').onclick=e=>{const t=e.target;let el;
+ if(el=t.closest('[data-profile-avatar]')){openInfoVisual('avatar');return}
+ if(el=t.closest('[data-photo-post]')){openInfoVisual('post',Number(el.dataset.photoPost)||0);return}
+ if(el=t.closest('[data-add-photo-post]')){addGroupPhotoPosts();return}
  if(el=t.closest('[data-voice-play]')){playVoice(el.dataset.voicePlay);return}
  if(el=t.closest('[data-voice-seek]')){const r=el.getBoundingClientRect();seekVoice(el.dataset.voiceSeek,(e.clientX-r.left)/Math.max(1,r.width));return}
  if(el=t.closest('[data-itab]')){infoTab=el.dataset.itab;$$('.itabs button').forEach(b=>b.classList.toggle('on',b===el));renderInfoTab();return}
