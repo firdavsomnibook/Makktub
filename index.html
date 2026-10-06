@@ -365,9 +365,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .v-top{display:flex;align-items:center;gap:4px;padding:8px 10px}
 .v-top .btn-i{color:#ddd}.v-top .btn-i:hover{background:rgba(255,255,255,.1)}
 .v-info{flex:1;min-width:0;padding-left:8px}.v-info small{display:block;color:#aaa}
-.v-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 20px 20px;min-height:0;gap:10px}
-.v-body img,.v-body video{max-width:100%;max-height:calc(100% - 40px);object-fit:contain;border-radius:4px}
-.v-body p{margin:0;max-width:700px;text-align:center}
+.v-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 6px 8px;min-height:0;gap:8px}
+.v-body img{width:100%;height:calc(100% - 40px);max-width:100%;max-height:calc(100% - 40px);object-fit:contain;border-radius:6px;image-rendering:auto}
+.v-body video{max-width:100%;max-height:calc(100% - 40px);object-fit:contain;border-radius:6px}
+.v-body img.hq-view{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;image-rendering:auto}
+.v-body p{margin:0;max-width:900px;text-align:center}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:rgba(0,0,0,.84);color:#fff;padding:10px 16px;border-radius:10px;z-index:95;font-size:14px;max-width:90vw}
 .ntf{position:fixed;top:14px;right:14px;background:var(--bg);box-shadow:var(--shadow);border-radius:12px;padding:10px 14px;display:flex;gap:10px;align-items:center;z-index:90;width:330px;max-width:calc(100vw - 28px);cursor:pointer;animation:pop .10s}
 
@@ -1193,8 +1195,16 @@ function hydrate(root){if(!root)return;
   const attach=u=>{if(!u)return false;el.src=u;if(el.tagName==='VIDEO'){try{el.load()}catch{};el.addEventListener('error',()=>{if(retried)return;retried=true;fileUrl(id,true).then(v=>{if(v){el.src=v;try{el.load()}catch{}}})},{once:true})}return true};
   fileUrl(id).then(u=>{$$(`[data-pfid="${cssq(id)}"]`).forEach(x=>x.remove());if(attach(u))return;if(el.closest('.av,.avpick')){el.remove();return}const w=el.closest('.mwrap,.cell');const g=Object.assign(document.createElement('div'),{className:'gone',textContent:'Faylni yuklab bo‘lmadi'});if(w)w.replaceChildren(g);else el.replaceWith(g)})});
  $$('[data-href]',root).forEach(el=>{const id=el.dataset.href;el.removeAttribute('data-href');el.classList.add('loading');fileUrl(id).then(u=>{el.classList.remove('loading');$$(`[data-pfid="${cssq(id)}"]`,el).forEach(x=>x.remove());if(u)el.href=u;else{el.classList.add('missing');el.removeAttribute('download');el.querySelector('small')?.append(' · topilmadi')}})})}
-async function shrink(file,max=320,q=.85){try{const bmp=await createImageBitmap(file);const k=Math.min(1,max/Math.max(bmp.width,bmp.height));const cv=document.createElement('canvas');cv.width=Math.round(bmp.width*k);cv.height=Math.round(bmp.height*k);cv.getContext('2d').drawImage(bmp,0,0,cv.width,cv.height);return cv.toDataURL('image/jpeg',q)}catch{return''}}
+async function shrink(file,max=320,q=.85){try{const bmp=await createImageBitmap(file);const k=Math.min(1,max/Math.max(bmp.width,bmp.height));const cv=document.createElement('canvas');cv.width=Math.round(bmp.width*k);cv.height=Math.round(bmp.height*k);cv.getContext('2d',{alpha:false}).drawImage(bmp,0,0,cv.width,cv.height);return cv.toDataURL('image/jpeg',q)}catch{return''}}
 const dataToBlob=async d=>(await fetch(d)).blob();
+async function hqImageBlob(file){
+ if(!file)throw{code:'bad-file'};
+ if(file.size<=MAXFILE)return file; // 25 MB gacha — asl faylning o‘zi, sifat yo‘qolmaydi.
+ for(const [mx,q] of [[4096,.95],[3200,.94],[2560,.92],[2048,.90]]){
+  const d=await shrink(file,mx,q);if(!d)continue;const b=await dataToBlob(d);if(b.size<=MAXFILE)return b
+ }
+ throw{code:'too-big'}
+}
 
 /* ---------- state ---------- */
 let me=null,U=new Map(),C=new Map(),M=[],prefs=null,active=null,activeTopic='general',forumHome=false,folder='all',draft=null,chatQuery='',infoOpen=false,infoTab='media',lastSig='',rec=null,stick=true;
@@ -2891,7 +2901,7 @@ function setupMemberPicker({input,listBox,selectedBox,selected,excluded=new Set(
  return{drawSelected,draw}
 }
 
-function newGroupModal(type='group'){let photo='';const selected=new Map();
+function newGroupModal(type='group'){let photo='',photoFile=null;const selected=new Map();
  modal(`<h3>Yangi chat yaratish</h3><div class="gtop"><label class="avpick" title="Rasm"><span id="gprev">${ic('camera')}</span><input type="file" id="gphoto" accept="image/*" hidden></label><div class="grow"><label class="lb" style="margin-top:0">Turi</label><select class="field" id="gtype"><option value="group">Guruh</option><option value="supergroup">Super guruh (mavzular bilan)</option><option value="channel">Kanal</option></select></div></div>
  <label class="lb">Nomi</label><input class="field" id="gtitle"><label class="lb">Tavsif (ixtiyoriy)</label><input class="field" id="gdesc">
  <label class="lb" id="gml"></label><input class="field" id="gq" placeholder="@nickname boshidagi 2 harf, masalan @fi" autocomplete="off" style="padding:8px 12px"><div id="gsel"></div><div class="plist" id="gpl"></div>
@@ -2900,19 +2910,20 @@ function newGroupModal(type='group'){let photo='';const selected=new Map();
  const picker=setupMemberPicker({input:$('#gq'),listBox:$('#gpl'),selectedBox:$('#gsel'),selected,maxSelectable});
  const upd=()=>{const t=$('#gtype').value;$('#gtitle').placeholder=t==='channel'?'Kanal nomi':t==='supergroup'?'Super guruh nomini kiriting':'Guruh nomini kiriting';$('#gml').textContent=t==='channel'?`Obunachilarni @nickname orqali qidiring (maksimum ${GROUP_MEMBER_LIMIT})`:`A’zolarni @nickname orqali qidiring (jami maksimum ${GROUP_MEMBER_LIMIT})`;picker.drawSelected()};
  $('#gtype').value=type;$('#gtype').onchange=upd;upd();$('#gtitle').focus();
- $('#gphoto').onchange=async e=>{const f=e.target.files[0];if(!f)return;photo=await shrink(f);if(photo)$('#gprev').innerHTML=`<img src="${photo}" alt="">`};
+ $('#gphoto').onchange=async e=>{const f=e.target.files[0];if(!f)return;photoFile=f;photo=await shrink(f,640,.92);if(photo)$('#gprev').innerHTML=`<img src="${photo}" alt="">`};
  $('#gcreate').onclick=async()=>{const title=$('#gtitle').value.trim();if(!title)return toast('Nom kiriting');const t=$('#gtype').value,sel=[...selected.keys()],now=srvNow();
   if(sel.length+1>GROUP_MEMBER_LIMIT)return toast(`Guruhda jami ${GROUP_MEMBER_LIMIT} tagacha a’zo bo‘lishi mumkin`);
+  let photoFullFileId='';if(photoFile){try{const hb=await hqImageBlob(photoFile);photoFullFileId=await uploadFile(hb,photoFile.name||'profile.jpg',null,{openTo:[me.id,...sel]})}catch(e){toast('Profil rasmi yuqori sifatda saqlanmadi, kichik rasmi ishlaydi',4500)}}
   const ref=doc(collection(db,'chats')),mref=doc(collection(db,'chats',ref.id,'messages'));const body=`${me.displayName} ${t==='channel'?'kanalni':'guruhni'} yaratdi`;
-  const g=clean({type:t,title,description:$('#gdesc').value.trim(),photo,ownerId:me.id,admins:[me.id],members:[me.id,...sel],topics:t==='supergroup'?[{id:'general',title:'Umumiy',icon:'💬'}]:[],createdAt:now,updatedAt:now,reads:{[me.id]:now},unread:{},lastMsg:{id:mref.id,senderId:me.id,type:'service',text:body,at:now}});
+  const g=clean({type:t,title,description:$('#gdesc').value.trim(),photo,photoFullFileId,ownerId:me.id,admins:[me.id],members:[me.id,...sel],topics:t==='supergroup'?[{id:'general',title:'Umumiy',icon:'💬'}]:[],createdAt:now,updatedAt:now,reads:{[me.id]:now},unread:{},lastMsg:{id:mref.id,senderId:me.id,type:'service',text:body,at:now}});
   const sm={senderId:me.id,type:'service',body,createdAt:now,...(t==='supergroup'?{topicId:'general'}:{})};
   const b=writeBatch(db);b.set(ref,g);b.set(mref,sm);creating.add(ref.id);b.commit().then(()=>{signalMembers(ref.id,sel).catch(()=>{});if(creating.delete(ref.id)&&active?.id===ref.id&&msgsFor!==ref.id)subscribeMsgs(ref.id)},e=>{creating.delete(ref.id);fail(e)});
   C.set(ref.id,{id:ref.id,...g});closeModal();openChat(ref.id);M=[{id:mref.id,...sm}];renderMessages(true)}}
-function editGroupModal(){const g=active;let photo=null;
+function editGroupModal(){const g=active;let photo=null,photoFile=null;
  modal(`<h3>Tahrirlash</h3><div class="gtop"><label class="avpick" style="background:${color(g.id)}"><span id="gprev">${g.photo?`<img src="${esc(g.photo)}" alt="">`:ic('camera')}</span><input type="file" id="gphoto" accept="image/*" hidden></label><div class="grow"><label class="lb" style="margin-top:0">Nomi</label><input class="field" id="gtitle" value="${esc(g.title)}"></div></div><label class="lb">Tavsif</label><textarea class="field" id="gdesc" rows="2">${esc(g.description||'')}</textarea><div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="gsave">Saqlash</button></div>`);
- $('#gphoto').onchange=async e=>{const f=e.target.files[0];if(!f)return;photo=await shrink(f);if(photo)$('#gprev').innerHTML=`<img src="${photo}" alt="">`};
- $('#gsave').onclick=()=>{const t=$('#gtitle').value.trim();if(!t)return toast('Nom kiriting');const up={title:t,description:$('#gdesc').value.trim()};if(photo)up.photo=photo;
-  updateDoc(chatRef(g.id),up).catch(fail);if(t!==g.title&&g.type!=='channel')pushMsg(g.id,{type:'service',body:`${me.displayName} nomni «${t}» ga o‘zgartirdi`}).catch(()=>{});closeModal()}}
+ $('#gphoto').onchange=async e=>{const f=e.target.files[0];if(!f)return;photoFile=f;photo=await shrink(f,640,.92);if(photo)$('#gprev').innerHTML=`<img src="${photo}" alt="">`};
+ $('#gsave').onclick=async e=>{const t=$('#gtitle').value.trim();if(!t)return toast('Nom kiriting');const btn=e.currentTarget,up={title:t,description:$('#gdesc').value.trim()};if(photo)up.photo=photo;
+  busy(btn,true);try{if(photoFile){const hb=await hqImageBlob(photoFile);up.photoFullFileId=await uploadFile(hb,photoFile.name||'profile.jpg',null,{openTo:g.members||[me.id]})}await updateDoc(chatRef(g.id),up);Object.assign(g,up);const cg=C.get(g.id);if(cg)C.set(g.id,{...cg,...up});if(t!==g.title&&g.type!=='channel')pushMsg(g.id,{type:'service',body:`${me.displayName} nomni «${t}» ga o‘zgartirdi`}).catch(()=>{});closeModal();if(infoOpen)renderInfo()}catch(er){fail(er)}finally{busy(btn,false)}}}
 function addMembersModal(){const g=active;if(!g||!isAdmin(g))return toast('A’zo qo‘shish faqat administratorlarga ruxsat');
  const room=Math.max(0,GROUP_MEMBER_LIMIT-(g.members?.length||0));if(!room)return toast(`Bu guruhda ${GROUP_MEMBER_LIMIT} ta a’zo bor — limit to‘lgan`);
  const selected=new Map(),excluded=new Set(g.members||[]);
@@ -2939,12 +2950,13 @@ const photoPostFileId=p=>typeof p==='string'?p:(p?.fileId||'');
 function openInfoVisual(kind,index=0){
  if(!active)return;const c=active;let title=c.title,html='';
  if(kind==='avatar'){
-  const u=c.type==='direct'?c.peer:null;
+  const u=c.type==='direct'?c.peer:null,fid=u?.photoFullFileId||c.photoFullFileId;
   if(u?.videoId)html=`<video controls autoplay playsinline ${fsrc(u.videoId)}></video>`;
-  else{const src=u?.photo||c.photo;if(!src)return toast('Profil rasmi yo‘q');html=`<img src="${esc(src)}" alt="">`}
+  else if(fid)html=`<img class="hq-view" ${fsrc(fid)} alt="">`;
+  else{const src=u?.photo||c.photo;if(!src)return toast('Profil rasmi yo‘q');html=`<img class="hq-view" src="${esc(src)}" alt="">`}
  }else{
   const posts=photoPostsOf(c),p=posts[index],fid=photoPostFileId(p);if(!fid)return;
-  title=`${c.title} · Rasm ${index+1}/${posts.length}`;html=`<img ${fsrc(fid)} alt="">`;
+  title=`${c.title} · Rasm ${index+1}/${posts.length}`;html=`<img class="hq-view" ${fsrc(fid)} alt="">`;
  }
  $('#vInfo').innerHTML=`<b>${esc(title)}</b><small>${kind==='avatar'?'Profil rasmi':'Rasm posti'}</small>`;
  $('#vBody').innerHTML=html;hydrate($('#vBody'));$('#vFwd').classList.add('hidden');$('#vDl').classList.add('hidden');$('#viewer').classList.remove('hidden')
@@ -2954,7 +2966,7 @@ async function addGroupPhotoPosts(){
  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;inp.onchange=async()=>{
   const files=[...inp.files].filter(f=>f.type.startsWith('image/')).slice(0,left);if(!files.length)return;if(inp.files.length>left)toast(`Faqat yana ${left} ta rasm qo‘shish mumkin`);
   const btn=$('[data-add-photo-post]');busy(btn,true);const added=[];
-  try{for(let i=0;i<files.length;i++){const f=files[i];toast(`Rasm ${i+1}/${files.length} yuklanmoqda…`,0);const d=await shrink(f,1600,.84);const blob=d?await dataToBlob(d):f;const fid=await uploadFile(blob,f.name||`post-${i+1}.jpg`,null,{openTo:g.members});added.push({fileId:fid,at:srvNow(),by:me.id})}
+  try{for(let i=0;i<files.length;i++){const f=files[i];toast(`Rasm ${i+1}/${files.length} yuqori sifatda yuklanmoqda…`,0);const blob=await hqImageBlob(f);const fid=await uploadFile(blob,f.name||`post-${i+1}.jpg`,null,{openTo:g.members});added.push({fileId:fid,at:srvNow(),by:me.id})}
    const posts=[...old,...added].slice(-PHOTO_POST_LIMIT);await updateDoc(chatRef(g.id),{photoPosts:posts,updatedAt:srvNow()});g.photoPosts=posts;const cg=C.get(g.id);if(cg)C.set(g.id,{...cg,photoPosts:posts});renderInfo();toast(`${added.length} ta rasm post qo‘shildi`)}
   catch(e){toast(errText(e),5000)}finally{busy(btn,false)}
  };inp.click()
