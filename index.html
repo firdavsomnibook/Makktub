@@ -1594,9 +1594,9 @@ async function doLogin(nick,pw,btn,viaFace=false,preRl=null){
 }
 $('#loginForm').onsubmit=e=>{e.preventDefault();doLogin(norm($('#lNick').value),$('#lPass').value,$('#loginBtn'))};
 
-/* ---------- FACE ID (WebAuthn): yuzni telefonning o‘zi (Apple Face ID / Android / Windows Hello) tekshiradi.
-   Yuz rasmi saytga umuman yuborilmaydi; noto‘g‘ri yuzga tizimning o‘zi ruxsat bermaydi.
-   Parol shu qurilmada shifrlangan holda saqlanadi va faqat biometrik tasdiqdan keyin ochiladi. ---------- */
+/* ---------- MAKKТUB FACE ID: faqat ilovaning o‘z kamerasi orqali yuzni tekshiradi.
+   Windows Hello / Google Password Manager / tizim PIN'i ishlatilmaydi.
+   Yuz rasmi saqlanmaydi; yuz deskriptori va shifrlangan login siri shu qurilmada qoladi. ---------- */
 const FACE_LS='mk_faceid';
 const b64e=buf=>{const a=new Uint8Array(buf instanceof ArrayBuffer?buf:buf.buffer.slice(buf.byteOffset,buf.byteOffset+buf.byteLength));let s='';for(const x of a)s+=String.fromCharCode(x);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
 const b64d=str=>{str=String(str||'').replace(/-/g,'+').replace(/_/g,'/');while(str.length%4)str+='=';const b=atob(str),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a};
@@ -1609,7 +1609,7 @@ function faceIdRemove(nick){const n=norm(nick),all=faceRecs(),rec=all[n];delete 
 const faceOriginOK=()=>location.protocol==='https:'||(location.protocol==='http:'&&location.hostname==='localhost');
 const FACE_HTTPS_MSG='Face ID faqat ilova saytda — https:// manzilda ochilganda ishlaydi. Hozir fayl kompyuterdan to‘g‘ridan-to‘g‘ri (yoki http:// orqali) ochilgan.';
 async function faceSupported(){try{return !!(faceOriginOK()&&window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())}catch{return false}}
-function updateFaceLoginBtn(){const b=$('#faceLoginBtn');if(!b)return;const n=norm($('#lNick')?.value||''),r=n&&faceRec(n);const ok=!!r&&(r.mode==='cam'?camSupported():!!window.PublicKeyCredential);b.classList.toggle('hidden',!ok);if(ok&&r.mode==='cam')loadFaceLib().catch(()=>{})}
+function updateFaceLoginBtn(){const b=$('#faceLoginBtn');if(!b)return;const n=norm($('#lNick')?.value||''),r=n&&faceRec(n);const ok=!!r&&r.mode==='cam'&&camSupported();b.classList.toggle('hidden',!ok);if(ok)loadFaceLib().catch(()=>{})}
 const prfKey=out=>crypto.subtle.importKey('raw',out instanceof ArrayBuffer?out:new Uint8Array(out),{name:'AES-GCM'},false,['encrypt','decrypt']);
 async function faceAssert(rec,withPrf){
  const pk={challenge:rndBytes(32),allowCredentials:[{type:'public-key',id:b64d(rec.credId),transports:['internal','hybrid']}],userVerification:'required',timeout:60000};
@@ -1735,21 +1735,20 @@ async function faceCamVerify(rec){
   bad=0;if(!closed){if(s.ear>base)base=s.ear;if(s.ear<base*0.72)closed=true;continue}
   if(s.ear>base*0.86&&d<=lim){camSay('✓ Tasdiqlandi','ok');stopFaceCam();return true}}}
 async function faceIdUnlock(nick){
- const rec=faceRec(nick);if(!rec)throw{code:'faceid-broken'};
- if(rec.mode==='cam'){await faceCamVerify(rec);closeModal();return faceDecrypt(rec)}
- if(!window.PublicKeyCredential)throw{code:'faceid-unsupported'};
- const a=await faceAssert(rec,rec.mode==='prf'),key=await faceKeyFor(rec,a);
- try{return new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(rec.iv)},key,b64d(rec.ct)))}catch{throw{code:'faceid-broken'}}}
+ const rec=faceRec(nick);if(!rec||rec.mode!=='cam')throw{code:'faceid-broken'};
+ await faceCamVerify(rec);closeModal();return faceDecrypt(rec)
+}
 async function faceDecrypt(rec){const key=await faceKeyFor(rec,null);try{return new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(rec.iv)},key,b64d(rec.ct)))}catch{throw{code:'faceid-broken'}}}
 async function faceEncrypt(nick,pw,key,rec){const iv=rndBytes(12),ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(pw));faceSave(nick,{...rec,nick:norm(nick),iv:b64e(iv),ct:b64e(ct),at:srvNow()})}
 $('#faceLoginBtn').onclick=async()=>{
- const nick=norm($('#lNick').value);if(!nick||loggingIn)return;const r=faceRec(nick);if(r&&r.mode!=='cam'&&!faceOriginOK())return toast(FACE_HTTPS_MSG,7000);
+ const nick=norm($('#lNick').value);if(!nick||loggingIn)return;const r=faceRec(nick);
+ if(!r||r.mode!=='cam')return toast('Face ID’ni Sozlamalarda kamera orqali qayta yoqing',5000);
  let pw,pre=null;
- // Kamera rejimida: yuz skanerlanayotgan paytda parol ochiladi va server bilan kirish fonda boshlanadi — yuz tanilishi bilan ilova DARHOL ochiladi.
- if(r?.mode==='cam'){pre=faceDecrypt(r).then(p=>waitLimit(restLoginByNickname(nick,p),18000,'network-timeout').then(rl=>({p,rl})));pre.catch(()=>{})}
- try{if(pre){await faceCamVerify(r);closeModal();camSay('','');const x=await pre;pw=x.p;return doLogin(nick,pw,$('#loginBtn'),true,x.rl)}pw=await faceIdUnlock(nick)}
+ // Faqat Makktub kamerasi: Windows Hello / Google Password Manager umuman chaqirilmaydi.
+ pre=faceDecrypt(r).then(p=>waitLimit(restLoginByNickname(nick,p),18000,'network-timeout').then(rl=>({p,rl})));pre.catch(()=>{});
+ try{await faceCamVerify(r);closeModal();const x=await pre;pw=x.p;return doLogin(nick,pw,$('#loginBtn'),true,x.rl)}
  catch(e){stopFaceCam();if(e?.code==='faceid-broken'||e?.code==='auth/invalid-credential'){faceIdRemove(nick);updateFaceLoginBtn();e={code:'faceid-broken'}}if(e?.code!=='faceid-cancel'||!$('#modal').classList.contains('hidden'))camSay(errText(e),'bad');return toast(errText(e),5000)}
- doLogin(nick,pw,$('#loginBtn'),true)};
+};
 $('#lNick').addEventListener('input',updateFaceLoginBtn);
 let nickT;
 $('#rNick').oninput=e=>{const n=norm(e.target.value),st=$('#nickSt');clearTimeout(nickT);if(!n){st.textContent='';return}if(!/^[a-z0-9_]{3,32}$/.test(n)){st.style.color='var(--danger)';st.textContent='— 3–32 ta lotin harf, raqam, _';return}
@@ -3093,14 +3092,14 @@ function profileModal(){let photo,video;
 
 /* ---------- SOZLAMALAR ---------- */
 async function settingsModal(){
- if(!me)return;const dark=document.documentElement.dataset.theme==='dark',fr=faceRec(me.username);
+ if(!me)return;const dark=document.documentElement.dataset.theme==='dark',_fr=faceRec(me.username),fr=_fr?.mode==='cam'?_fr:null;
  const row=(id,i,t,sub,right='')=>`<button type="button" class="set-row set-btn" id="${id}"><span class="set-ic">${ic(i)}</span><span class="grow"><b>${t}</b>${sub?`<small>${sub}</small>`:''}</span>${right||ic('chev','set-chev')}</button>`;
  modal(`<h3>⚙️ Sozlamalar</h3>
  <div class="set-sec">Akkaunt</div>
  ${row('setProfile','user',esc(me.displayName||me.username),'@'+esc(me.username)+' · profilni tahrirlash')}
  <div class="set-sec">Xavfsizlik</div>
  ${row('setPass','lock','Parolni o‘zgartirish','Joriy parol bilan tasdiqlanadi')}
- <div class="set-row"><span class="set-ic">${ic('face')}</span><span class="grow"><b>Face ID bilan kirish</b><small id="faceState">${fr?(fr.mode==='cam'?'Yoqilgan (kamera orqali) — kirishda parol tagida chiqadi':'Yoqilgan — kirishda parol tagida “Face ID bilan kirish” chiqadi'):'Shu qurilmada o‘chirilgan'}</small></span><label class="switch"><input type="checkbox" id="faceToggle" ${fr?'checked':''}><span></span></label></div>
+ <div class="set-row"><span class="set-ic">${ic('face')}</span><span class="grow"><b>Face ID bilan kirish</b><small id="faceState">${fr?'Yoqilgan — faqat Makktub kamerasi orqali':'Shu qurilmada o‘chirilgan'}</small></span><label class="switch"><input type="checkbox" id="faceToggle" ${fr?'checked':''}><span></span></label></div>
  ${fr?.mode==='cam'?`<div class="set-row"><span class="set-ic">${ic('shield')}</span><span class="grow"><b>Rasmga qarshi himoya</b><small>Kirishda ko‘zni bir marta yumib-ochish so‘raladi (sekinroq, lekin xavfsizroq)</small></span><label class="switch"><input type="checkbox" id="faceBlink" ${fr.blink?'checked':''}><span></span></label></div>`:''}
  <div class="set-sec">Ilova</div>
  ${row('setBg','image','Chat foni','')}${row('setRing','music','Qo‘ng‘iroq ringtoni','')}${row('setTurn','phone','Qo‘ng‘iroq serveri (TURN)',hasTurn()?'Sozlangan':'Sozlanmagan')}
@@ -3108,25 +3107,22 @@ async function settingsModal(){
  <div class="mact"><button class="btn flat" data-close>Yopish</button></div>`);
  $('#setProfile').onclick=()=>profileModal();$('#setPass').onclick=passwordModal;$('#setBg').onclick=bgModal;$('#setRing').onclick=ringtoneModal;$('#setTurn').onclick=turnModal;
  $('#setTheme').onclick=()=>{toggleTheme();settingsModal()};$('#setNotif').onclick=askNotif;
- const tg=$('#faceToggle');if(!fr&&!(await faceSupported())&&!camSupported()){tg.disabled=true;const st=$('#faceState');if(st)st.textContent='Bu qurilmada na Face ID, na kamera topilmadi'}
+ const tg=$('#faceToggle');if(!fr&&!camSupported()){tg.disabled=true;const st=$('#faceState');if(st)st.textContent='Bu qurilmada kamera topilmadi yoki brauzer ruxsat bermayapti'}
  const fb=$('#faceBlink');if(fb)fb.onchange=()=>{const r=faceRec(me.username);if(r){faceSave(me.username,{...r,blink:fb.checked});toast(fb.checked?'Rasmga qarshi himoya yoqildi':'Tez rejim: yuz tanilishi bilan ochiladi')}};
  tg.onchange=()=>{if(tg.checked){tg.checked=false;faceIdEnableModal()}else{tg.checked=true;confirmModal('Bu qurilmada Face ID bilan kirish o‘chirilsinmi?','O‘chirish',()=>{faceIdRemove(me.username);toast('Face ID o‘chirildi');settingsModal()})}};
 }
 async function verifyPassword(pw){const email=auth?.currentUser?.email||accs().find(a=>a.nick===me.username)?.email||nickEmail(me.username);
  const r=await postJSON(`${IDTK}/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`,{email,password:pw,returnSecureToken:true},12000);if(r.localId&&r.localId!==me.id)throw{code:'auth/invalid-credential'};return{...r,email}}
 async function faceIdEnableModal(){
- const real=await faceSupported();if(!real&&!camSupported())return toast('Bu qurilmada na Face ID, na kamera topilmadi',6000);
- modal(`<h3>🙂 Face ID bilan kirish</h3><p class="mp">Yoqish uchun joriy parolingizni kiriting. Parol <b>faqat shu qurilmada</b> shifrlangan holda saqlanadi va faqat sizning yuzingiz (Face ID / barmoq izi) tasdiqlanganda ochiladi.</p><input class="field" id="fiPass" type="password" autocomplete="current-password" placeholder="Joriy parol"><div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="fiNext">Davom etish</button></div>`);
+ if(!camSupported())return toast('Bu qurilmada kamera topilmadi yoki brauzer kameraga ruxsat bermayapti',6000);
+ modal(`<h3>🙂 Face ID bilan kirish</h3><p class="mp">Bu Face ID <b>faqat Makktub ilovasining o‘zida</b> ishlaydi. Windows Hello, Google Password Manager, PIN yoki kompyuterga kirish sozlamalariga tegmaydi.<br><br>Yoqish uchun joriy Makktub parolingizni kiriting.</p><input class="field" id="fiPass" type="password" autocomplete="current-password" placeholder="Joriy parol"><div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="fiNext">Davom etish</button></div>`);
  $('#fiPass').focus();$('#fiPass').onkeydown=e=>{if(e.key==='Enter')$('#fiNext').click()};
  $('#fiNext').onclick=async e=>{const btn=e.currentTarget,pw=$('#fiPass').value;if(!pw)return toast('Parolni kiriting');busy(btn,true);
   try{await verifyPassword(pw)}catch(er){busy(btn,false);return toast(String(er?.code||'').includes('invalid')?'Parol noto‘g‘ri':errText(er),5000)}
-  // 2-qadam alohida tugma: iPhone Safari Face ID’ni faqat bevosita bosilganda ochadi.
-  modal(`<h3>🙂 Face ID bilan kirish</h3><p class="mp">Parol tasdiqlandi. Endi pastdagi tugmani bosing va Face ID (yoki barmoq izi) bilan tasdiqlang.</p><button type="button" class="fi-big" id="fiGo">${ic('face')}<span>Face ID’ni yoqish</span></button><div id="fiMsg" class="note" style="display:none"></div><div class="mact"><button class="btn flat" data-close>Bekor</button></div>`);
-  if(!real){
-   // Fayl rejimi (file://) yoki Windows Hello yo‘q: kamera orqali yuzni ro‘yxatga olamiz.
-   modal(`<h3>🙂 Face ID bilan kirish</h3><p class="mp">Parol tasdiqlandi. Bu rejimda yuzingiz <b>kamera orqali</b> tekshiriladi. Yuz rasmi saqlanmaydi va hech qayerga yuborilmaydi — faqat raqamli belgisi shu qurilmada qoladi.</p><button type="button" class="fi-big" id="fiCam">${ic('camera')}<span>Yuzni ro‘yxatga olish</span></button><div class="mact"><button class="btn flat" data-close>Bekor</button></div>`);
-   $('#fiCam').onclick=()=>faceCamRegister(pw);return}
-  $('#fiGo').onclick=()=>faceIdRegister(pw)}}
+  busy(btn,false);
+  modal(`<h3>🙂 Makktub Face ID</h3><p class="mp">Endi yuzingizni Makktub kamerasi orqali ro‘yxatga olamiz. Yuz rasmi saqlanmaydi — faqat yuzning raqamli belgisi shu brauzer/qurilmada qoladi.</p><button type="button" class="fi-big" id="fiCam">${ic('camera')}<span>Yuzni ro‘yxatga olish</span></button><div class="mact"><button class="btn flat" data-close>Bekor</button></div>`);
+  $('#fiCam').onclick=()=>faceCamRegister(pw)
+ }}
 async function faceCamRegister(pw){
  const nick=me.username;
  try{const faces=await faceCamEnroll();const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);await idb('readwrite',s=>s.put(key,'__faceid_'+norm(nick)));
@@ -3144,7 +3140,8 @@ async function faceIdRegister(pw){
  let key;if(out){rec.mode='prf';key=await prfKey(out)}else{key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);await idb('readwrite',s=>s.put(key,'__faceid_'+rec.nick))}
  await faceEncrypt(nick,pw,key,rec);closeModal();toast('✅ Face ID yoqildi. Endi kirishda “Face ID bilan kirish”ni bosing',5000);settingsModal()}
 async function faceIdUpdatePassword(nick,pw){const rec=faceRec(nick);if(!rec)return;
- try{let key;if(rec.mode==='prf')key=await faceKeyFor(rec,await faceAssert(rec,true));else key=await faceKeyFor(rec,null);await faceEncrypt(nick,pw,key,rec)}
+ if(rec.mode!=='cam'){faceIdRemove(nick);return}
+ try{const key=await faceKeyFor(rec,null);await faceEncrypt(nick,pw,key,rec)}
  catch(e){faceIdRemove(nick);toast('Parol o‘zgardi. Face ID’ni Sozlamalarda qayta yoqing',6000)}}
 function passwordModal(){
  modal(`<h3>🔒 Parolni o‘zgartirish</h3><label class="lb">Joriy parol</label><input class="field" id="pwOld" type="password" autocomplete="current-password"><label class="lb">Yangi parol</label><input class="field" id="pwNew" type="password" autocomplete="new-password" placeholder="Kamida 6 belgi"><label class="lb">Yangi parolni takrorlang</label><input class="field" id="pwNew2" type="password" autocomplete="new-password"><div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="pwSave">Saqlash</button></div>`);
