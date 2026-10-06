@@ -2406,7 +2406,7 @@ function jumpTo(mid){const m=findMsg(mid);if(!m||!vis(m,active.id))return toast(
 function pushMsg(cid,data){const c=conv(cid);if(!c||!canPost(c)){toast('Bu chatga yozib bo‘lmaydi');return Promise.reject()}
  // SDK ulanmagan bo‘lsa (masalan telefonda internet sekin) — REST orqali yuboramiz.
  const viaRest=!live&&restSendReady();if(!live&&!viaRest){toast(errText({code:'not-ready'}));return Promise.reject({code:'not-ready'})}
- const mid=viaRest?autoId():doc(collection(db,'chats',cid,'messages')).id;const m=clean({senderId:me.id,createdAt:srvNow(),type:'text',...data});if(c.type==='supergroup'&&!m.topicId)m.topicId='general';
+ const mid=viaRest?autoId():doc(collection(db,'chats',cid,'messages')).id;const m=clean({senderId:me.id,createdAt:srvNow(),type:'text',...data});if(c.type==='supergroup'&&!m.topicId)m.topicId=(active?.id===cid&&!forumHome?activeTopic:'general');
  const lm={id:mid,senderId:me.id,type:m.type,text:msgText(m).slice(0,200),at:m.createdAt};
  if(Array.isArray(m.visibleTo))lm.visibleTo=m.visibleTo;
  if(m.systemTest){lm.systemTest=m.systemTest;lm.testId=m.testId||'';lm.testAt=m.testAt||m.createdAt;if(m.fileId)lm.fileId=m.fileId;if(m.fileName)lm.fileName=m.fileName;if(m.mime)lm.mime=m.mime;if(m.fileSize!=null)lm.fileSize=m.fileSize}
