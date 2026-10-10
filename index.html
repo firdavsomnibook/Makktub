@@ -479,11 +479,6 @@ body{min-height:var(--app-vh)}
 #modal.face-light{background:#fff!important}#modal.face-light .mcard{background:#fff!important;color:#111!important;box-shadow:none!important;border-color:transparent!important}#modal.face-light .mp,#modal.face-light .cam-st{color:#111!important}
 .fi-big{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;padding:22px;border-radius:16px;background:var(--quote);color:var(--accent);font-weight:800;font-size:16px;margin-top:6px}.fi-big .i{width:64px;height:64px}
 .sticker-msg.duo{font-size:60px;white-space:nowrap;letter-spacing:-2px}.sticker-grid button.duo{font-size:26px;white-space:nowrap;letter-spacing:-1px}
-.offline-bar{display:flex;gap:8px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--bg2);font-size:12px;color:var(--muted)}
-.offline-bar>span{flex:1;min-width:0}.offline-bar button{color:var(--accent);font-weight:700;white-space:nowrap}.offline-bar.offline{background:#38280b;color:#ffe2a1}
-.offline-dot{width:8px;height:8px;background:var(--online);border-radius:50%;flex:none}.offline .offline-dot{background:#ffbe45}
-.off-summary{padding:14px;background:var(--bg2);border-radius:12px;margin:10px 0;line-height:1.6}.off-card{border:1px solid var(--line);padding:12px;border-radius:12px;margin:10px 0}.off-card h4{margin:0 0 6px;overflow-wrap:anywhere}.off-card small{display:block;color:var(--muted);line-height:1.5}.off-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.off-actions button{padding:7px 10px;font-size:13px}.off-status{margin-top:8px;font-size:13px;overflow-wrap:anywhere}.off-help{font-size:13px;color:var(--muted);line-height:1.6}.off-file{display:block;padding:10px;border-bottom:1px solid var(--line);width:100%;text-align:left;overflow-wrap:anywhere}.off-error{color:var(--danger)}.off-badge{font-size:11px;color:var(--online);display:block;margin:4px 0}.off-load{align-self:center;margin:8px;padding:8px 14px;border:1px solid var(--line);border-radius:20px;background:var(--bg);color:var(--accent)}
-
 </style>
 </head>
 <body>
@@ -571,7 +566,7 @@ body{min-height:var(--app-vh)}
       <div class="search-box"><span data-ic="search"></span><input id="search" placeholder="Qidirish" autocomplete="off"></div>
     </div>
     <div class="folders" id="folders"><button data-f="all" class="on">Hammasi</button><button data-f="direct">Shaxsiy</button><button data-f="group">Guruhlar</button><button data-f="channel">Kanallar</button></div>
-    <div class="offline-bar" id="offlineBar"><i class="offline-dot"></i><span id="offlineBarText">Saqlangan guruhlar</span><button type="button" id="offlineManage">Internetsiz ko‘rish</button></div><div class="list" id="list"></div>
+    <div class="list" id="list"></div>
     <button class="fab" id="fab" title="Yangi" data-ic="pencil"></button>
   </aside>
 
@@ -709,7 +704,7 @@ async function ensureFirebaseRuntime(){
  if(auth&&db&&window.firebase?.auth&&window.firebase?.firestore)return true;
  if(firebaseRuntimeP)return firebaseRuntimeP;
  firebaseRuntimeP=(async()=>{
-  if(navigator.onLine===false)throw{code:'unavailable'};await ensureFirebaseCompat();
+  await ensureFirebaseCompat();
   const F=window.firebase;
   const app=F.apps&&F.apps.length?F.app():F.initializeApp(firebaseConfig);fbAppRef=app;
   auth=F.auth(app);
@@ -1083,7 +1078,7 @@ async function startP2PFolderDownload(m){
     if(x.t==='cancel'){u.cancelled=true;toast('Yuboruvchi papka uzatishni bekor qildi');return}
     if(x.t==='file-start'){writeChain=writeChain.then(async()=>{if(currentWritable){await currentWritable.close().catch(()=>{});currentWritable=null}const fh=await folderFileHandle(root,x.path);currentWritable=await fh.createWritable({keepExistingData:false})});return}
     if(x.t==='file-end'){writeChain=writeChain.then(async()=>{if(currentWritable){await currentWritable.close();currentWritable=null}});return}
-    if(x.t==='done'){done=true;writeChain.then(async()=>{if(currentWritable){await currentWritable.close().catch(()=>{});currentWritable=null}await offlineSaveP2P(m,{handle:root,directory:true,size:written});u.done=u.size||written;renderUps(true);toast(`Tayyor: ${m.fileName||'Papka'} papkasi fayllari bilan to‘liq ko‘chirildi`,6500);await updateDoc(ref,{status:'done',updatedAt:srvNow()}).catch(()=>{})}).catch(e=>{console.error(e);toast('Papkani diskka yozishda xato',5000)});return}
+    if(x.t==='done'){done=true;writeChain.then(async()=>{if(currentWritable){await currentWritable.close().catch(()=>{});currentWritable=null}u.done=u.size||written;renderUps(true);toast(`Tayyor: ${m.fileName||'Papka'} papkasi fayllari bilan to‘liq ko‘chirildi`,6500);await updateDoc(ref,{status:'done',updatedAt:srvNow()}).catch(()=>{})}).catch(e=>{console.error(e);toast('Papkani diskka yozishda xato',5000)});return}
    }else{
     const buf=ev.data;writeChain=writeChain.then(async()=>{if(u.cancelled)return;if(!currentWritable)throw new Error('no-file');await currentWritable.write(new Uint8Array(buf));written+=buf.byteLength;u.done=written;renderUps();if(written-lastAck>=P2P_BATCH||written>=u.size){lastAck=written;dcSend(dc,JSON.stringify({t:'ack',offset:written}))}}).catch(e=>{u.cancelled=true;console.error(e);toast('Papkani yozishda xato',5000)})
    }
@@ -1119,13 +1114,13 @@ async function makeDownloadTarget(name,size){
 async function startP2PDownload(m){
  if(isP2PFolder(m))return startP2PFolderDownload({...m,p2pDir:true,p2pKind:'folder',p2pVersion:m.p2pVersion||2});
  if(!m?.p2pId)return;if(m.p2pSender===me.id||m.senderId===me.id)return toast('Bu katta fayl sizning qurilmangizda turibdi. Boshqa foydalanuvchi yuklab olishi mumkin.');
- const target=await offlineDownloadTarget(m);if(!target)return;
+ const target=await makeDownloadTarget(m.fileName||'fayl',m.fileSize||0);if(!target)return;
  const writable=target.writable,reqId=`${m.p2pId}_${me.id}_${srvNow().toString(36)}`;
  const ref=p2pRef(reqId),pc=new RTCPeerConnection(await getRtcConfig());p2pSessions.set(reqId,{pc,role:'recv'});let dc=null,remoteSet=false,pending=[],written=0,writeChain=Promise.resolve(),lastAck=0,done=false;const scSeen=new Set();
  const upid='recv_'+reqId,u={name:m.fileName||'fayl',size:m.fileSize||0,done:0,t0:srvNow(),dir:'down',cancelled:false,pc};ups.set(upid,u);renderUps(true);wake(true);
  pc.onicecandidate=e=>{if(e.candidate)updateDoc(ref,{receiverCandidates:arrayUnion(candJson(e.candidate))}).catch(()=>{})};
  pc.ondatachannel=e=>{dc=e.channel;u.dc=dc;dc.binaryType='arraybuffer';dc.onopen=()=>dcSend(dc,JSON.stringify({t:'ready',offset:0}));dc.onmessage=ev=>{
-   if(typeof ev.data==='string'){const x=parseJson(ev.data);if(x?.t==='cancel'){u.cancelled=true;toast('Yuboruvchi fayl uzatishni bekor qildi');return}if(x?.t==='done'){done=true;writeChain.then(async()=>{await target.finish();u.done=u.size||written;renderUps(true);toast('Katta fayl yuklab olindi va qurilmaga saqlandi');await updateDoc(ref,{status:'done',updatedAt:srvNow()}).catch(()=>{})}).catch(e=>toast('Faylni qurilmaga saqlab bo‘lmadi: '+offError(e),6500));return}}
+   if(typeof ev.data==='string'){const x=parseJson(ev.data);if(x?.t==='cancel'){u.cancelled=true;toast('Yuboruvchi fayl uzatishni bekor qildi');return}if(x?.t==='done'){done=true;writeChain.then(async()=>{await target.finish();u.done=u.size||written;renderUps(true);toast('Katta fayl yuklab olindi');await updateDoc(ref,{status:'done',updatedAt:srvNow()}).catch(()=>{})}).catch(()=>{});return}}
    else{const buf=ev.data;writeChain=writeChain.then(async()=>{if(u.cancelled)return;await writable.write(new Uint8Array(buf));written+=buf.byteLength;u.done=written;renderUps();if(written-lastAck>=P2P_BATCH||written>=u.size){lastAck=written;dcSend(dc,JSON.stringify({t:'ack',offset:written}))}})}}};
  const un=onSnapshot(ref,async sn=>{if(!sn.exists())return;const d=sn.data();try{
   if(d.status==='forbidden'){u.cancelled=true;toast('Bu faylni ochish yoki yuklab olish uchun sizga ruxsat berilmagan',6500);return}
@@ -1166,11 +1161,10 @@ function sniffMediaMime(blob){return blob.arrayBuffer().then(buf=>{const a=new U
  else if(a[0]===0x1a&&a[1]===0x45&&a[2]===0xdf&&a[3]===0xa3)mime='audio/webm';
  else if(a[4]===0x66&&a[5]===0x74&&a[6]===0x79&&a[7]===0x70)mime='audio/mp4';
  if(mime&&mime!==blob.type)return new Blob([buf],{type:mime});return blob}).catch(()=>blob)}
-function networkFileBlob(id,forceRemote=false){if(!id)return Promise.resolve(null);if(!forceRemote&&blobResolved.has(id))return Promise.resolve(blobResolved.get(id));
+function fileBlob(id,forceRemote=false){if(!id)return Promise.resolve(null);if(!forceRemote&&blobResolved.has(id))return Promise.resolve(blobResolved.get(id));
  if(forceRemote){blobResolved.delete(id);blobPending.delete(id)}
  if(!blobPending.has(id))blobPending.set(id,(forceRemote?Promise.resolve(null):cacheGet(id)).then(b=>b||fetchRemote(id)).then(async b=>{blobPending.delete(id);if(!b)return null;b=await sniffMediaMime(b);blobResolved.set(id,b);return b}).catch(e=>{blobPending.delete(id);console.warn('file blob load',id,e);return null}));
  return blobPending.get(id)}
-function fileBlob(id,forceRemote=false){if(!id)return Promise.resolve(null);return offFileRead(id).catch(()=>null).then(blob=>{if(blob)return blob;if(navigator.onLine===false)return cacheGet(id);return networkFileBlob(id,forceRemote)})}
 function fileUrl(id,forceRemote=false){if(!id)return Promise.resolve(null);if(!forceRemote&&resolved.has(id))return Promise.resolve(resolved.get(id));
  if(forceRemote){const old=resolved.get(id);if(old){try{URL.revokeObjectURL(old)}catch{};resolved.delete(id)}pending.delete(id)}
  if(!pending.has(id))pending.set(id,fileBlob(id,forceRemote).then(b=>{pending.delete(id);if(!b)return null;const u=URL.createObjectURL(b);resolved.set(id,u);return u}));return pending.get(id)}
@@ -1202,7 +1196,7 @@ function hydrate(root){if(!root)return;
  $$('[data-audio-fid]',root).forEach(el=>{const id=el.dataset.audioFid;el.removeAttribute('data-audio-fid');attachAudioBlob(el,id).then(ok=>{if(ok)return;const g=Object.assign(document.createElement('div'),{className:'gone',textContent:'Ovozli xabarni yuklab bo‘lmadi'});el.replaceWith(g)})});
  $$('[data-fid]',root).forEach(el=>{const id=el.dataset.fid;el.removeAttribute('data-fid');if(el.tagName==='AUDIO'){attachAudioBlob(el,id).then(ok=>{if(ok)return;const g=Object.assign(document.createElement('div'),{className:'gone',textContent:'Ovozli xabarni yuklab bo‘lmadi'});el.replaceWith(g)});return}let retried=false;
   const attach=u=>{if(!u)return false;el.src=u;if(el.tagName==='VIDEO'){try{el.load()}catch{};el.addEventListener('error',()=>{if(retried)return;retried=true;fileUrl(id,true).then(v=>{if(v){el.src=v;try{el.load()}catch{}}})},{once:true})}return true};
-  fileUrl(id).then(u=>{$$(`[data-pfid="${cssq(id)}"]`).forEach(x=>x.remove());if(attach(u))return;if(el.closest('.av,.avpick')){el.remove();return}const w=el.closest('.mwrap,.cell');const g=Object.assign(document.createElement('div'),{className:'gone',textContent:navigator.onLine===false?'Bu fayl hali qurilmaga saqlanmagan. Internetga ulanib saqlang.':'Faylni yuklab bo‘lmadi'});if(w)w.replaceChildren(g);else el.replaceWith(g)})});
+  fileUrl(id).then(u=>{$$(`[data-pfid="${cssq(id)}"]`).forEach(x=>x.remove());if(attach(u))return;if(el.closest('.av,.avpick')){el.remove();return}const w=el.closest('.mwrap,.cell');const g=Object.assign(document.createElement('div'),{className:'gone',textContent:'Faylni yuklab bo‘lmadi'});if(w)w.replaceChildren(g);else el.replaceWith(g)})});
  $$('[data-href]',root).forEach(el=>{const id=el.dataset.href;el.removeAttribute('data-href');el.classList.add('loading');fileUrl(id).then(u=>{el.classList.remove('loading');$$(`[data-pfid="${cssq(id)}"]`,el).forEach(x=>x.remove());if(u)el.href=u;else{el.classList.add('missing');el.removeAttribute('download');el.querySelector('small')?.append(' · topilmadi')}})})}
 async function shrink(file,max=320,q=.85){try{const bmp=await createImageBitmap(file);const k=Math.min(1,max/Math.max(bmp.width,bmp.height));const cv=document.createElement('canvas');cv.width=Math.round(bmp.width*k);cv.height=Math.round(bmp.height*k);cv.getContext('2d',{alpha:false}).drawImage(bmp,0,0,cv.width,cv.height);return cv.toDataURL('image/jpeg',q)}catch{return''}}
 const dataToBlob=async d=>(await fetch(d)).blob();
@@ -1252,7 +1246,7 @@ function cleanupNoteCapture(cancel=true){
 const normPrefs=d=>({pinned:[],muted:[],aliases:{},cleared:{},topicReads:{},myGifs:[],ringtone:{kind:'classic'},bg:null,...(d||{})});
 prefs=normPrefs();
 const prefsRef=()=>doc(db,'users',me.id,'private','prefs');
-function savePrefs(){offSessionSave();saveSnap();if(!live){if(restSendReady())restPatchFields(`users/${encodeURIComponent(me.id)}/private/prefs`,prefs,null,null).catch(()=>{});return}setDoc(prefsRef(),prefs).catch(fail)}
+function savePrefs(){saveSnap();if(!live){if(restSendReady())restPatchFields(`users/${encodeURIComponent(me.id)}/private/prefs`,prefs,null,null).catch(()=>{});return}setDoc(prefsRef(),prefs).catch(fail)}
 const chatRef=id=>doc(db,'chats',id);
 const msgRef=(cid,mid)=>doc(db,'chats',cid,'messages',mid);
 const online=u=>!!u&&srvNow()-(u.lastSeen||0)<80000;
@@ -1478,7 +1472,7 @@ function mergeServerMsgs(arr,replace,tail=false){
  if(replace)M=[...arr,...keepLocal];else{const mm=new Map(M.map(x=>[x.id,x]));for(const x of arr)mm.set(x.id,x);M=[...mm.values()]}
  M.sort((a,b)=>(Number(a.createdAt)||0)-(Number(b.createdAt)||0));
 }
-async function restLoadChatMessages(cid,mode='inc'){if(navigator.onLine===false)return;
+async function restLoadChatMessages(cid,mode='inc'){
  if(mode===true)mode='full';else if(mode===false)mode='inc';
  if(!cid||!me||restMsgBusy)return;
  if(live&&rtOk&&!REST_RECEIVE_GUARD&&mode!=='full')return;
@@ -1494,7 +1488,7 @@ async function restLoadChatMessages(cid,mode='inc'){if(navigator.onLine===false)
   if(gen!==restMsgLoadSeq||active?.id!==cid)return;
   if(mode==='inc'&&!arr.length)return;
   mergeServerMsgs(arr,mode==='full'&&!live,mode==='recent');
-  snapMsgs[cid]=M.filter(x=>!x._local).slice(-30);offAfterMessages(cid,M);renderMessages();renderPinbar();renderDraft();if(active?.type==='supergroup'&&forumHome)renderForumList();if(infoOpen)renderInfoTab();
+  snapMsgs[cid]=M.filter(x=>!x._local).slice(-30);renderMessages();renderPinbar();renderDraft();if(active?.type==='supergroup'&&forumHome)renderForumList();if(infoOpen)renderInfoTab();
   if(!live)restMarkRead();
  }catch(e){console.warn('REST message load',e)}finally{restMsgBusy=false}
 }
@@ -1518,10 +1512,10 @@ async function restEnsureUsers(chats){
  await Promise.allSettled(ids.map(id=>restAuthedDoc(`users/${encodeURIComponent(id)}`,token,6500).then(d=>{const u=fsRestDoc(d);if(u)U.set(id,u)}).finally(()=>restUserPending.delete(id))));
  if(me){renderList();if(active){const c=conv(active.id);if(c){active=c;renderHeader()}}saveUserDirectoryCache()}
 }
-async function restRefreshInbox(force=false){if(navigator.onLine===false)return;
+async function restRefreshInbox(force=false){
  if(!me||restInboxBusy)return;if(!force&&(!restNeedFast()||document.visibilityState!=='visible'))return;restInboxBusy=true;
  try{const token=await restReceiveToken();if(!token)return;const arr=await restInitialChats(me.id,token,9000);if(!me)return;
-  const n=new Map(arr.map(c=>[c.id,c])),toN=collectNotify(n);mergeChatsFromRest(n);renderList();offAfterChats();toN.forEach(([id,l])=>notify(id,l));restEnsureUsers(arr).catch(()=>{});
+  const n=new Map(arr.map(c=>[c.id,c])),toN=collectNotify(n);mergeChatsFromRest(n);renderList();toN.forEach(([id,l])=>notify(id,l));restEnsureUsers(arr).catch(()=>{});
   if(active){const c=conv(active.id);if(c){active=c;renderHeader();if(active.type==='supergroup'&&forumHome)renderForumList();if(!live)restMarkRead()}}}
  catch(e){console.warn('REST inbox refresh',e)}finally{restInboxBusy=false}
 }
@@ -1789,7 +1783,7 @@ $('#regForm').onsubmit=async e=>{
  }
 };
 function dropSnap(){try{const u=me?.id||LS.getItem(SNAP+'_last');if(u)LS.removeItem(SNAP+'_'+u);LS.removeItem(SNAP+'_last');SS.removeItem(SNAP+'_last');LS.removeItem('smsfb_session');LS.removeItem('smsfb_rt')}catch{}}
-async function switchAccount(){offRestoreSeq++;offJobs.clear();offSeen.clear();offMeta.clear();offProgress.clear();dropSnap();if(rec){rec.cancel=true;rec.mr.stop()}closeChat();stop();try{await signOut(auth)}catch{}showAuth()}
+async function switchAccount(){dropSnap();if(rec){rec.cancel=true;rec.mr.stop()}closeChat();stop();try{await signOut(auth)}catch{}showAuth()}
 function logout(){LS.setItem(ACCS,JSON.stringify(accs().filter(a=>a.nick!==me?.username)));switchAccount()}
 
 /* ---------- session ---------- */
@@ -1844,7 +1838,7 @@ async function start(fu){if(live&&me?.id===fu.uid)return;const warm=me?.id===fu.
  unsubs.push(onSnapshot(doc(db,'users',uid),s=>{
   if(s.exists()){me={id:s.id,...s.data()};U.set(uid,me);rememberAcc();try{LS.removeItem('sms_pending_profile')}catch{}}
   else{if(me)U.set(uid,me);try{const q=JSON.parse(LS.getItem('sms_pending_profile')||'null');if(q&&q.uid===uid)authRetry(()=>ensureOwnProfile({uid},q.nick,q.dn,q.email),5).then(()=>LS.removeItem('sms_pending_profile')).catch(()=>{})}catch{}}
-  offSessionSave();renderList();refreshActive();saveSnap()},fail));
+  renderList();refreshActive();saveSnap()},fail));
  // includeMetadataChanges: realtime serverga ulanganini (fromCache=false) bilish uchun. Uzilsa REST zaxira yoqiladi.
  unsubs.push(db.collection('chats').where('members','array-contains',uid).onSnapshot({includeMetadataChanges:true},s=>{rtOk=!s.metadata.fromCache;if(!firstChats&&!s.docChanges().length)return;onChats(s)},fail));
  unsubs.push(onSnapshot(doc(db,'memberSignals',uid),s=>{if(!s.exists())return;const x=s.data()||{},cid=x.chatId;if(cid)forceLoadJoinedChat(cid).finally(()=>deleteDoc(doc(db,'memberSignals',uid)).catch(()=>{}))},e=>console.warn('member signal listen',e)));
@@ -1853,16 +1847,16 @@ async function start(fu){if(live&&me?.id===fu.uid)return;const warm=me?.id===fu.
  listenIncomingCalls(uid);
  setTimeout(()=>preloadKnownUsers().catch(()=>{}),100);setTimeout(()=>refreshJoinedChats(),100);
  try{LS.setItem('smsfb_session','1');if(fu.refreshToken)LS.setItem('smsfb_rt',JSON.stringify({uid,rt:fu.refreshToken}))}catch{}
- offLoadMeta().catch(offReport);offSessionSave();if(warm){updSendBtn();refreshActive()}else showShell();offBar();beat();syncServerClock().finally(beat);startRestInboxPolling();if(active?.id&&!active.virtual)startRestMessagePolling(active.id);setTimeout(()=>{if(hasTurn())getRtcConfig().catch(()=>{})},3000)}
+ if(warm){updSendBtn();refreshActive()}else showShell();beat();syncServerClock().finally(beat);startRestInboxPolling();if(active?.id&&!active.virtual)startRestMessagePolling(active.id);setTimeout(()=>{if(hasTurn())getRtcConfig().catch(()=>{})},3000)}
 function onChats(s){const n=new Map();s.forEach(d=>n.set(d.id,{id:d.id,...d.data()}));
- const toN=collectNotify(n);C=n;offAfterChats();syncChatUsers();handleDeviceTestSignals(n).catch(e=>console.warn('device test signal',e));renderList();refreshActive();saveSnap();toN.forEach(([id,l])=>notify(id,l))}
+ const toN=collectNotify(n);C=n;syncChatUsers();handleDeviceTestSignals(n).catch(e=>console.warn('device test signal',e));renderList();refreshActive();saveSnap();toN.forEach(([id,l])=>notify(id,l))}
 function notify(id,l){const c=conv(id);if(!c)return;const n=$('#ntf');n.innerHTML=`${convAvatar(c,'xs')}<div class="rmain"><b>${esc(c.title)}</b><div class="sub">${esc(preview(c))}</div></div>`;n.classList.remove('hidden');n.onclick=()=>{n.classList.add('hidden');openChat(id)};clearTimeout(n._t);n._t=setTimeout(()=>n.classList.add('hidden'),4500);
  if(document.visibilityState!=='visible'&&'Notification'in window&&Notification.permission==='granted'){try{new Notification(c.title,{body:preview(c)})}catch{}}}
-function beat(){if(!me||navigator.onLine===false)return;if(live)updateDoc(doc(db,'users',me.id),{lastSeen:srvNow()}).catch(()=>{});else if(restSendReady())restPatchFields(`users/${encodeURIComponent(me.id)}`,{lastSeen:srvNow()},null,['lastSeen'],true).catch(()=>{})}
+function beat(){if(!me)return;if(live)updateDoc(doc(db,'users',me.id),{lastSeen:srvNow()}).catch(()=>{});else if(restSendReady())restPatchFields(`users/${encodeURIComponent(me.id)}`,{lastSeen:srvNow()},null,['lastSeen'],true).catch(()=>{})}
 let authObserverBound=false;
 function bindAuthObserver(){
  if(authObserverBound||!auth)return;authObserverBound=true;
- onAuthStateChanged(auth,u=>{window.__booted=true;$('#bootHelp')?.classList.add('hidden');if(registering||loggingIn)return;if(u)start(u);else if(!pendingReg){if(navigator.onLine===false&&LS.getItem('smsfb_session')){offRestore();return}dropSnap();stop();showAuth()}});
+ onAuthStateChanged(auth,u=>{window.__booted=true;$('#bootHelp')?.classList.add('hidden');if(registering||loggingIn)return;if(u)start(u);else if(!pendingReg){dropSnap();stop();showAuth()}});
 }
 ready.then(bindAuthObserver).catch(()=>{});
 
@@ -2362,8 +2356,8 @@ $('#callFlip').onclick=async()=>{const s=callSession;if(!s||s.type!=='video')ret
  }catch{toast('Boshqa kamera topilmadi')}};
 
 /* ---------- open chat ---------- */
-function subscribeMsgs(cid){if(!live||navigator.onLine===false)return;unsubMsgs?.();msgsFor=cid;if(!M.length&&snapMsgs[cid])M=[...snapMsgs[cid]];
- unsubMsgs=onSnapshot(query(collection(db,'chats',cid,'messages'),orderBy('createdAt'),limitToLast(400)),s=>{if(msgsFor!==cid)return;M=s.docs.map(d=>({id:d.id,...d.data()}));keepMsgs(cid);offAfterMessages(cid,M);renderMessages();renderPinbar();renderDraft();markRead();if(infoOpen)renderInfoTab()},e=>{if(msgsFor!==cid)return;if(!String(e?.code).includes('permission'))fail(e)})}
+function subscribeMsgs(cid){if(!live)return;unsubMsgs?.();msgsFor=cid;if(!M.length&&snapMsgs[cid])M=[...snapMsgs[cid]];
+ unsubMsgs=onSnapshot(query(collection(db,'chats',cid,'messages'),orderBy('createdAt'),limitToLast(400)),s=>{if(msgsFor!==cid)return;M=s.docs.map(d=>({id:d.id,...d.data()}));keepMsgs(cid);renderMessages();renderPinbar();renderDraft();markRead();if(infoOpen)renderInfoTab()},e=>{if(msgsFor!==cid)return;if(!String(e?.code).includes('permission'))fail(e)})}
 function topicList(c=active){const a=c?.topics?.length?[...c.topics]:[{id:'general',title:'Umumiy',icon:'💬'}];if(!a.some(t=>t.id==='general'))a.unshift({id:'general',title:'Umumiy',icon:'💬'});return a}
 function topicDef(id,c=active){return topicList(c).find(t=>t.id===id)||topicList(c)[0]}
 const topicReadAt=(cid,tid)=>prefs?.topicReads?.[cid]?.[tid]||0;
@@ -2382,7 +2376,7 @@ function openChat(id){const c=conv(id);if(!c)return;
  active=c;if(changed)forumHome=c.type==='supergroup';if(!c.virtual&&!creating.has(id)){if(live&&(msgsFor!==id||!unsubMsgs))subscribeMsgs(id);startRestMessagePolling(id)}
  $('#empty').classList.add('hidden');$('#chatview').classList.remove('hidden');$('#chat').classList.add('open');
  applyForumMode();renderHeader();renderPinbar();renderTopics();renderComposer();renderMessages(true);if(!forumHome)markRead();else renderForumList();renderList();if(infoOpen)renderInfo();
- offOpenChat(id);if(innerWidth>760&&canPost(c)&&!forumHome&&navigator.onLine!==false)$('#msgInput').focus()}
+ if(innerWidth>760&&canPost(c)&&!forumHome)$('#msgInput').focus()}
 function refreshActive(){if(!active||!me)return;const c=conv(active.id);if(!c||!isMember(c)){toast('Siz bu chatdan chiqarildingiz');closeChat();return}active=c;
  if(!c.virtual&&!creating.has(c.id)){if(live&&(msgsFor!==c.id||!unsubMsgs))subscribeMsgs(c.id);startRestMessagePolling(c.id)}applyForumMode();renderHeader();renderPinbar();renderTopics();renderComposer();renderMessages();if(!forumHome)markRead();else renderForumList();if(infoOpen)renderInfo()}
 function closeChat(){if(voiceNow)stopVoice(false);unsubMsgs?.();unsubMsgs=null;stopRestMessagePolling();msgsFor=null;M=[];active=null;activeTopic='general';forumHome=false;draft=null;infoOpen=false;$('#info').classList.add('hidden');$('#forumView').classList.add('hidden');$('#msgs').classList.remove('hidden');$('#composerWrap').classList.remove('hidden');$('#back').classList.remove('forum-back');$('#chatview').classList.add('hidden');$('#empty').classList.remove('hidden');$('#chat').classList.remove('open');closeEmoji();closeStickers();renderList()}
@@ -2397,7 +2391,7 @@ function renderHeader(){if(!active)return;const c=active,st=$('#cstatus'),inTopi
 function renderPinbar(){const bar=$('#pinbar'),c=active;if(c?.type==='supergroup'&&forumHome){bar.classList.add('hidden');return}if(!c?.pinned){bar.classList.add('hidden');return}const m=findMsg(c.pinned);if(m&&!vis(m,c.id)){bar.classList.add('hidden');return}
  bar.classList.remove('hidden');bar.dataset.mid=c.pinned;$('#pintext').textContent=m?msgText(m):(c.pinnedText||'');$('#pinx').classList.toggle('hidden',!canPin(c))}
 function renderTopics(){applyForumMode()}
-function renderComposer(){const c=active,box=$('#composer'),ro=$('#cro');if(navigator.onLine===false){box.classList.add('hidden');ro.classList.remove('hidden');ro.textContent='Internetsiz ko‘rish · yozish uchun internetga ulaning';ro.onclick=offlineModal;return}if(c?.type==='supergroup'&&forumHome){$('#composerWrap').classList.add('hidden');return}$('#composerWrap').classList.remove('hidden');
+function renderComposer(){const c=active,box=$('#composer'),ro=$('#cro');if(c?.type==='supergroup'&&forumHome){$('#composerWrap').classList.add('hidden');return}$('#composerWrap').classList.remove('hidden');
  if(!canPost(c)){box.classList.add('hidden');ro.classList.remove('hidden');const rr=restriction(c);
   if(rr){ro.textContent=rr.until===0?'Administrator sizga yozishni cheklagan':`Yozish ${new Date(rr.until).toLocaleString('uz-UZ')} gacha cheklangan`;ro.onclick=null}
   else{ro.textContent=prefs.muted.includes(c.id)?'Ovozni yoqish':'Ovozni o‘chirish';ro.onclick=()=>toggleMute(c.id)}return}
@@ -2436,14 +2430,14 @@ function msgHtml(m,c,q){if(m.type==='service')return`<div class="svc">${esc(m.bo
 function renderMessages(toBottom=false){if(!active)return;const c=active,box=$('#msgs');if(c.type==='supergroup'&&forumHome){renderForumList();return}
  let arr=M.filter(m=>vis(m,c.id)&&msgVisibleToMe(m)&&(c.type!=='supergroup'||(m.topicId||'general')===activeTopic));
  const q=chatQuery.trim();if(q){const lq=q.toLowerCase();arr=arr.filter(m=>m.type!=='service'&&((m.body||'')+' '+(m.fileName||'')).toLowerCase().includes(lq))}
- if(navigator.onLine===false&&offViewCid===c.id)arr=arr.slice(-offViewLimit);const sig=[c.id,activeTopic,q,JSON.stringify(prefs.aliases),arr.map(m=>user(m.senderId)?.displayName||'').join(),arr.map(m=>m.id+(m.edited||'')+JSON.stringify(m.reactions||{})+(m.senderId===me.id?readBy(m,c):'')+(m.body||'')).join()].join('|');
+ const sig=[c.id,activeTopic,q,JSON.stringify(prefs.aliases),arr.map(m=>user(m.senderId)?.displayName||'').join(),arr.map(m=>m.id+(m.edited||'')+JSON.stringify(m.reactions||{})+(m.senderId===me.id?readBy(m,c):'')+(m.body||'')).join()].join('|');
  if(sig===lastSig&&!toBottom)return;lastSig=sig;
  const prevTop=box.scrollTop;let h='',prev=null;
  for(const m of arr){if(!prev||!sameDay(prev.createdAt,m.createdAt))h+=`<div class="day">${dayLabel(m.createdAt)}</div>`;h+=msgHtml(m,c,q);prev=m}
  if(!arr.length)h=`<div class="nomsg">${q?'Hech narsa topilmadi':c.type==='saved'?'Bu yerga xabar, rasm va fayllarni saqlab qo‘ying.<br>Ular faqat sizga ko‘rinadi.':(!c.virtual&&msgsFor&&!M.length&&c.lastMsg)?'Yuklanmoqda…':'Hali xabar yo‘q.<br>Birinchi bo‘lib yozing!'}</div>`;
  $('#msgsIn').innerHTML=h;hydrate($('#msgsIn'));
- if(toBottom)stick=true;box.scrollTop=stick?box.scrollHeight:prevTop;$('#tobottom').classList.toggle('hidden',stick);offMoreButton()}
-function markRead(){if(navigator.onLine===false)return;const c=active;if(!live){restMarkRead();return}if(!c||c.virtual||!me||document.visibilityState!=='visible'||(c.type==='supergroup'&&forumHome))return;if(c.type==='supergroup'){const a=topicMessages(activeTopic),tl=a.at(-1)?.createdAt||0;if(tl>topicReadAt(c.id,activeTopic))setTopicRead(c.id,activeTopic,Math.max(srvNow(),tl))}const l=c.lastMsg,myR=c.reads?.[me.id]||0,un=c.unread?.[me.id]||0;
+ if(toBottom)stick=true;box.scrollTop=stick?box.scrollHeight:prevTop;$('#tobottom').classList.toggle('hidden',stick)}
+function markRead(){const c=active;if(!live){restMarkRead();return}if(!c||c.virtual||!me||document.visibilityState!=='visible'||(c.type==='supergroup'&&forumHome))return;if(c.type==='supergroup'){const a=topicMessages(activeTopic),tl=a.at(-1)?.createdAt||0;if(tl>topicReadAt(c.id,activeTopic))setTopicRead(c.id,activeTopic,Math.max(srvNow(),tl))}const l=c.lastMsg,myR=c.reads?.[me.id]||0,un=c.unread?.[me.id]||0;
  if(!un&&(!l||myR>=l.at))return;const k=c.id+':'+(l?.at||0)+':'+un;if(markKey===k)return;markKey=k;
  updateDoc(chatRef(c.id),{[`reads.${me.id}`]:Math.max(srvNow(),l?.at||0),[`unread.${me.id}`]:0}).catch(e=>{markKey='';fail(e)})}
 function jumpTo(mid){const m=findMsg(mid);if(!m||!vis(m,active.id))return toast('Xabar topilmadi');
@@ -2452,7 +2446,7 @@ function jumpTo(mid){const m=findMsg(mid);if(!m||!vis(m,active.id))return toast(
  renderMessages(true);stick=false;const el=$(`#msgsIn [data-mid="${cssq(mid)}"]`);if(el){el.scrollIntoView({block:'center'});el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash')}}
 
 /* ---------- sending ---------- */
-function pushMsg(cid,data){if(navigator.onLine===false){toast('Xabar yuborish uchun internetga ulaning.');return Promise.reject({code:'unavailable'})}const c=conv(cid);if(!c||!canPost(c)){toast('Bu chatga yozib bo‘lmaydi');return Promise.reject()}
+function pushMsg(cid,data){const c=conv(cid);if(!c||!canPost(c)){toast('Bu chatga yozib bo‘lmaydi');return Promise.reject()}
  // SDK ulanmagan bo‘lsa (masalan telefonda internet sekin) — REST orqali yuboramiz.
  const viaRest=!live&&restSendReady();if(!live&&!viaRest){toast(errText({code:'not-ready'}));return Promise.reject({code:'not-ready'})}
  const mid=viaRest?autoId():doc(collection(db,'chats',cid,'messages')).id;const m=clean({senderId:me.id,createdAt:srvNow(),type:'text',...data});if(c.type==='supergroup'&&!m.topicId)m.topicId=(active?.id===cid&&!forumHome?activeTopic:'general');
@@ -2653,8 +2647,8 @@ async function sendSavedGif(g){
 }
 function gifLibraryModal(){
  closeStickers();if(!active||!canPost(active))return toast('Avval yozish mumkin bo‘lgan chatni oching');
- modal(`<div class="gif-lib-head"><b>Makktub GIFlar</b><small>600 + MENING GIFLARIM</small></div><div class="gif-lib-cats" id="gifLibCats"></div><div class="gif-lib-grid" id="gifLibGrid"></div><div class="mact"><button class="btn flat" data-close>Yopish</button><button class="btn" id="gifCustom">🪄 GIF ustaxonasi</button></div>`);
- const draw=()=>{const cats=$('#gifLibCats'),grid=$('#gifLibGrid');if(!cats||!grid)return;const cc=[['mine','⭐ Mening GIFlarim'],...GIF_CATS.map((x,i)=>[String(i),x])];cats.innerHTML=cc.map(([k,x])=>`<button data-gcat="${k}" class="${String(gifLibCat)===k?'on':''}">${esc(x)}</button>`).join('');if(gifLibCat==='mine'){const mine=myGifList();grid.innerHTML=mine.length?mine.map(myGifTile).join(''):'<div class="gif-mine-empty">Hali saqlangan GIF yo‘q.<br><b>GIF ustaxonasi</b>da bir marta yarating — keyin shu yerda doim turadi.</div>';hydrate(grid)}else{grid.innerHTML=GIF_PRESETS.filter(x=>x.cat===Number(gifLibCat)).map(gifPresetTile).join('')}grid.scrollTop=0};
+ modal(`<div class="gif-lib-head"><b>Makktub GIFlar</b><small>600 + MENING GIFLARIM</small></div><div class="gif-lib-cats" id="gifLibCats"></div><div class="gif-lib-grid" id="gifLibGrid"></div><div class="mact"><button class="btn flat" data-close>Yopish</button><button class="btn" id="gifCustom">🪄 GIF Studio</button></div>`);
+ const draw=()=>{const cats=$('#gifLibCats'),grid=$('#gifLibGrid');if(!cats||!grid)return;const cc=[['mine','⭐ Mening GIFlarim'],...GIF_CATS.map((x,i)=>[String(i),x])];cats.innerHTML=cc.map(([k,x])=>`<button data-gcat="${k}" class="${String(gifLibCat)===k?'on':''}">${esc(x)}</button>`).join('');if(gifLibCat==='mine'){const mine=myGifList();grid.innerHTML=mine.length?mine.map(myGifTile).join(''):'<div class="gif-mine-empty">Hali saqlangan GIF yo‘q.<br><b>GIF Studio</b>da bir marta yarating — keyin shu yerda doim turadi.</div>';hydrate(grid)}else{grid.innerHTML=GIF_PRESETS.filter(x=>x.cat===Number(gifLibCat)).map(gifPresetTile).join('')}grid.scrollTop=0};
  draw();
  $('#gifLibCats').onclick=e=>{e.stopPropagation();const b=e.target.closest('[data-gcat]');if(!b)return;gifLibCat=b.dataset.gcat==='mine'?'mine':Number(b.dataset.gcat);draw()};
  $('#gifLibGrid').onclick=async e=>{const del=e.target.closest('[data-mygif-del]');if(del){e.stopPropagation();await removeMyGif(del.dataset.mygifDel);draw();toast('GIF ro‘yxatdan olib tashlandi');return}const mg=e.target.closest('[data-mygif]');if(mg){const g=myGifList().find(x=>x.fileId===mg.dataset.mygif);if(g){mg.disabled=true;try{await sendSavedGif(g)}finally{mg.disabled=false}}return}const b=e.target.closest('[data-gifpreset]');if(!b)return;const p=GIF_MAP.get(b.dataset.gifpreset);if(!p)return;b.disabled=true;try{await sendBuiltInGif(p)}finally{b.disabled=false}};
@@ -2723,7 +2717,7 @@ function drawGifStudioFrame(ctx,img,size,t,v){ctx.save();ctx.clearRect(0,0,size,
 async function gifBlobSize(blob){const b=new Uint8Array(await blob.slice(0,10).arrayBuffer());if(b.length<10||String.fromCharCode(...b.slice(0,3))!=='GIF')return null;return{w:b[6]|(b[7]<<8),h:b[8]|(b[9]<<8)}}
 async function gifMakerModal(){
  closeStickers();if(!active||!canPost(active))return toast('Avval yozish mumkin bo‘lgan chatni oching');
- modal(`<h3>🪄 GIF ustaxonasi</h3><div class="gif-preview"><canvas id="gifCanvas" width="560" height="560"></canvas></div><div class="gif-studio-grid" style="margin-top:10px"><div class="wide"><label class="lb" style="margin-top:0">Rasm</label><input class="field" id="gifFile" type="file" accept="image/*"></div><div class="wide"><label class="lb">Prompt — GIF qanday bo‘lishini yozing</label><textarea class="field gif-prompt" id="gifPrompt" placeholder="Masalan: mototsiklni o‘ngga qiyshaytir, sekin tebransin, tepaga qizil rangda SALOM yoz, yumaloq shakl qil"></textarea><button class="btn flat sm" id="gifPromptApply" type="button">✨ Promptni qo‘llash</button><div class="gif-prompt-status" id="gifPromptStatus">Prompt ichidagi barcha topilgan buyruqlar birga qo‘llanadi.</div></div><div class="wide"><label class="lb">GIF ustidagi matn</label><input class="field" id="gifText" maxlength="100" placeholder="Masalan: SALOM"></div><div class="gif-color-row wide"><label class="gif-color">Matn rangi <input type="color" id="gifTextColor" value="#ffffff"></label><label class="gif-color">Chegara rangi <input type="color" id="gifStrokeColor" value="#111111"></label></div><label class="gif-color wide">Fon rangi <input type="color" id="gifBgColor" value="#111111"></label><select class="field" id="gifTextPos"><option value="top">Matn: yuqorida</option><option value="middle">Matn: o‘rtada</option><option value="bottom" selected>Matn: pastda</option></select><select class="field" id="gifFit"><option value="cover" selected>1:1 — kvadratni to‘ldir</option><option value="contain">1:1 — rasmni to‘liq sig‘dir</option><option value="stretch">1:1 — cho‘zib to‘ldir</option></select><select class="field" id="gifShape"><option value="none">Shakl: oddiy</option><option value="rounded">Yumaloq kvadrat</option><option value="circle">Doira</option><option value="diamond">Romb</option><option value="heart">Yurak</option></select><select class="field" id="gifFx"><option value="none">Rang: oddiy</option><option value="grayscale(1)">Qora-oq</option><option value="sepia(1)">Sepiya</option><option value="contrast(1.4) saturate(1.6)">Yorqin</option><option value="hue-rotate(90deg) saturate(1.5)">Neon</option></select><select class="field" id="gifMove"><option value="zoom">Zoom</option><option value="pulse">Pulse</option><option value="bounce">Sakrash</option><option value="spin">Aylanish</option><option value="shake">Silkinish</option><option value="float">Suzish</option><option value="swing">Tebranish</option></select><div class="wide gif-range"><span>Aylantirish</span><input id="gifRotate" type="range" min="-180" max="180" value="0"><output id="gifRotateOut">0°</output></div><div class="wide gif-range"><span>Qiyshayish</span><input id="gifSkew" type="range" min="-45" max="45" value="0"><output id="gifSkewOut">0°</output></div><div class="wide gif-range"><span>O‘lcham</span><input id="gifScale" type="range" min="55" max="160" value="100"><output id="gifScaleOut">100%</output></div><div class="wide gif-range"><span>Matn hajmi</span><input id="gifTextSize" type="range" min="26" max="96" value="52"><output id="gifTextSizeOut">52</output></div><label class="check-row wide"><input type="checkbox" id="gifMirror"><span>Rasmni gorizontal ag‘darish</span></label></div><div class="mact" style="flex-wrap:wrap"><button class="btn flat" data-close>Bekor</button><button class="btn" id="gifGo">Yaratish + Mening GIFlarimga saqlash + yuborish</button></div>`);
+ modal(`<h3>🪄 GIF Studio</h3><div class="gif-preview"><canvas id="gifCanvas" width="560" height="560"></canvas></div><div class="gif-studio-grid" style="margin-top:10px"><div class="wide"><label class="lb" style="margin-top:0">Rasm</label><input class="field" id="gifFile" type="file" accept="image/*"></div><div class="wide"><label class="lb">Prompt — GIF qanday bo‘lishini yozing</label><textarea class="field gif-prompt" id="gifPrompt" placeholder="Masalan: mototsiklni o‘ngga qiyshaytir, sekin tebransin, tepaga qizil rangda SALOM yoz, yumaloq shakl qil"></textarea><button class="btn flat sm" id="gifPromptApply" type="button">✨ Promptni qo‘llash</button><div class="gif-prompt-status" id="gifPromptStatus">Prompt ichidagi barcha topilgan buyruqlar birga qo‘llanadi.</div></div><div class="wide"><label class="lb">GIF ustidagi matn</label><input class="field" id="gifText" maxlength="100" placeholder="Masalan: SALOM"></div><div class="gif-color-row wide"><label class="gif-color">Matn rangi <input type="color" id="gifTextColor" value="#ffffff"></label><label class="gif-color">Chegara rangi <input type="color" id="gifStrokeColor" value="#111111"></label></div><label class="gif-color wide">Fon rangi <input type="color" id="gifBgColor" value="#111111"></label><select class="field" id="gifTextPos"><option value="top">Matn: yuqorida</option><option value="middle">Matn: o‘rtada</option><option value="bottom" selected>Matn: pastda</option></select><select class="field" id="gifFit"><option value="cover" selected>1:1 — kvadratni to‘ldir</option><option value="contain">1:1 — rasmni to‘liq sig‘dir</option><option value="stretch">1:1 — cho‘zib to‘ldir</option></select><select class="field" id="gifShape"><option value="none">Shakl: oddiy</option><option value="rounded">Yumaloq kvadrat</option><option value="circle">Doira</option><option value="diamond">Romb</option><option value="heart">Yurak</option></select><select class="field" id="gifFx"><option value="none">Rang: oddiy</option><option value="grayscale(1)">Qora-oq</option><option value="sepia(1)">Sepiya</option><option value="contrast(1.4) saturate(1.6)">Yorqin</option><option value="hue-rotate(90deg) saturate(1.5)">Neon</option></select><select class="field" id="gifMove"><option value="zoom">Zoom</option><option value="pulse">Pulse</option><option value="bounce">Sakrash</option><option value="spin">Aylanish</option><option value="shake">Silkinish</option><option value="float">Suzish</option><option value="swing">Tebranish</option></select><div class="wide gif-range"><span>Aylantirish</span><input id="gifRotate" type="range" min="-180" max="180" value="0"><output id="gifRotateOut">0°</output></div><div class="wide gif-range"><span>Qiyshayish</span><input id="gifSkew" type="range" min="-45" max="45" value="0"><output id="gifSkewOut">0°</output></div><div class="wide gif-range"><span>O‘lcham</span><input id="gifScale" type="range" min="55" max="160" value="100"><output id="gifScaleOut">100%</output></div><div class="wide gif-range"><span>Matn hajmi</span><input id="gifTextSize" type="range" min="26" max="96" value="52"><output id="gifTextSizeOut">52</output></div><label class="check-row wide"><input type="checkbox" id="gifMirror"><span>Rasmni gorizontal ag‘darish</span></label></div><div class="mact" style="flex-wrap:wrap"><button class="btn flat" data-close>Bekor</button><button class="btn" id="gifGo">Yaratish + Mening GIFlarimga saqlash + yuborish</button></div>`);
  let file=null,img=null,phase=0;const cv=$('#gifCanvas'),ctx=cv.getContext('2d',{alpha:false});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
  const syncOut=()=>{$('#gifRotateOut').value=$('#gifRotate').value+'°';$('#gifSkewOut').value=$('#gifSkew').value+'°';$('#gifScaleOut').value=$('#gifScale').value+'%';$('#gifTextSizeOut').value=$('#gifTextSize').value};
  const preview=()=>{syncOut();ctx.clearRect(0,0,560,560);ctx.fillStyle='#202124';ctx.fillRect(0,0,560,560);if(img)drawGifStudioFrame(ctx,img,560,phase,gifStudioValues());else{ctx.fillStyle='#bbb';ctx.textAlign='center';ctx.font='24px Arial';ctx.fillText('Rasm tanlang',280,280)}};
@@ -2782,7 +2776,7 @@ function msgMenu(x,y,mid){const m=findMsg(mid);if(!m||m.type==='service'||!activ
  it.push(['trash','O‘chirish',()=>deleteModal(m),'red']);
  showMenu(x,y,it,m)}
 function copyText(t){(navigator.clipboard?.writeText(t)||Promise.reject()).then(()=>toast('Nusxa olindi')).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();toast('Nusxa olindi')})}
-async function download(m){if(!canOpenAttachment(m))return toast('Bu faylni ochish yoki yuklab olish uchun sizga ruxsat berilmagan',6000);if(m.p2pId){if(await offTryP2P(m))return;if(navigator.onLine===false)return toast('Bu katta fayl hali qurilmaga saqlanmagan. Internet borida to‘liq yuklab oling.',6000);try{return await startP2PDownload(m)}catch(e){return toast(errText(e),6000)}}if(m.url){const a=document.createElement('a');a.href=m.url;a.target='_blank';a.rel='noopener';a.download=m.fileName||'fayl';document.body.appendChild(a);a.click();a.remove();return}toast('Yuklanmoqda…');const u=await fileUrl(m.fileId);if(!u)return toast('Faylni yuklab bo‘lmadi');const a=document.createElement('a');a.href=u;a.download=m.fileName||'fayl';document.body.appendChild(a);a.click();a.remove()}
+async function download(m){if(!canOpenAttachment(m))return toast('Bu faylni ochish yoki yuklab olish uchun sizga ruxsat berilmagan',6000);if(m.p2pId){try{return await startP2PDownload(m)}catch(e){return toast(errText(e),6000)}}if(m.url){const a=document.createElement('a');a.href=m.url;a.target='_blank';a.rel='noopener';a.download=m.fileName||'fayl';document.body.appendChild(a);a.click();a.remove();return}toast('Yuklanmoqda…');const u=await fileUrl(m.fileId);if(!u)return toast('Faylni yuklab bo‘lmadi');const a=document.createElement('a');a.href=u;a.download=m.fileName||'fayl';document.body.appendChild(a);a.click();a.remove()}
 function toggleReact(mid,e){const m=findMsg(mid);if(!m||!active)return;const cur=m.reactions?.[me.id];updateDoc(msgRef(active.id,mid),{[`reactions.${me.id}`]:cur===e?deleteField():e}).catch(fail)}
 function togglePin(m){const c=active;if(c.pinned===m.id)updateDoc(chatRef(c.id),{pinned:deleteField(),pinnedText:deleteField()}).catch(fail);
  else{updateDoc(chatRef(c.id),{pinned:m.id,pinnedText:msgText(m).slice(0,200)}).catch(fail);if(isGroup(c)&&c.type!=='channel')pushMsg(c.id,{type:'service',body:`${me.displayName} xabarni qadadi`}).catch(()=>{})}}
@@ -2876,7 +2870,7 @@ function newTopicModal(){
 
 /* ---------- side menus ---------- */
 $('#burger').onclick=e=>{const r=e.currentTarget.getBoundingClientRect(),dark=document.documentElement.dataset.theme==='dark';
- showMenu(r.left,r.bottom+4,[['download','Internetsiz ko‘rish',offlineModal],['gear','Sozlamalar',settingsModal],['bookmark','Saqlangan xabarlar',()=>openChat(sId(me.id))],['users','Yangi guruh',()=>newGroupModal('group')],['hash','Yangi super guruh',()=>newGroupModal('supergroup')],['megaphone','Yangi kanal',()=>newGroupModal('channel')],['image','Chat foni',bgModal],['music','Qo‘ng‘iroq ringtoni',ringtoneModal],['phone','Qo‘ng‘iroq serveri (TURN)',turnModal],[dark?'sun':'moon',dark?'Kunduzgi rejim':'Tungi rejim',toggleTheme],['bell','Bildirishnomalarni yoqish',askNotif],['swap','Akkaunt almashtirish',switchAccount],['logout','Chiqish',logout,'red']])};
+ showMenu(r.left,r.bottom+4,[['gear','Sozlamalar',settingsModal],['bookmark','Saqlangan xabarlar',()=>openChat(sId(me.id))],['users','Yangi guruh',()=>newGroupModal('group')],['hash','Yangi super guruh',()=>newGroupModal('supergroup')],['megaphone','Yangi kanal',()=>newGroupModal('channel')],['image','Chat foni',bgModal],['music','Qo‘ng‘iroq ringtoni',ringtoneModal],['phone','Qo‘ng‘iroq serveri (TURN)',turnModal],[dark?'sun':'moon',dark?'Kunduzgi rejim':'Tungi rejim',toggleTheme],['bell','Bildirishnomalarni yoqish',askNotif],['swap','Akkaunt almashtirish',switchAccount],['logout','Chiqish',logout,'red']])};
 $('#meBtn').onclick=()=>profileModal();
 $('#fab').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();showMenu(r.right-240,r.top-190,[['user','Yangi suhbat',()=>{$('#search').focus();toast('@nickname yoki ism yozing')}],['users','Yangi guruh',()=>newGroupModal('group')],['hash','Yangi super guruh',()=>newGroupModal('supergroup')],['megaphone','Yangi kanal',()=>newGroupModal('channel')]])};
 function askNotif(){if(!('Notification'in window))return toast('Bu brauzer bildirishnomalarni qo‘llamaydi');Notification.requestPermission().then(p=>toast(p==='granted'?'Bildirishnomalar yoqildi':'Ruxsat berilmadi'))}
@@ -3168,12 +3162,12 @@ navSurface.addEventListener('pointercancel',()=>{backDrag=null});
 
 /* ---------- global ---------- */
 // Telefon fondan qaytganda (boshqa ilovadan) yangi xabarlarni darhol tekshiramiz.
-function wakeSync(){if(!me||navigator.onLine===false)return;syncViewport();beat();markRead();
+function wakeSync(){if(!me)return;syncViewport();beat();markRead();
  if(!live||!rtOk){restRefreshInbox(true);if(active&&!active.virtual)restLoadChatMessages(active.id,'inc')}
  else if(rawNow()-lastWakeSync>30000){lastWakeSync=rawNow();refreshJoinedChats();if(active&&!active.virtual&&REST_RECEIVE_GUARD)restLoadChatMessages(active.id,'inc')}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){wakeSync();if(callSession?.pc?.connectionState==='disconnected')$('#callStatus').textContent='Qayta ulanmoqda…'}});
 window.addEventListener('pagehide',()=>{cleanupNoteCapture(true);if(me)updateDoc(doc(db,'users',me.id),{lastSeen:srvNow()-80000}).catch(()=>{});if(callSession?.id)updateDoc(callRef(callSession.id),{status:'ended',updatedAt:srvNow()}).catch(()=>{});try{callSession?.stream?.getTracks().forEach(t=>t.stop())}catch{}});
-window.addEventListener('offline',()=>toast('Internet uzildi. Saqlangan guruhlarni ko‘rishda davom eting.',5000));
+window.addEventListener('offline',()=>toast('Internet uzildi. Xabarlar ulanganda yuboriladi',5000));
 window.addEventListener('online',()=>{toast('Internet qayta ulandi');syncViewport();if(me){beat();markRead();if(live)refreshJoinedChats();else{restRefreshInbox(true);if(active&&!active.virtual)restLoadChatMessages(active.id,'inc')}}ensureFirebaseRuntime().then(()=>{bindAuthObserver();auth?.currentUser?.getIdToken?.(true).catch(()=>{});if(pendingReg)connectRegisteredSession(pendingReg,pendingRegSeq);if(pendingLogin)connectLoginSession(pendingLogin,pendingLoginSeq)}).catch(()=>{})});
 setInterval(beat,50000);
 setInterval(()=>{if(me)syncServerClock()},15*60*1000);
@@ -3187,130 +3181,949 @@ document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;
 if(IS_MOBILE&&navigator.storage?.persist){navigator.storage.persist().catch(()=>{})}
 window.addEventListener('pageshow',()=>{syncViewport();if(me){beat();markRead();if(live)refreshJoinedChats();else{restRefreshInbox(true);if(active&&!active.virtual)restLoadChatMessages(active.id,'inc')}}});
 applyTheme();$$('[data-ic]').forEach(el=>el.innerHTML=ic(el.dataset.ic));
-/* Makktub: qurilmadagi doimiy arxiv. Serverga yangi ma'lumot yozmaydi. */
-const OFF_DB='makktub_offline_v1';
-let offDBPromise=null,offRestoreSeq=0,offSaveTimer=null,offQueueTimer=null,offRunning=false;
-const offJobs=new Map(),offMeta=new Map(),offProgress=new Map(),offSeen=new Map();
-let offViewLimit=400,offAllMessages=[],offViewCid='',offViewSeq=0,offLastError='';
-function offDB(){return offDBPromise||(offDBPromise=new Promise((resolve,reject)=>{
- const r=indexedDB.open(OFF_DB,1);r.onupgradeneeded=()=>{const d=r.result;
- d.createObjectStore('accounts',{keyPath:'uid'});
- const c=d.createObjectStore('chats',{keyPath:['uid','cid']});c.createIndex('uid','uid');
- const m=d.createObjectStore('messages',{keyPath:['uid','cid','mid']});m.createIndex('chat',['uid','cid']);m.createIndex('uid','uid');
- const f=d.createObjectStore('files',{keyPath:['uid','fid']});f.createIndex('uid','uid');
- };r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.onblocked=()=>reject(new Error('Arxiv boshqa oynada band. Boshqa Makktub oynalarini yoping.'));
-})).catch(e=>{offDBPromise=null;throw e})}
-async function offRead(store,key,index){const d=await offDB();return new Promise((resolve,reject)=>{const tx=d.transaction(store,'readonly'),s=tx.objectStore(store),r=index?s.index(index).getAll(key):s.get(key);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
-async function offWrite(store,rows){const d=await offDB();return new Promise((resolve,reject)=>{const tx=d.transaction(store,'readwrite'),s=tx.objectStore(store);for(const row of rows)s.put(row);tx.oncomplete=resolve;tx.onerror=tx.onabort=()=>reject(tx.error||new Error('Arxivga yozilmadi'))})}
-function offError(e){if(e?.name==='QuotaExceededError')return'Qurilma xotirasi to‘ldi. Joy bo‘shating va qayta saqlang.';if(e?.name==='NotAllowedError')return'Saqlangan faylga ruxsat kerak. Faylni qayta tanlang yoki ruxsat bering.';return e?.message||errText(e)||'Saqlashda xato yuz berdi.'}
-function offEnabled(cid){if(!me)return false;try{return !JSON.parse(LS.getItem('mk_off_disabled_'+me.id)||'[]').includes(cid)}catch{return true}}
-function offSetEnabled(cid,on){let a=[];try{a=JSON.parse(LS.getItem('mk_off_disabled_'+me.id)||'[]')}catch{}a=a.filter(x=>x!==cid);if(!on)a.push(cid);LS.setItem('mk_off_disabled_'+me.id,JSON.stringify(a));if(!on)offJobs.delete(cid);offBar();offDraw()}
-function offClean(value){return JSON.parse(JSON.stringify(value,(k,v)=>k.startsWith('_')?undefined:v))}
-function offSessionSave(){clearTimeout(offSaveTimer);offSaveTimer=setTimeout(()=>offSaveAccount().catch(offReport),350)}
-function offReport(e){offLastError=offError(e);offBar();offDraw()}
-async function offSaveAccount(){if(!me)return;const uid=me.id,row={uid,me:offClean(me),users:offClean([...U.values()]),prefs:offClean(prefs),at:Date.now()};await offWrite('accounts',[row]);
- // Faqat muvaffaqiyatli kirilgan sessiya qayta ochiladi. Chiqish mavjud belgini o‘chiradi.
- if(me?.id===uid){LS.setItem('mk_off_last',uid);if(live)LS.setItem('smsfb_session','1')}
-}
-function offBar(){const b=$('#offlineBar');if(!b)return;const onlineNow=navigator.onLine!==false;b.classList.toggle('offline',!onlineNow);
- const label=$('#offlineBarText');if(!label)return;const p=[...offProgress.values()].find(x=>x.busy);
- label.textContent=!onlineNow?'Internetsiz rejim · saqlangan ma’lumotlar':p?('Qurilmaga saqlanmoqda · '+p.text):offLastError?'Saqlashda muammo — holatini ko‘ring':'Guruhlar qurilmaga avtomatik saqlanadi';
- b.title=offLastError||'Guruhlar va kanallarni internetsiz ko‘rish';
-}
-function offEligible(m){return msgVisibleToMe(m)&&vis(m,m._cid||active?.id||'')}
-async function offStoreMessages(cid,arr,full=false,tail=false){if(!me)return;const uid=me.id,d=await offDB(),rows=arr.filter(m=>!m._local).map(m=>({uid,cid,mid:m.id,m:offClean(m)}));
- return new Promise((resolve,reject)=>{const tx=d.transaction('messages','readwrite'),s=tx.objectStore('messages');
- if(full||tail){const ids=new Set(rows.map(r=>r.mid)),min=rows.length?Math.min(...rows.map(r=>Number(r.m.createdAt)||0)):Infinity;
- const r=s.index('chat').openCursor(IDBKeyRange.only([uid,cid]));r.onsuccess=()=>{const cursor=r.result;if(!cursor)return;const x=cursor.value;if(!ids.has(x.mid)&&(full||(tail&&Number(x.m.createdAt)>=min)))cursor.delete();cursor.continue()}}
- rows.forEach(r=>s.put(r));tx.oncomplete=resolve;tx.onerror=tx.onabort=()=>reject(tx.error);
- })}
-async function offStoreChat(c,changes={}){if(!me||!c)return;const uid=me.id,old=await offRead('chats',[uid,c.id]);if(me?.id!==uid)return;
- const row={...old,uid,cid:c.id,chat:offClean(c),...changes};await offWrite('chats',[row]);if(me?.id===uid)offMeta.set(c.id,row);offBar();offDraw()}
-async function offLoadMeta(){if(!me)return;const uid=me.id,rows=await offRead('chats',uid,'uid');if(me?.id!==uid)return;offMeta.clear();for(const r of rows)offMeta.set(r.cid,r);offDraw()}
-function offQueue(cid,full=false){if(!me||!offEnabled(cid)||navigator.onLine===false)return;offJobs.set(cid,!!(full||offJobs.get(cid)));clearTimeout(offQueueTimer);offQueueTimer=setTimeout(offDrain,600)}
-async function offDrain(){if(offRunning||!me||!live||navigator.onLine===false)return;offRunning=true;const uid=me.id;
- try{while(offJobs.size&&me?.id===uid&&live&&navigator.onLine!==false){const [cid,full]=offJobs.entries().next().value;offJobs.delete(cid);if(!offEnabled(cid))continue;
- try{await offSyncGroup(cid,full)}catch(e){offProgress.set(cid,{busy:false,text:offError(e),error:true});offReport(e)}}}
- finally{offRunning=false;offBar();offDraw();if(offJobs.size&&me&&live&&navigator.onLine!==false)setTimeout(offDrain,1000)}
-}
-function offAfterChats(){if(!me)return;offSessionSave();for(const c of C.values()){if(!isGroup(c))continue;
- const sig=JSON.stringify([me.id,c.lastMsg,c.updatedAt,c.members]);if(offSeen.get(c.id)===sig)continue;offSeen.set(c.id,sig);
- offStoreChat(c).catch(offReport);offQueue(c.id)}offBar()}
-function offAfterMessages(cid,arr){if(!me||!isGroup(conv(cid))||!offEnabled(cid))return;offStoreMessages(cid,arr,false,true).then(()=>{offSessionSave();offQueue(cid)}).catch(offReport)}
-async function offFileRead(fid,uid=me?.id){if(!uid||!fid)return null;const r=await offRead('files',[uid,fid]);if(!r)return null;
- if(r.blob)return r.blob;if(r.handle&&r.handle.kind==='file'){try{return await r.handle.getFile()}catch{return null}}return null}
-async function offFileSave(fid,blob,name,uid=me?.id){if(!uid||!blob||me?.id!==uid)throw new Error('Akkaunt almashdi. Saqlash to‘xtatildi.');await offWrite('files',[{uid,fid,blob,name:name||'Fayl',size:blob.size,at:Date.now()}])}
-async function offSyncGroup(cid,forceFull=false){const uid=me.id,c=conv(cid);if(!c||!isGroup(c)||!isMember(c))return;
- const old=await offRead('chats',[uid,cid]),full=forceFull||!old?.complete;let arr=[],last=null;
- const say=text=>{offProgress.set(cid,{busy:true,text});offBar();offDraw()};say('Xabarlar olinmoqda…');
- do{if(me?.id!==uid||navigator.onLine===false||!offEnabled(cid))throw new Error('Saqlash to‘xtadi. Internet qaytganda davom etadi.');
- let q=db.collection('chats').doc(cid).collection('messages').orderBy('createdAt');q=full?q.limit(200):q.limitToLast(400);if(last)q=q.startAfter(last);
- const sn=await q.get({source:'server'});arr.push(...sn.docs.map(x=>({id:x.id,...x.data()})));say(arr.length+' ta xabar olindi');
- if(!full||sn.size<200)break;last=sn.docs.at(-1);
- }while(true);
- if(me?.id!==uid)return;await offStoreMessages(cid,arr,full,!full);
- const stored=await offRead('messages',[uid,cid],'chat'),messages=stored.map(r=>r.m).filter(m=>vis(m,cid)&&msgVisibleToMe(m));
- const files=new Map();for(const m of messages){if(canOpenAttachment(m)&&m.fileId)files.set(m.fileId,m.fileName||'Fayl')}
- if(c.photoFullFileId)files.set(c.photoFullFileId,'Guruh rasmi');for(const p of photoPostsOf(c)){const f=photoPostFileId(p);if(f)files.set(f,'Rasm posti')}
- let saved=0,missing=0,bytes=0;const errors=[];
- for(const [fid,name]of files){if(me?.id!==uid)return;if(!offEnabled(cid))break;say(`${saved}/${files.size} ta fayl · ${name}`);
- try{let blob=await offFileRead(fid,uid);if(!blob){if(navigator.onLine===false)throw new Error('Internet uzildi. Qolgan fayllar keyingi ulanishda saqlanadi.');blob=await fileBlob(fid);if(!blob)throw new Error('Fayl yuklanmadi: '+name);await offFileSave(fid,blob,name,uid)}saved++;bytes+=blob.size}
- catch(e){missing++;errors.push(offError(e));if(e?.name==='QuotaExceededError'){missing=files.size-saved;break}}
- }
- let p2pSaved=0,p2pMissing=0;for(const m of messages.filter(m=>m.p2pId&&canOpenAttachment(m))){const r=await offRead('files',[uid,'p2p:'+m.p2pId]);if(r)p2pSaved++;else p2pMissing++}
- const external=messages.filter(m=>m.url&&!m.fileId&&!m.p2pId).length;
- if(me?.id!==uid)return;const row={complete:full||!!old?.complete,count:messages.length,fileCount:files.size,savedFiles:saved,missingFiles:files.size-saved,bytes,p2pSaved,p2pMissing,external,at:Date.now(),error:errors[0]||''};
- await offStoreChat(c,row);await offSaveAccount();offLastError=errors[0]||'';
- offProgress.set(cid,{busy:false,error:!!errors.length,text:errors[0]||`${messages.length} ta xabar va ${saved} ta fayl saqlandi`});offBar();offDraw();
-}
-async function offOpenChat(cid){if(!me)return;const uid=me.id,seq=++offViewSeq;offViewCid=cid;offViewLimit=400;
- try{const rows=await offRead('messages',[uid,cid],'chat');if(me?.id!==uid||active?.id!==cid||seq!==offViewSeq)return;
- offAllMessages=rows.map(r=>r.m).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)||a.id.localeCompare(b.id));
- if(navigator.onLine===false||!live){const mm=new Map(offAllMessages.map(m=>[m.id,m]));for(const m of M)mm.set(m.id,m);offAllMessages=[...mm.values()].sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));M=offAllMessages;msgsFor=cid;lastSig='';renderMessages(true);renderPinbar();if(forumHome)renderForumList();if(infoOpen)renderInfo()}
- offMoreButton();
- }catch(e){offReport(e)}}
-function offMoreButton(){const box=$('#msgsIn');if(!box||!active||navigator.onLine!==false)return;$('#offLoadOlder')?.remove();const q=chatQuery.trim().toLowerCase();const n=M.filter(m=>vis(m,active.id)&&msgVisibleToMe(m)&&(active.type!=='supergroup'||(m.topicId||'general')===activeTopic)&&(!q||(m.type!=='service'&&((m.body||'')+' '+(m.fileName||'')).toLowerCase().includes(q)))).length-offViewLimit;if(n<=0||offViewCid!==active.id)return;
- const b=document.createElement('button');b.id='offLoadOlder';b.className='off-load';b.textContent=`Oldingi saqlangan xabarlar (${n} ta)`;b.onclick=()=>{const pane=$('#msgs'),h=pane.scrollHeight,t=pane.scrollTop;offViewLimit+=400;lastSig='';stick=false;renderMessages();pane.scrollTop=t+(pane.scrollHeight-h)};box.prepend(b)}
-async function offRestore(){const seq=++offRestoreSeq;const restored=restoreSnap();offBar();if(!LS.getItem('smsfb_session'))return restored;
- const uid=LS.getItem('mk_off_last')||LS.getItem(SNAP+'_last');if(!uid)return restored;
- try{const a=await offRead('accounts',uid),chats=await offRead('chats',uid,'uid');if(seq!==offRestoreSeq||live||!LS.getItem('smsfb_session')||!a)return restored;
- if(me&&me.id!==uid)return restored;me={...a.me,pending:false};U=new Map((a.users||[]).map(u=>[u.id,u]));U.set(uid,me);prefs=normPrefs(a.prefs);
- C=new Map([...C,...chats.map(r=>[r.cid,r.chat])]);offMeta.clear();chats.forEach(r=>offMeta.set(r.cid,r));showShell();renderMe();renderList();offBar();
- if(navigator.onLine===false)toast('Saqlangan guruhlar ochildi. Internetsiz ko‘rishingiz mumkin.',4500);return true;
- }catch(e){offReport(e);return restored}}
-function offlineModal(){if(!me)return;modal(`<h3>Internetsiz ko‘rish</h3><div class="off-summary" id="offSummary">Qurilma xotirasi tekshirilmoqda…</div><p class="off-help">Internet borida guruh va kanallarning xabarlari, rasmlari, audio, video va oddiy fayllari shu qurilmaga saqlanadi. Keyin shu HTML faylni shu brauzerda oching.</p><div class="off-actions"><button class="btn" id="offSaveAll">Hammasini saqlash</button><button class="btn flat" id="offKeep">Xotirada saqlashni mustahkamlash</button></div><div id="offGroups"></div><p class="off-help">Katta P2P fayllar va papkalarni avval «Yuklab olish» orqali to‘liq qabul qiling. Tashqi havolalarning sahifalari avtomatik saqlanmaydi. Brauzer ma’lumotlarini tozalasangiz, arxiv o‘chishi mumkin. Akkauntdan chiqsangiz, qayta kirish uchun internet kerak.</p><div class="mact"><button class="btn flat" data-close>Yopish</button></div>`);
- $('#offSaveAll').onclick=()=>{if(navigator.onLine===false)return toast('Saqlash uchun internetga ulaning.');if(!live)return toast('Serverga ulanish kutilmoqda. Internetni tekshiring.');for(const c of C.values())if(isGroup(c)&&offEnabled(c.id))offQueue(c.id,true);toast('Guruhlar navbat bilan saqlanadi.');offDraw()};
- $('#offKeep').onclick=async()=>{try{const yes=await navigator.storage?.persist?.();toast(yes?'Brauzer doimiy saqlashga ruxsat berdi.':'Brauzer doimiy saqlashga ruxsat bermadi. Arxiv hozircha qurilmada saqlanadi.',5500)}catch{toast('Bu brauzer doimiy xotira ruxsatini qo‘llamaydi.')}};
- $('#offGroups').onclick=async e=>{const b=e.target.closest('[data-off-action]');if(!b)return;const cid=b.dataset.cid,act=b.dataset.offAction;if(act==='open'){closeModal();openChat(cid)}if(act==='sync'){if(navigator.onLine===false)return toast('Yangilash uchun internetga ulaning.');if(!live)return toast('Serverga ulanish kutilmoqda.');if(!offEnabled(cid))offSetEnabled(cid,true);offQueue(cid,true);offDraw()}if(act==='toggle'){offSetEnabled(cid,!offEnabled(cid));if(offEnabled(cid))offQueue(cid,true)}if(act==='remove')confirmModal('Bu guruhning qurilmadagi arxivi o‘chiriladi va avtomatik saqlash o‘chadi. Serverdagi xabarlar qoladi.','Qurilmadan o‘chirish',()=>offRemoveChat(cid).then(offlineModal).catch(offReport))};
- offLoadMeta().catch(offReport);offDraw();offStorageSummary();
-}
-async function offStorageSummary(){try{const e=await navigator.storage?.estimate?.(),el=$('#offSummary');if(el)el.textContent=(navigator.onLine===false?'Internet yo‘q. Saqlangan guruhlarni ochishingiz mumkin.':'Internet ulangan. Saqlash avtomatik davom etadi.')+(e?.quota?` Brauzer xotirasi: ${fsize(e.usage||0)} / ${fsize(e.quota)}.`:'')}catch{const el=$('#offSummary');if(el)el.textContent='Saqlangan ma’lumotlar shu qurilmada qoladi.'}}
-function offDraw(){const box=$('#offGroups');if(!box||!me)return;const groups=[...C.values()].filter(isGroup);box.innerHTML=groups.length?groups.map(c=>{const r=offMeta.get(c.id),p=offProgress.get(c.id),on=offEnabled(c.id),pending=(r?.missingFiles||0)+(r?.p2pMissing||0)+(r?.external||0);
- const status=p?.busy?p.text:offJobs.has(c.id)?'Saqlash navbatida':r?.at?`${r.count||0} ta xabar · ${r.savedFiles||0}/${r.fileCount||0} ta oddiy fayl · ${fsize(r.bytes||0)}`:'Hali to‘liq saqlanmagan';
- return`<section class="off-card"><h4>${esc(c.title||'Guruh')}</h4><small>${on?'Avtomatik saqlash yoqilgan':'Avtomatik saqlash o‘chirilgan'}</small><div class="off-status ${p?.error?'off-error':''}">${esc(status)}</div>${r?.at?`<small>Oxirgi saqlash: ${new Date(r.at).toLocaleString('uz-UZ')}</small>`:''}${pending?`<small>${r.missingFiles||0} ta oddiy fayl hali saqlanmagan. ${r.p2pMissing||0} ta katta fayl/papkani alohida yuklab oling. ${r.external||0} ta tashqi havola internet talab qiladi.</small>`:r?.complete?'<span class="off-badge">✓ Xabarlar va mavjud oddiy fayllar internetsiz ochishga tayyor</span>':''}${r?.error?`<small class="off-error">${esc(r.error)}</small>`:''}<div class="off-actions">${[['open','Ochish'],['sync','Hozir saqlash'],['toggle',on?'Avtomatik saqlashni o‘chirish':'Avtomatik saqlashni yoqish'],['remove','Nusxani o‘chirish']].map(([a,t])=>`<button class="btn flat" data-off-action="${a}" data-cid="${esc(c.id)}">${t}</button>`).join('')}</div></section>`}).join(''):'<p class="off-help">Hozircha guruh yoki kanal yo‘q. Guruh ochilganida uning ma’lumotlari avtomatik saqlanadi.</p>'}
-async function offRemoveChat(cid){const uid=me.id;offSetEnabled(cid,false);while(offProgress.get(cid)?.busy)await sleep(100);const d=await offDB();await new Promise((resolve,reject)=>{const tx=d.transaction(['messages','chats'],'readwrite');tx.objectStore('chats').delete([uid,cid]);const r=tx.objectStore('messages').index('chat').openCursor(IDBKeyRange.only([uid,cid]));r.onsuccess=()=>{const c=r.result;if(c){c.delete();c.continue()}};tx.oncomplete=resolve;tx.onerror=tx.onabort=()=>reject(tx.error)});
- // Bir nechta guruh ishlatadigan fayllar saqlanadi. Faqat foydalanilmaydigan nusxalar o‘chadi.
- const remaining=await offRead('messages',uid,'uid'),chats=await offRead('chats',uid,'uid'),keep=new Set();for(const x of remaining){if(x.m.fileId)keep.add(x.m.fileId);if(x.m.p2pId)keep.add('p2p:'+x.m.p2pId)}for(const x of chats){if(x.chat.photoFullFileId)keep.add(x.chat.photoFullFileId);for(const p of photoPostsOf(x.chat))keep.add(photoPostFileId(p))}
- await new Promise((resolve,reject)=>{const tx=d.transaction('files','readwrite'),r=tx.objectStore('files').index('uid').openCursor(IDBKeyRange.only(uid));r.onsuccess=()=>{const c=r.result;if(c){if(!keep.has(c.value.fid))c.delete();c.continue()}};tx.oncomplete=resolve;tx.onerror=tx.onabort=()=>reject(tx.error)});delete snapMsgs[cid];try{const k=SNAP+'_'+uid,s=JSON.parse(LS.getItem(k)||'null');if(s?.msgs){delete s.msgs[cid];LS.setItem(k,JSON.stringify(s))}}catch{}if(offViewCid===cid){offAllMessages=[];offViewSeq++}if(active?.id===cid&&navigator.onLine===false){M=[];lastSig='';renderMessages(true)}offMeta.delete(cid);offProgress.delete(cid);toast('Qurilmadagi guruh arxivi o‘chirildi.')}
-async function offlineSaveP2P(m,data,uid=me?.id){if(!uid||me?.id!==uid)throw new Error('Akkaunt almashgani uchun fayl arxivga qo‘shilmadi.');await offWrite('files',[{uid,fid:'p2p:'+m.p2pId,name:m.fileName||'Fayl',...data,at:Date.now()}]);offQueue(m.p2pCid||active?.id);toast('Qabul qilindi va internetsiz ochish uchun saqlandi.',4500)}
-async function offlineDownloadTarget(m){const uid=me?.id,name=safeFileName(m.fileName||'Fayl'),size=m.fileSize||0;let handle,root=null;
- if(window.showSaveFilePicker){try{handle=await showSaveFilePicker({suggestedName:name})}catch(e){if(e.name==='AbortError')return null;throw e}}
- else if(CAN_OPFS){try{const e=await navigator.storage.estimate();if(e.quota&&e.quota-e.usage<size*1.08)throw{code:'storage-space'};root=await navigator.storage.getDirectory();handle=await root.getFileHandle('mk_off_'+rid('f')+'_'+name,{create:true})}catch(e){if(e?.code==='storage-space')throw e;root=null}}
- if(!handle){if(size>100*1048576)throw new Error('Bu ochilish rejimida 100 MB dan katta faylni diskka saqlab bo‘lmaydi. Kompyuterda Chrome/Edge orqali faylni oching yoki ilovaning HTTPS manzilidan foydalaning.');let chunks=[];
- return{writable:{write:async x=>{chunks.push(new Uint8Array(x))}},finish:async()=>{const blob=new Blob(chunks,{type:m.mime||'application/octet-stream'});chunks=[];await offFileSave('p2p:'+m.p2pId,blob,name,uid);await offOpenHandle({blob,name});toast('Fayl qurilmaga saqlandi. Internetsiz ham ochiladi.')},abort:async()=>{chunks=[]}}}
- const writable=await handle.createWritable({keepExistingData:false});return{writable,finish:async()=>{await writable.close();await offlineSaveP2P(m,{handle,size,opfs:!!root},uid);if(root)await offOpenHandle({handle,name})},abort:async()=>{try{await writable.abort()}catch{}if(root)root.removeEntry(handle.name).catch(()=>{})}}
-}
-async function offOpenHandle(r){if(r.blob){const u=URL.createObjectURL(r.blob),a=document.createElement('a');a.href=u;a.download=r.name||'Fayl';a.click();setTimeout(()=>URL.revokeObjectURL(u),60000);return}if(r.handle.queryPermission&&await r.handle.queryPermission({mode:'read'})!=='granted'){if(!r.handle.requestPermission||await r.handle.requestPermission({mode:'read'})!=='granted')throw new Error('Faylni ochish uchun brauzerda ruxsat bering.')}
- if(r.directory){modal('<h3>Saqlangan papka</h3><p class="off-help">Quyidagi fayllar qurilmangizda saqlangan.</p><div id="offFolder"></div><div class="mact"><button class="btn flat" data-close>Yopish</button></div>');const box=$('#offFolder');let count=0;const walk=async(dir,prefix='')=>{for await(const [name,h]of dir.entries()){if(!box.isConnected)return;if(h.kind==='directory')await walk(h,prefix+name+'/');else{const b=document.createElement('button');b.className='off-file';b.textContent=prefix+name;b.onclick=()=>offOpenHandle({handle:h,name}).catch(e=>toast(offError(e),5000));box.append(b);count++}}};await walk(r.handle);if(!count)box.textContent='Papka bo‘sh.';return}
- const blob=await r.handle.getFile(),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=r.name||blob.name;a.click();setTimeout(()=>URL.revokeObjectURL(u),60000)}
-async function offTryP2P(m){if(!me||!m.p2pId)return false;const r=await offRead('files',[me.id,'p2p:'+m.p2pId]);if(!r)return false;try{await offOpenHandle(r);return true}catch(e){toast('Saqlangan fayl topilmadi yoki ruxsat kerak: '+offError(e),6000);return true}}
-window.addEventListener('offline',()=>{offBar();unsubMsgs?.();unsubMsgs=null;if(active){offOpenChat(active.id);renderComposer()}offStorageSummary()});
-window.addEventListener('online',()=>{offBar();offStorageSummary();offSeen.clear();setTimeout(()=>{offAfterChats();offDrain();if(active)renderComposer()},1500)});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){offBar();if(me&&navigator.onLine!==false)offDrain()}});
-$('#offlineManage').onclick=offlineModal;
-
-offRestore();
+restoreSnap();
 </script>
 
 </body>
 </html>
+/* ════════════════════════════════════════════════════════════════════════════
+   TOP 10 YANGILIKLAR MODULE v1.0
+   1. Message Reactions 👍❤️😂🔥
+   2. Message Search 🔍
+   3. Message Pin 📌
+   4. Draft Auto-save 💾
+   5. Typing Indicator ✍️
+   6. Image Compression 📸
+   7. Message Expiry ⏰
+   8. Backup Codes 🔐
+   9. Theme Customizer 🌓
+   10. Advanced Notifications 🔔
+════════════════════════════════════════════════════════════════════════════ */
+
+// ─────────────────────────────────────────────────────────────────────────
+// 1. MESSAGE REACTIONS - Emoji reactions on messages
+// ─────────────────────────────────────────────────────────────────────────
+
+const EMOJI_REACTIONS = ['👍', '❤️', '😂', '🔥', '😍', '😮', '😢', '🎉'];
+
+function addReactionStyles(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .msg-reactions { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+    .reaction { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; background: rgba(0,0,0,0.15); border-radius: 12px; font-size: 12px; cursor: pointer; user-select: none; transition: all 0.2s; }
+    .reaction:hover { background: rgba(0,0,0,0.25); transform: scale(1.1); }
+    .reaction.active { background: var(--accent); color: #fff; }
+    .reaction-emoji { font-size: 14px; }
+    .reaction-count { font-size: 11px; font-weight: 500; }
+    .emoji-picker { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px; background: var(--bg); border-radius: 8px; }
+    .emoji-btn { width: 32px; height: 32px; border: none; background: var(--bg2); border-radius: 6px; cursor: pointer; font-size: 18px; transition: all 0.2s; }
+    .emoji-btn:hover { background: var(--accent); transform: scale(1.2); }
+  `;
+  document.head.appendChild(style);
+}
+
+function showReactionPicker(msgId, x, y){
+  const existing = document.querySelector('.emoji-picker');
+  if(existing) existing.remove();
+  
+  const picker = document.createElement('div');
+  picker.className = 'emoji-picker';
+  picker.style.position = 'fixed';
+  picker.style.left = x + 'px';
+  picker.style.top = y + 'px';
+  picker.style.zIndex = '1000';
+  
+  EMOJI_REACTIONS.forEach(emoji => {
+    const btn = document.createElement('button');
+    btn.className = 'emoji-btn';
+    btn.textContent = emoji;
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      addMessageReaction(msgId, emoji);
+      picker.remove();
+    };
+    picker.appendChild(btn);
+  });
+  
+  document.body.appendChild(picker);
+  document.addEventListener('click', () => picker.remove(), { once: true });
+}
+
+function addMessageReaction(msgId, emoji){
+  const m = M.find(x => x.id === msgId);
+  if(!m) return;
+  if(!m.reactions) m.reactions = {};
+  if(!m.reactions[emoji]) m.reactions[emoji] = [];
+  
+  if(!m.reactions[emoji].includes(me.id)){
+    m.reactions[emoji].push(me.id);
+  } else {
+    m.reactions[emoji] = m.reactions[emoji].filter(id => id !== me.id);
+    if(m.reactions[emoji].length === 0) delete m.reactions[emoji];
+  }
+  
+  renderMessages();
+  updateDoc(msgRef(active.id, msgId), { reactions: m.reactions }).catch(() => {});
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 2. MESSAGE SEARCH - Search within chat
+// ─────────────────────────────────────────────────────────────────────────
+
+function addSearchStyles(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .msg-search-box { display: flex; gap: 8px; padding: 8px; background: var(--bg); border-bottom: 1px solid var(--line); }
+    .msg-search-input { flex: 1; padding: 8px 12px; background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; color: inherit; }
+    .search-results { font-size: 12px; color: var(--muted); padding: 6px 12px; }
+    .msg-highlight { background: rgba(255, 193, 7, 0.3); animation: highlight-pulse 0.6s; }
+    @keyframes highlight-pulse { 0%, 100% { background: rgba(255, 193, 7, 0.3); } 50% { background: rgba(255, 193, 7, 0.5); } }
+  `;
+  document.head.appendChild(style);
+}
+
+function searchMessages(query){
+  if(!active || !query.trim()) return [];
+  const q = query.toLowerCase();
+  return M.filter(m => 
+    active.id === m.cid && 
+    (m.body?.toLowerCase().includes(q) || m.text?.toLowerCase().includes(q))
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 3. MESSAGE PIN - Pin important messages
+// ─────────────────────────────────────────────────────────────────────────
+
+function addPinStyles(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .pin-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--accent); color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .pinned-messages { padding: 8px; background: var(--bg2); border-bottom: 2px solid var(--accent); }
+    .pinned-item { padding: 6px; background: var(--bg); border-left: 3px solid var(--accent); border-radius: 4px; font-size: 13px; cursor: pointer; margin-bottom: 4px; }
+    .pinned-item:hover { background: var(--hover); }
+  `;
+  document.head.appendChild(style);
+}
+
+function pinMessage(msgId){
+  const m = M.find(x => x.id === msgId);
+  if(!m || !isAdmin(active)) return;
+  
+  if(!active.pinnedMsgs) active.pinnedMsgs = [];
+  if(!active.pinnedMsgs.includes(msgId)){
+    active.pinnedMsgs.unshift(msgId);
+    if(active.pinnedMsgs.length > 5) active.pinnedMsgs.pop();
+  } else {
+    active.pinnedMsgs = active.pinnedMsgs.filter(id => id !== msgId);
+  }
+  
+  updateDoc(chatRef(active.id), { pinnedMsgs: active.pinnedMsgs }).catch(() => {});
+  renderMessages();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 4. DRAFT AUTO-SAVE - Save drafts to localStorage
+// ─────────────────────────────────────────────────────────────────────────
+
+const DRAFT_KEY = 'makktub_drafts';
+
+function saveDraft(chatId, text){
+  try {
+    const drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
+    if(text.trim()) {
+      drafts[chatId] = { text, at: srvNow() };
+    } else {
+      delete drafts[chatId];
+    }
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
+  } catch(e) { console.warn('draft save', e); }
+}
+
+function loadDraft(chatId){
+  try {
+    const drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
+    return drafts[chatId]?.text || '';
+  } catch(e) { return ''; }
+}
+
+function clearDraft(chatId){
+  try {
+    const drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
+    delete drafts[chatId];
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
+  } catch(e) { console.warn('draft clear', e); }
+}
+
+// Hook into message input
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.querySelector('[contenteditable=true]');
+  if(input) {
+    input.addEventListener('input', () => {
+      if(active) saveDraft(active.id, input.textContent);
+    });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// 5. TYPING INDICATOR - Show when someone is typing
+// ─────────────────────────────────────────────────────────────────────────
+
+const typingUsers = new Map();
+
+function addTypingStyles(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .typing-indicator { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); padding: 4px 8px; font-style: italic; }
+    .typing-dot { width: 6px; height: 6px; background: var(--muted); border-radius: 50%; animation: typing 1.4s infinite; }
+    .typing-dot:nth-child(1) { animation-delay: 0s; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
+  `;
+  document.head.appendChild(style);
+}
+
+function showTyping(userId, userName){
+  typingUsers.set(userId, srvNow());
+  renderTypingIndicator();
+}
+
+function renderTypingIndicator(){
+  const now = srvNow();
+  typingUsers.forEach((time, userId) => {
+    if(now - time > 3000) typingUsers.delete(userId);
+  });
+  
+  if(typingUsers.size > 0 && active?.type === 'direct'){
+    const names = Array.from(typingUsers.keys()).map(id => user(id)?.displayName).filter(Boolean);
+    const text = names.length === 1 ? names[0] : names.slice(0, 2).join(', ');
+    // Update UI to show typing indicator
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 6. IMAGE COMPRESSION - Auto-compress images before sending
+// ─────────────────────────────────────────────────────────────────────────
+
+async function compressImage(blob, maxWidth = 1280, quality = 0.85){
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      
+      if(width > maxWidth){
+        height = (maxWidth / width) * height;
+        width = maxWidth;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      
+      canvas.toBlob(resolve, 'image/jpeg', quality);
+    };
+    img.src = URL.createObjectURL(blob);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 7. MESSAGE EXPIRY - Auto-delete messages after time
+// ─────────────────────────────────────────────────────────────────────────
+
+function addExpiryStyles(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .expiry-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--muted); }
+    .expiry-timer { font-weight: 600; color: var(--danger); }
+  `;
+  document.head.appendChild(style);
+}
+
+const MESSAGE_EXPIRY_OPTIONS = [
+  { label: '5 минут', value: 300 },
+  { label: '1 соат', value: 3600 },
+  { label: '1 kun', value: 86400 },
+  { label: '7 kun', value: 604800 },
+  { label: 'Hech qachon', value: 0 }
+];
+
+async function setMessageExpiry(msgId, seconds){
+  const m = M.find(x => x.id === msgId);
+  if(!m) return;
+  
+  m.expiresAt = seconds > 0 ? srvNow() + seconds * 1000 : 0;
+  updateDoc(msgRef(active.id, msgId), { expiresAt: m.expiresAt }).catch(() => {});
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 8. BACKUP CODES - Face ID Recovery Codes
+// ─────────────────────────────────────────────────────────────────────────
+
+function generateBackupCodes(count = 6){
+  const codes = [];
+  for(let i = 0; i < count; i++){
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    codes.push(code);
+  }
+  return codes;
+}
+
+function saveBackupCodes(codes){
+  const rec = faceRec(me.username);
+  if(!rec) return;
+  
+  faceSave(me.username, { 
+    ...rec, 
+    backupCodes: codes,
+    codesGeneratedAt: srvNow(),
+    codesUsed: []
+  });
+}
+
+function showBackupCodesModal(){
+  const codes = generateBackupCodes(6);
+  modal(`
+    <h3>🔐 Backup Kodlar</h3>
+    <p class="mp">Agar Face ID ishlamasa, bu kodlardan birini ishlat:</p>
+    <div style="background: var(--bg2); padding: 12px; border-radius: 8px; font-family: monospace; font-size: 13px; word-break: break-all;">
+      ${codes.map(c => `<div style="margin: 4px 0;">${c}</div>`).join('')}
+    </div>
+    <p class="mp" style="color: var(--danger); font-weight: 600;">⚠️ Bu kodlarni xavfsiz joyga yozing!</p>
+    <div class="mact">
+      <button class="btn" onclick="saveBackupCodes(['${codes.join("','")}'']); closeModal(); toast('Backup kodlar saqlandi')">Saqlash</button>
+    </div>
+  `);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 9. ADVANCED THEME CUSTOMIZER
+// ─────────────────────────────────────────────────────────────────────────
+
+function addThemeCustomizer(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .theme-customizer { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; padding: 12px; }
+    .theme-option { padding: 12px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; text-align: center; transition: all 0.2s; }
+    .theme-option:hover { transform: scale(1.05); }
+    .theme-option.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .theme-option.light { background: #f5f5f5; color: #333; }
+    .theme-option.dark { background: #1a1a1a; color: #fff; }
+    .theme-option.auto { background: linear-gradient(45deg, #f5f5f5 50%, #1a1a1a 50%); }
+  `;
+  document.head.appendChild(style);
+}
+
+function toggleThemeCustomizer(){
+  const current = document.documentElement.dataset.theme || 'auto';
+  modal(`
+    <h3>🌓 Tema Tanlang</h3>
+    <div class="theme-customizer">
+      <div class="theme-option light ${current === 'light' ? 'active' : ''}" onclick="setTheme('light');">
+        ☀️ Kunduz
+      </div>
+      <div class="theme-option dark ${current === 'dark' ? 'active' : ''}" onclick="setTheme('dark');">
+        🌙 Tun
+      </div>
+      <div class="theme-option auto ${current === 'auto' ? 'active' : ''}" onclick="setTheme('auto');">
+        ⚡ Avto
+      </div>
+    </div>
+    <div class="mact">
+      <button class="btn flat" data-close>Yopish</button>
+    </div>
+  `);
+}
+
+function setTheme(theme){
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem('makktub_theme', theme);
+  closeModal();
+  toggleThemeCustomizer();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 10. ADVANCED NOTIFICATIONS
+// ─────────────────────────────────────────────────────────────────────────
+
+const NOTIFICATION_SOUNDS = {
+  'ping': 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA==',
+  'bell': 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA==',
+  'chime': 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA=='
+};
+
+function playNotificationSound(soundType = 'ping'){
+  try {
+    const audio = new Audio(NOTIFICATION_SOUNDS[soundType] || NOTIFICATION_SOUNDS.ping);
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+  } catch(e) { console.warn('sound play error', e); }
+}
+
+// Initialize all features
+function initTopTenFeatures(){
+  addReactionStyles();
+  addSearchStyles();
+  addPinStyles();
+  addExpiryStyles();
+  addTypingStyles();
+  addThemeCustomizer();
+  
+  // Load theme preference
+  const savedTheme = localStorage.getItem('makktub_theme') || 'auto';
+  document.documentElement.dataset.theme = savedTheme;
+  
+  console.log('✅ Top 10 Features Initialized');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🎬 ADVANCED BOMB FEATURES MODULE (Voice, Stickers, GIF, P2P, File Control)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────
+// 1. 🎙️ VOICE MESSAGES - Record & Send Audio
+// ─────────────────────────────────────────────────────────────────────────
+
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingTime = 0;
+let recordTimer = null;
+
+const STICKER_PACKS = {
+  'emoji': {name: 'Emoji Pack', emoji: ['😀','😃','😄','😁','😆','😅','🤣','😊','😇','🙂','😉','😍','🥰','😘','😋','😎']},
+  'hearts': {name: 'Hearts Pack', emoji: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','❤️‍🔥','💔','💕','💞','💓','💗']},
+  'gestures': {name: 'Gestures', emoji: ['👍','👎','👏','🙌','👐','🤝','👏','✌️','🤞','🤟','🤘','🤙','👌','🤌','☝️']},
+  'sport': {name: 'Sport', emoji: ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎳','🏓','🏸','🥊','🥋','🎣']},
+  'animals': {name: 'Animals', emoji: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵']}
+};
+
+const GIF_REACTIONS = {
+  'wow': {name:'WOW!', emoji:'🤯', gif:'https://media.giphy.com/media/xT9IgEx8SbH0teblUQ/giphy.gif'},
+  'lol': {name:'LOL', emoji:'😂', gif:'https://media.giphy.com/media/l3q2K5jinAlZ6tFjG/giphy.gif'},
+  'fire': {name:'🔥 FIRE', emoji:'🔥', gif:'https://media.giphy.com/media/g9GUusdUZsKFO/giphy.gif'},
+  'clap': {name:'CLAP', emoji:'👏', gif:'https://media.giphy.com/media/l0HlR3rsQk0x0q8Hs/giphy.gif'},
+  'yes': {name:'YES!', emoji:'😎', gif:'https://media.giphy.com/media/xT8qBeGtVnhBNwG2gE/giphy.gif'},
+  'no': {name:'NO', emoji:'🙅', gif:'https://media.giphy.com/media/QAsBwSjx9zVKoGp9PL/giphy.gif'},
+  'love': {name:'LOVE', emoji:'❤️', gif:'https://media.giphy.com/media/l0HlTy9x-Zy1Xo8Y4/giphy.gif'},
+  'sorry': {name:'SORRY', emoji:'🥺', gif:'https://media.giphy.com/media/l3q2K5jinAlZ6tFjG/giphy.gif'}
+};
+
+// Voice Recording Styles
+function addVoiceStyles(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .voice-recorder { display: flex; gap: 10px; align-items: center; padding: 10px; background: #1a1a2e; border-radius: 10px; }
+    .voice-btn { background: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 50%; cursor: pointer; font-size: 20px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
+    .voice-btn:hover { background: #c0392b; transform: scale(1.1); }
+    .voice-btn.recording { background: #c0392b; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+    .voice-timer { font-size: 12px; color: #fff; min-width: 40px; font-weight: bold; }
+    .voice-msg { background: #2ecc71; padding: 10px; border-radius: 10px; color: white; display: flex; align-items: center; gap: 10px; }
+    .voice-play { cursor: pointer; padding: 5px 10px; background: rgba(255,255,255,0.3); border-radius: 5px; border: none; color: white; font-size: 14px; }
+    .voice-play:hover { background: rgba(255,255,255,0.5); }
+    .sticker-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 10px; max-height: 200px; overflow-y: auto; }
+    .sticker-item { cursor: pointer; font-size: 32px; text-align: center; padding: 5px; border-radius: 5px; hover: background: rgba(255,255,255,0.1); transition: all 0.2s; }
+    .sticker-item:hover { background: rgba(255,255,255,0.2); transform: scale(1.2); }
+    .gif-reaction { width: 100%; max-width: 200px; border-radius: 10px; cursor: pointer; transition: transform 0.2s; }
+    .gif-reaction:hover { transform: scale(1.05); }
+    .file-access-control { display: flex; gap: 10px; padding: 10px; background: #f39c12; border-radius: 5px; color: white; font-size: 12px; }
+    .file-access-control input { margin: 0 5px; cursor: pointer; }
+  `;
+  document.head.appendChild(style);
+}
+
+// Start Voice Recording
+function startVoiceRecord(){
+  if(!navigator.mediaDevices?.getUserMedia) {
+    toast('Microphone ishlamayapti');
+    return;
+  }
+
+  navigator.mediaDevices.getUserMedia({audio: true})
+    .then(stream => {
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      recordingTime = 0;
+
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstart = () => {
+        recordTimer = setInterval(() => {
+          recordingTime++;
+          const min = Math.floor(recordingTime / 60);
+          const sec = recordingTime % 60;
+          document.querySelector('.voice-timer')?.textContent = `${min}:${String(sec).padStart(2,'0')}`;
+        }, 1000);
+      };
+
+      mediaRecorder.onstop = () => {
+        clearInterval(recordTimer);
+        const audioBlob = new Blob(audioChunks, {type: 'audio/webm'});
+        sendVoiceMessage(audioBlob);
+      };
+
+      mediaRecorder.start();
+      document.querySelector('.voice-btn').classList.add('recording');
+      document.querySelector('.voice-btn').textContent = '⏹';
+    })
+    .catch(e => {
+      console.error('Microphone xatosi:', e);
+      toast('Microphone ruxsati kerak');
+    });
+}
+
+function stopVoiceRecord(){
+  if(mediaRecorder?.state === 'recording'){
+    mediaRecorder.stop();
+    mediaRecorder.stream?.getTracks().forEach(t => t.stop());
+    document.querySelector('.voice-btn').classList.remove('recording');
+    document.querySelector('.voice-btn').textContent = '🎙️';
+  }
+}
+
+function sendVoiceMessage(audioBlob){
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const voiceData = e.target.result;
+    const msg = {
+      id: 'vm_' + Date.now(),
+      type: 'voice',
+      body: 'Ovozli xabar',
+      data: voiceData,
+      duration: recordingTime,
+      timestamp: new Date().toLocaleTimeString()
+    };
+    M.push(msg);
+    renderMessages();
+    recordingTime = 0;
+  };
+  reader.readAsDataURL(audioBlob);
+}
+
+function playVoiceMessage(msgId){
+  const msg = M.find(m => m.id === msgId);
+  if(!msg) return;
+  const audio = new Audio(msg.data);
+  audio.play();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 2. 🎨 STICKER PACKS
+// ─────────────────────────────────────────────────────────────────────────
+
+function showStickerPicker(){
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.style.display = 'flex';
+  modal.style.flexDirection = 'column';
+
+  let html = '<div style="padding: 10px; border-bottom: 1px solid #333;"><strong>Sticker Paklar</strong></div>';
+
+  for(const [key, pack] of Object.entries(STICKER_PACKS)){
+    html += `<div><strong>${pack.name}</strong></div>`;
+    html += '<div class="sticker-grid">';
+    for(const emoji of pack.emoji){
+      html += `<div class="sticker-item" onclick="sendSticker('${emoji}')">${emoji}</div>`;
+    }
+    html += '</div>';
+  }
+
+  html += '<button onclick="this.closest(\\'div\\').remove()" style="margin-top:10px;">Yopish</button>';
+  modal.innerHTML = html;
+  document.body.appendChild(modal);
+}
+
+function sendSticker(emoji){
+  const msg = {
+    id: 'stk_' + Date.now(),
+    type: 'sticker',
+    emoji: emoji,
+    body: 'Stiker',
+    timestamp: new Date().toLocaleTimeString()
+  };
+  M.push(msg);
+  renderMessages();
+  document.querySelector('.modal')?.remove();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 3. 🎬 GIF REACTIONS
+// ─────────────────────────────────────────────────────────────────────────
+
+function showGifReactions(msgId){
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.style.display = 'flex';
+  modal.style.flexDirection = 'column';
+  modal.style.maxWidth = '300px';
+
+  let html = '<div style="padding: 10px;"><strong>GIF Reaction</strong></div>';
+
+  for(const [key, gif] of Object.entries(GIF_REACTIONS)){
+    html += `
+      <div style="cursor: pointer; padding: 5px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 10px;"
+           onclick="sendGifReaction('${msgId}', '${key}'); this.closest('.modal').remove();">
+        <span style="font-size: 20px;">${gif.emoji}</span>
+        <span>${gif.name}</span>
+      </div>
+    `;
+  }
+
+  modal.innerHTML = html;
+  document.body.appendChild(modal);
+}
+
+function sendGifReaction(msgId, gifType){
+  const gif = GIF_REACTIONS[gifType];
+  const msg = {
+    id: 'gif_' + Date.now(),
+    type: 'gif-reaction',
+    replyTo: msgId,
+    gifType: gifType,
+    emoji: gif.emoji,
+    name: gif.name,
+    url: gif.gif,
+    timestamp: new Date().toLocaleTimeString()
+  };
+  M.push(msg);
+  renderMessages();
+  toast(`${gif.name} reaction jo'natildi!`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 4. 📁 P2P FILE SHARING (Simplified)
+// ─────────────────────────────────────────────────────────────────────────
+
+const p2pTransfers = new Map();
+
+function initP2PFileSharing(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .p2p-transfer { display: flex; flex-direction: column; gap: 5px; padding: 10px; background: #16a085; border-radius: 10px; color: white; }
+    .p2p-progress { height: 6px; background: rgba(255,255,255,0.3); border-radius: 3px; overflow: hidden; }
+    .p2p-bar { height: 100%; background: #fff; width: 0%; transition: width 0.3s; }
+    .p2p-status { font-size: 12px; opacity: 0.9; }
+  `;
+  document.head.appendChild(style);
+}
+
+function startP2PTransfer(fileId, fileName, fileSize){
+  const transfer = {
+    id: fileId,
+    name: fileName,
+    size: fileSize,
+    transferred: 0,
+    startTime: Date.now(),
+    speed: 0
+  };
+  p2pTransfers.set(fileId, transfer);
+
+  // Simulate P2P transfer
+  const interval = setInterval(() => {
+    const t = p2pTransfers.get(fileId);
+    if(!t) { clearInterval(interval); return; }
+
+    t.transferred += Math.random() * 50000;
+    t.speed = t.transferred / ((Date.now() - t.startTime) / 1000);
+
+    if(t.transferred >= t.size){
+      t.transferred = t.size;
+      clearInterval(interval);
+      toast(`${fileName} tayyorlandi!`);
+      p2pTransfers.delete(fileId);
+    }
+
+    updateP2PDisplay(fileId);
+  }, 500);
+}
+
+function updateP2PDisplay(fileId){
+  const t = p2pTransfers.get(fileId);
+  if(!t) return;
+
+  const pct = Math.round(t.transferred / t.size * 100);
+  const el = document.querySelector(`[data-p2p="${fileId}"]`);
+  if(el){
+    el.innerHTML = `
+      <strong>${t.name}</strong>
+      <div class="p2p-progress"><div class="p2p-bar" style="width:${pct}%"></div></div>
+      <div class="p2p-status">${pct}% · ${(t.speed/1024/1024).toFixed(1)} MB/s</div>
+    `;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 5. 🔒 FILE ACCESS CONTROL
+// ─────────────────────────────────────────────────────────────────────────
+
+function showFileAccessControl(msgId){
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+
+  modal.innerHTML = `
+    <div style="padding: 15px; max-width: 400px;">
+      <h3>📁 Fayl Ruxsati</h3>
+      <div class="file-access-control">
+        <label><input type="checkbox" checked> Barcha ko'rsin</label>
+        <label><input type="checkbox"> Faqat admin'lar</label>
+        <label><input type="checkbox"> Parol bilan</label>
+      </div>
+      <div style="margin-top: 10px; display: flex; gap: 10px;">
+        <button onclick="this.closest('.modal').remove()" style="flex:1; padding:8px; cursor:pointer; background:#2ecc71; color:white; border:none; border-radius:5px;">Saqlash</button>
+        <button onclick="this.closest('.modal').remove()" style="flex:1; padding:8px; cursor:pointer; background:#e74c3c; color:white; border:none; border-radius:5px;">Bekor</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 6. ⭐ MESSAGE THREADING
+// ─────────────────────────────────────────────────────────────────────────
+
+function showMessageThread(msgId){
+  const msg = M.find(m => m.id === msgId);
+  if(!msg) return;
+
+  const replies = M.filter(m => m.replyTo === msgId);
+
+  let html = `
+    <div style="padding: 15px; max-width: 500px; max-height: 400px; overflow-y: auto;">
+      <div style="border-left: 3px solid #3498db; padding-left: 10px; margin-bottom: 15px;">
+        <strong>${msg.name || 'Siz'}</strong>
+        <div>${msg.body}</div>
+        <small style="opacity: 0.7;">${msg.timestamp}</small>
+      </div>
+
+      <div><strong>Javoblar (${replies.length})</strong></div>
+      ${replies.map(r => `
+        <div style="border-left: 2px solid #2ecc71; padding: 8px 0 8px 10px; margin-bottom: 10px;">
+          <strong>${r.name || 'Siz'}</strong>
+          <div style="font-size: 14px;">${r.body}</div>
+          <small style="opacity: 0.7;">${r.timestamp}</small>
+        </div>
+      `).join('')}
+
+      <textarea placeholder="Javob yozing..." style="width:100%; height:60px; padding:8px; border-radius:5px; border:1px solid #ddd; margin-top:10px;"></textarea>
+      <button onclick="this.closest('div').remove()" style="width:100%; padding:8px; margin-top:8px; background:#3498db; color:white; border:none; border-radius:5px; cursor:pointer;">Jo'natish</button>
+    </div>
+  `;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.innerHTML = html;
+  document.body.appendChild(modal);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 7. 💬 MESSAGE FORMATTING (Bold, Italic, Code)
+// ─────────────────────────────────────────────────────────────────────────
+
+function applyMessageFormat(text, format){
+  switch(format){
+    case 'bold': return `**${text}**`;
+    case 'italic': return `*${text}*`;
+    case 'code': return `` + "`" + `${text}` + "`" + ``;
+    case 'strikethrough': return `~~${text}~~`;
+    default: return text;
+  }
+}
+
+function renderFormattedText(text){
+  if(!text) return text;
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`(.*?)`/g, '<code style="background:#f0f0f0; padding:2px 4px; border-radius:3px;">$1</code>')
+    .replace(/~~(.*?)~~/g, '<del>$1</del>');
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 8. 📌 CUSTOM EMOJI REACTIONS
+// ─────────────────────────────────────────────────────────────────────────
+
+const CUSTOM_EMOJIS = {
+  'excellent': '😍',
+  'good': '👍',
+  'bad': '👎',
+  'funny': '😂',
+  'thinking': '🤔',
+  'shocked': '😮',
+  'sad': '😢',
+  'angry': '😠',
+  'love': '❤️',
+  'fire': '🔥'
+};
+
+function addEmojiReactionToMessage(msgId, emojiKey){
+  const msg = M.find(m => m.id === msgId);
+  if(!msg) return;
+
+  if(!msg.emojiReactions) msg.emojiReactions = {};
+  msg.emojiReactions[emojiKey] = (msg.emojiReactions[emojiKey] || 0) + 1;
+  renderMessages();
+  toast('Emoji reaction qo\'shildi!');
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 9. 📸 MEDIA PREVIEW
+// ─────────────────────────────────────────────────────────────────────────
+
+function showMediaPreview(msgId){
+  const msg = M.find(m => m.id === msgId);
+  if(!msg || !msg.media) return;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.style.display = 'flex';
+  modal.style.alignItems = 'center';
+  modal.style.justifyContent = 'center';
+
+  let content = '';
+  if(msg.media.type === 'image'){
+    content = `<img src="${msg.media.url}" style="max-width:90%; max-height:90%; border-radius:10px;" onclick="this.closest('.modal').remove()">`;
+  } else if(msg.media.type === 'video'){
+    content = `<video controls style="max-width:90%; max-height:90%; border-radius:10px;" onclick="event.stopPropagation()"><source src="${msg.media.url}" type="video/mp4"></video>`;
+  } else if(msg.media.type === 'audio'){
+    content = `<audio controls style="width:90%; max-width:400px;"><source src="${msg.media.url}" type="audio/webm"></audio>`;
+  }
+
+  modal.innerHTML = content;
+  modal.addEventListener('click', () => modal.remove());
+  document.body.appendChild(modal);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 10. 📊 ADVANCED MESSAGE STATISTICS
+// ─────────────────────────────────────────────────────────────────────────
+
+function showMessageStats(){
+  const totalMsgs = M.length;
+  const voiceMsgs = M.filter(m => m.type === 'voice').length;
+  const stickerMsgs = M.filter(m => m.type === 'sticker').length;
+  const gifReactions = M.filter(m => m.type === 'gif-reaction').length;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div style="padding: 20px; max-width: 400px;">
+      <h3>📊 Chat Statistikasi</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0;">
+        <div style="background: #3498db; color: white; padding: 15px; border-radius: 10px; text-align: center;">
+          <div style="font-size: 24px; font-weight: bold;">${totalMsgs}</div>
+          <div>Jami xabarlar</div>
+        </div>
+        <div style="background: #2ecc71; color: white; padding: 15px; border-radius: 10px; text-align: center;">
+          <div style="font-size: 24px; font-weight: bold;">${voiceMsgs}</div>
+          <div>Ovozli xabarlar</div>
+        </div>
+        <div style="background: #f39c12; color: white; padding: 15px; border-radius: 10px; text-align: center;">
+          <div style="font-size: 24px; font-weight: bold;">${stickerMsgs}</div>
+          <div>Stikerlar</div>
+        </div>
+        <div style="background: #e74c3c; color: white; padding: 15px; border-radius: 10px; text-align: center;">
+          <div style="font-size: 24px; font-weight: bold;">${gifReactions}</div>
+          <div>GIF Reactions</div>
+        </div>
+      </div>
+      <button onclick="this.closest('.modal').remove()" style="width:100%; padding:10px; background:#9b59b6; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">Yopish</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// INITIALIZE ALL ADVANCED FEATURES
+// ═════════════════════════════════════════════════════════════════════════
+
+function initAdvancedFeatures(){
+  addVoiceStyles();
+  initP2PFileSharing();
+  console.log('✅ Advanced Features Initialized (Voice, Stickers, GIF, P2P, File Control)');
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// UI INTEGRATION HANDLERS
+// ═════════════════════════════════════════════════════════════════════════
+
+function initAllFeatures(){
+  initTopTenFeatures();
+  initAdvancedFeatures();
+
+  // Add UI event listeners
+  document.addEventListener('keydown', (e) => {
+    // Ctrl+K = Voice record toggle
+    if(e.ctrlKey && e.key === 'k' && mediaRecorder?.state === 'recording'){
+      stopVoiceRecord();
+    }
+  });
+}
+
+// Message context menu enhancements
+document.addEventListener('contextmenu', (e) => {
+  if(e.target.closest('[data-msg-id]')){
+    e.preventDefault();
+    const msgId = e.target.closest('[data-msg-id]').dataset.msgId;
+    showAdvancedMessageMenu(msgId, e.clientX, e.clientY);
+  }
+});
+
+function showAdvancedMessageMenu(msgId, x, y){
+  const menu = document.createElement('div');
+  menu.style.cssText = `position:fixed; left:${x}px; top:${y}px; background:#1a1a2e; border:1px solid #444; border-radius:8px; z-index:9999; min-width:150px; box-shadow:0 0 10px rgba(0,0,0,0.5);`;
+
+  menu.innerHTML = `
+    <div style="padding:8px; cursor:pointer; border-bottom:1px solid #333;" onclick="showGifReactions('${msgId}'); this.parentElement.remove();">🎬 GIF Reaction</div>
+    <div style="padding:8px; cursor:pointer; border-bottom:1px solid #333;" onclick="showMessageThread('${msgId}'); this.parentElement.remove();">💬 Reply</div>
+    <div style="padding:8px; cursor:pointer; border-bottom:1px solid #333;" onclick="pinMessage('${msgId}'); this.parentElement.remove();">📌 Pin</div>
+    <div style="padding:8px; cursor:pointer; border-bottom:1px solid #333;" onclick="setMessageExpiry('${msgId}', 3600); this.parentElement.remove();">⏰ Expiry</div>
+    <div style="padding:8px; cursor:pointer;" onclick="showMessageStats(); this.parentElement.remove();">📊 Stats</div>
+  `;
+  document.body.appendChild(menu);
+  setTimeout(() => menu.addEventListener('blur', () => menu.remove()), 100);
+}
+
+// Enhanced Settings with Advanced Features
+function enhanceSettingsUI(){
+  const settingsBtn = document.querySelector('[data-action="settings"]');
+  if(!settingsBtn) return;
+
+  settingsBtn.addEventListener('click', () => {
+    // Add advanced settings sections
+    setTimeout(() => {
+      const settingsModal = document.querySelector('.settings-modal') || document.querySelector('.modal');
+      if(!settingsModal) return;
+
+      // Add Advanced Features section if not exists
+      if(!settingsModal.querySelector('[data-section="advanced-features"]')){
+        const advSection = document.createElement('div');
+        advSection.setAttribute('data-section', 'advanced-features');
+        advSection.innerHTML = `
+          <div style="border-top: 1px solid #333; padding-top: 15px; margin-top: 15px;">
+            <h4>⚡ Advanced Features</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <button onclick="showStickerPicker()" style="padding:10px; background:#f39c12; color:white; border:none; border-radius:5px; cursor:pointer;">🎨 Stickers</button>
+              <button onclick="startVoiceRecord()" style="padding:10px; background:#e74c3c; color:white; border:none; border-radius:5px; cursor:pointer;">🎙️ Voice Msg</button>
+              <button onclick="showMessageStats()" style="padding:10px; background:#9b59b6; color:white; border:none; border-radius:5px; cursor:pointer;">📊 Statistics</button>
+              <button onclick="initP2PFileSharing()" style="padding:10px; background:#16a085; color:white; border:none; border-radius:5px; cursor:pointer;">📁 P2P Files</button>
+            </div>
+          </div>
+        `;
+        settingsModal.appendChild(advSection);
+      }
+    }, 100);
+  });
+}
+
+// Run on load
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', () => {
+    initAllFeatures();
+    enhanceSettingsUI();
+  });
+} else {
+  initAllFeatures();
+  enhanceSettingsUI();
+}
+
