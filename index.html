@@ -777,6 +777,9 @@ const ic=(n,c='')=>`<svg class="i ${c}" viewBox="0 0 24 24">${P[n]||''}</svg>`;
 
 /* ---------- helpers ---------- */
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Yangi parol kamida 6 belgi.
+const PW_RULE='Parol kamida 6 belgi';
+const weakPw=p=>String(p||'').length<6;
 // Boshqa foydalanuvchidan kelgan qiymatlar HTML/CSS ichiga xavfsiz qo‘yilishi uchun (XSS himoyasi).
 const safeUrl=u=>/^(https?:|blob:|data:image\/)/i.test(String(u||''))?String(u):'#';
 const safeThumb=t=>/^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(String(t||''))?String(t):'';
@@ -1316,6 +1319,9 @@ const netish=e=>{const c=String(e?.code||e?.message||'');return c.includes('netw
 const nickEmail=nick=>`${nick}@${EMAIL_DOMAIN}`;
 async function authRetry(fn,tries=4){let last;for(let i=0;i<tries;i++){try{return await fn()}catch(e){last=e;if(!netish(e)||i===tries-1)throw e;toast('Ulanmoqda…',0);await sleep(500*(i+1))}}throw last}
 async function legacyEmail(nick){const c=accs().find(a=>a.nick===nick)?.email;if(c)return c;try{const s=await getDoc(doc(db,'usernames',nick));return s.exists()?s.data().email:null}catch{return null}}
+let nickMapChecked='';
+// Xavfsizlik: eski akkauntlarda usernames yozuvi bo'lmasa, uni bir marta tiklaymiz — boshqa odam shu nickname'ni egallay olmaydi.
+async function ensureNickMapping(){try{if(!me?.username||!live||nickMapChecked===me.id)return;nickMapChecked=me.id;const r=doc(db,'usernames',me.username);const sn=await getDoc(r);if(!sn.exists())await setDoc(r,{uid:me.id,email:auth?.currentUser?.email||nickEmail(me.username)})}catch(e){console.debug('nick mapping',e?.code||e)}}
 async function ensureOwnProfile(fu,nick,dn,email){const now=srvNow();const b=writeBatch(db);b.set(doc(db,'usernames',nick),{uid:fu.uid,email},{merge:true});b.set(doc(db,'users',fu.uid),{username:nick,displayName:dn,bio:'',photo:'',createdAt:now,lastSeen:now},{merge:true});await b.commit()}
 
 /* Mobil file:// uchun tez ro'yxatdan o'tish: Firebase SDK yuklanishini kutmaydi. */
@@ -1353,6 +1359,7 @@ async function restLoginByNickname(nick,pw){
 }
 async function patchFS(path,fields,token){const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),9000);try{const r=await fetch(`https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/${path}`,{method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({fields}),signal:ac.signal});if(!r.ok){const j=await r.json().catch(()=>({}));throw apiErr(j)}return await r.json()}finally{clearTimeout(tm)}}
 const sf=(v)=>({stringValue:String(v??'')}),inf=(v)=>({integerValue:String(Math.trunc(v||0))});
+async function fsCommitWithToken(token,writes){const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),15000);try{const r=await fetch(`https://firestore.googleapis.com/v1/${FS_DOCS}:commit`,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({writes}),signal:ac.signal});if(!r.ok){const j=await r.json().catch(()=>({}));throw apiErr(j)}return await r.json()}finally{clearTimeout(tm)}}
 async function restRegister(nick,dn,pw){
  const email=nickEmail(nick);let a,wasExisting=false;
  try{a=await postJSON(`${IDTK}/accounts:signUp?key=${firebaseConfig.apiKey}`,{email,password:pw,returnSecureToken:true},15000)}
@@ -1365,9 +1372,10 @@ async function restRegister(nick,dn,pw){
  }
  const now=srvNow(),uid=a.localId,token=a.idToken;
  /* MUHIM: foydalanuvchini qidiruvda ko‘rinadigan qilmasdan messengerga kiritmaymiz. */
- await Promise.all([
-  patchFS(`usernames/${encodeURIComponent(nick)}`,{uid:sf(uid),email:sf(email)},token),
-  patchFS(`users/${encodeURIComponent(uid)}`,{username:sf(nick),displayName:sf(dn),bio:sf(''),photo:sf(''),createdAt:inf(now),lastSeen:inf(now)},token)
+ // Xavfsizlik: nickname yozuvi va profil bitta atomar so'rovda yoziladi — boshqa birov nickname'ni egallay olmaydi.
+ await fsCommitWithToken(token,[
+  {update:{name:`${FS_DOCS}/usernames/${nick}`,fields:{uid:sf(uid),email:sf(email)}}},
+  {update:{name:`${FS_DOCS}/users/${uid}`,fields:{username:sf(nick),displayName:sf(dn),bio:sf(''),photo:sf(''),createdAt:inf(now),lastSeen:inf(now)}},...(wasExisting?{updateMask:{fieldPaths:['username','displayName','lastSeen']}}:{})}
  ]);
  return{uid,email,token,refreshToken:a.refreshToken||'',wasExisting}
 }
@@ -1761,7 +1769,7 @@ $('#regForm').onsubmit=async e=>{
  const nick=norm($('#rNick').value),dn=$('#rName').value.trim(),pw=$('#rPass').value,btn=$('#regBtn');
  if(!/^[a-z0-9_]{3,32}$/.test(nick))return toast('Nickname: 3–32 ta lotin harf, raqam yoki _');
  if(dn.length<2)return toast('Ismingizni kiriting');
- if(pw.length<6)return toast('Parol kamida 6 belgi');
+ if(weakPw(pw))return toast(PW_RULE);
  if(registering)return;
  busy(btn,true);btn.textContent='Akkaunt ochilmoqda…';registering=true;pend={nick,name:dn};
  try{
@@ -1783,7 +1791,15 @@ $('#regForm').onsubmit=async e=>{
  }
 };
 function dropSnap(){try{const u=me?.id||LS.getItem(SNAP+'_last');if(u)LS.removeItem(SNAP+'_'+u);LS.removeItem(SNAP+'_last');SS.removeItem(SNAP+'_last');LS.removeItem('smsfb_session');LS.removeItem('smsfb_rt')}catch{}}
-async function switchAccount(){dropSnap();if(rec){rec.cancel=true;rec.mr.stop()}closeChat();stop();try{await signOut(auth)}catch{}showAuth()}
+// Xavfsizlik: chiqishda shu qurilmada qolgan xabarlar keshi, yuklangan fayllar va kontaktlar ro‘yxati o‘chiriladi
+// (Face ID yozuvlari saqlanadi). Keyin sahifa toza holatda qayta ochiladi.
+async function wipeLocalData(){
+ try{resolved.forEach(u=>{try{URL.revokeObjectURL(u)}catch{}});resolved.clear();blobResolved.clear()}catch{}
+ try{LS.removeItem(USER_DIR_CACHE);LS.removeItem('smsfb_users_full_at')}catch{}
+ try{const d=await idbOpen();await new Promise(res=>{const tx=d.transaction('files','readwrite'),rq=tx.objectStore('files').openCursor();rq.onsuccess=()=>{const c=rq.result;if(!c)return;if(!String(c.key).startsWith('__faceid_'))c.delete();c.continue()};tx.oncomplete=tx.onerror=tx.onabort=()=>res()})}catch{}
+ try{if(db&&typeof db.terminate==='function'){await db.terminate();if(typeof db.clearPersistence==='function')await db.clearPersistence()}}catch{}
+}
+async function switchAccount(){const gk=me?myGifLocalKey():'';dropSnap();if(rec){rec.cancel=true;rec.mr.stop()}closeChat();stop();try{await signOut(auth)}catch{}try{if(gk)LS.removeItem(gk)}catch{}showAuth();await wipeLocalData();setTimeout(()=>location.reload(),60)}
 function logout(){LS.setItem(ACCS,JSON.stringify(accs().filter(a=>a.nick!==me?.username)));switchAccount()}
 
 /* ---------- session ---------- */
@@ -1836,7 +1852,7 @@ async function start(fu){if(live&&me?.id===fu.uid)return;const warm=me?.id===fu.
  if(!warm){const keep=snapMsgs;stop();me={id:fu.uid,username:pend?.nick||'',displayName:pend?.name||pend?.nick||'…',photo:''};U.set(me.id,me);loadUserDirectoryCache()}
  live=true;authedR();pend=null;const uid=fu.uid;
  unsubs.push(onSnapshot(doc(db,'users',uid),s=>{
-  if(s.exists()){me={id:s.id,...s.data()};U.set(uid,me);rememberAcc();try{LS.removeItem('sms_pending_profile')}catch{}}
+  if(s.exists()){me={id:s.id,...s.data()};U.set(uid,me);rememberAcc();ensureNickMapping();try{LS.removeItem('sms_pending_profile')}catch{}}
   else{if(me)U.set(uid,me);try{const q=JSON.parse(LS.getItem('sms_pending_profile')||'null');if(q&&q.uid===uid)authRetry(()=>ensureOwnProfile({uid},q.nick,q.dn,q.email),5).then(()=>LS.removeItem('sms_pending_profile')).catch(()=>{})}catch{}}
   renderList();refreshActive();saveSnap()},fail));
  // includeMetadataChanges: realtime serverga ulanganini (fromCache=false) bilish uchun. Uzilsa REST zaxira yoqiladi.
@@ -2785,10 +2801,10 @@ function deleteModal(m){const c=active,adminForce=isGroup(c)&&isAdmin(c)&&m.send
  $('#delGo').onclick=()=>{removeMsg(m,c.type==='saved'||adminForce||(canAll&&$('#delAll')?.checked));closeModal()}}
 function removeMsg(m,all){const c=active;if(draft?.id===m.id){draft=null;renderDraft()}
  if(!all){updateDoc(msgRef(c.id,m.id),{deletedFor:arrayUnion(me.id)}).catch(fail);return}
- deleteDoc(msgRef(c.id,m.id)).catch(fail);const up={};
+ const delP=deleteDoc(msgRef(c.id,m.id));delP.catch(fail);const up={};
  if(c.lastMsg?.id===m.id){const p=M.filter(x=>x.id!==m.id).at(-1);up.lastMsg=p?{id:p.id,senderId:p.senderId,type:p.type,text:msgText(p).slice(0,200),at:p.createdAt}:deleteField()}
  if(c.pinned===m.id){up.pinned=deleteField();up.pinnedText=deleteField()}
- if(Object.keys(up).length)updateDoc(chatRef(c.id),up).catch(()=>{})}
+ if(Object.keys(up).length)delP.then(()=>updateDoc(chatRef(c.id),up)).catch(()=>{})}
 function fwdTargets(){const ids=new Set(),out=[];const add=c=>{if(c&&!ids.has(c.id)&&canPost(c)){ids.add(c.id);out.push(c)}};add(conv(sId(me.id)));convList().forEach(add);for(const u of U.values())if(u.id!==me.id)add(conv(dId(me.id,u.id)));return out}
 function forwardModal(m){const tg=fwdTargets();
  modal(`<h3>Kimga uzatish?</h3><input class="field" id="fwq" placeholder="Qidirish…"><div id="fwl" class="plist"></div><div class="mact"><button class="btn flat" data-close>Bekor</button></div>`);
@@ -2851,8 +2867,8 @@ $('#cmore').onclick=e=>{const c=active,r=e.currentTarget.getBoundingClientRect()
 function toggleMute(id){prefs.muted=prefs.muted.includes(id)?prefs.muted.filter(x=>x!==id):[...prefs.muted,id];savePrefs();renderList();if(active){renderComposer();if(infoOpen)renderInfo()}toast(prefs.muted.includes(id)?'Bildirishnomalar o‘chirildi':'Bildirishnomalar yoqildi')}
 function togglePinChat(id){prefs.pinned=prefs.pinned.includes(id)?prefs.pinned.filter(x=>x!==id):[id,...prefs.pinned].slice(0,5);savePrefs();renderList()}
 function clearHistory(c){confirmModal('Bu chatdagi barcha xabarlar faqat siz uchun o‘chiriladi.','Tozalash',()=>{prefs.cleared={...prefs.cleared,[c.id]:srvNow()};savePrefs();if(active?.id===c.id){renderMessages(true);renderPinbar()}renderList()})}
-function leaveGroup(c){confirmModal(`«${c.title}» dan chiqasizmi?`,'Chiqish',async()=>{closeChat();try{if(c.type!=='channel')await pushMsg(c.id,{type:'service',body:`${me.displayName} guruhdan chiqdi`});await updateDoc(chatRef(c.id),{members:arrayRemove(me.id),admins:arrayRemove(me.id)})}catch(e){if(e)fail(e)}})}
-function deleteGroup(c){confirmModal(`«${c.title}» butunlay o‘chiriladi. Barcha xabarlar hamma uchun yo‘qoladi.`,'O‘chirish',()=>{deleteDoc(chatRef(c.id)).catch(fail);closeChat()})}
+function leaveGroup(c){confirmModal(`«${c.title}» dan chiqasizmi?`,'Chiqish',async()=>{closeChat();try{if(c.type!=='channel'&&canPost(c))await pushMsg(c.id,{type:'service',body:`${me.displayName} guruhdan chiqdi`}).catch(()=>{});await updateDoc(chatRef(c.id),{members:arrayRemove(me.id),admins:arrayRemove(me.id)})}catch(e){if(e)fail(e)}})}
+function deleteGroup(c){confirmModal(`«${c.title}» butunlay o‘chiriladi. Barcha xabarlar hamma uchun yo‘qoladi.`,'O‘chirish',()=>{updateDoc(chatRef(c.id),{members:[],admins:[],deleted:true,updatedAt:srvNow()}).catch(fail);C.delete(c.id);closeChat()})}
 function newTopicModal(){
  if(!active||active.type!=='supergroup'||!isAdmin(active))return toast('Mavzu yaratish faqat administratorlarga ruxsat');
  let icon='💬';
@@ -2937,7 +2953,7 @@ function newGroupModal(type='group'){let photo='',photoFile=null;const selected=
  $('#gphoto').onchange=async e=>{const f=e.target.files[0];if(!f)return;photoFile=f;photo=await shrink(f,640,.92);if(photo)$('#gprev').innerHTML=`<img src="${photo}" alt="">`};
  $('#gcreate').onclick=async()=>{const title=$('#gtitle').value.trim();if(!title)return toast('Nom kiriting');const t=$('#gtype').value,sel=[...selected.keys()],now=srvNow();
   if(sel.length+1>GROUP_MEMBER_LIMIT)return toast(`Guruhda jami ${GROUP_MEMBER_LIMIT} tagacha a’zo bo‘lishi mumkin`);
-  let photoFullFileId='';if(photoFile){try{const hb=await hqImageBlob(photoFile);photoFullFileId=await uploadFile(hb,photoFile.name||'profile.jpg',null,{openTo:[me.id,...sel]})}catch(e){toast('Profil rasmi yuqori sifatda saqlanmadi, kichik rasmi ishlaydi',4500)}}
+  let photoFullFileId='';if(photoFile){try{const hb=await hqImageBlob(photoFile);photoFullFileId=await uploadFile(hb,photoFile.name||'profile.jpg',null,null)}catch(e){toast('Profil rasmi yuqori sifatda saqlanmadi, kichik rasmi ishlaydi',4500)}}
   const ref=doc(collection(db,'chats')),mref=doc(collection(db,'chats',ref.id,'messages'));const body=`${me.displayName} ${t==='channel'?'kanalni':'guruhni'} yaratdi`;
   const g=clean({type:t,title,description:$('#gdesc').value.trim(),photo,photoFullFileId,ownerId:me.id,admins:[me.id],members:[me.id,...sel],topics:t==='supergroup'?[{id:'general',title:'Umumiy',icon:'💬'}]:[],createdAt:now,updatedAt:now,reads:{[me.id]:now},unread:{},lastMsg:{id:mref.id,senderId:me.id,type:'service',text:body,at:now}});
   const sm={senderId:me.id,type:'service',body,createdAt:now,...(t==='supergroup'?{topicId:'general'}:{})};
@@ -2947,7 +2963,7 @@ function editGroupModal(){const g=active;let photo=null,photoFile=null;
  modal(`<h3>Tahrirlash</h3><div class="gtop"><label class="avpick" style="background:${color(g.id)}"><span id="gprev">${g.photo?`<img src="${esc(g.photo)}" alt="">`:ic('camera')}</span><input type="file" id="gphoto" accept="image/*" hidden></label><div class="grow"><label class="lb" style="margin-top:0">Nomi</label><input class="field" id="gtitle" value="${esc(g.title)}"></div></div><label class="lb">Tavsif</label><textarea class="field" id="gdesc" rows="2">${esc(g.description||'')}</textarea><div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="gsave">Saqlash</button></div>`);
  $('#gphoto').onchange=async e=>{const f=e.target.files[0];if(!f)return;photoFile=f;photo=await shrink(f,640,.92);if(photo)$('#gprev').innerHTML=`<img src="${photo}" alt="">`};
  $('#gsave').onclick=async e=>{const t=$('#gtitle').value.trim();if(!t)return toast('Nom kiriting');const btn=e.currentTarget,up={title:t,description:$('#gdesc').value.trim()};if(photo)up.photo=photo;
-  busy(btn,true);try{if(photoFile){const hb=await hqImageBlob(photoFile);up.photoFullFileId=await uploadFile(hb,photoFile.name||'profile.jpg',null,{openTo:g.members||[me.id]})}await updateDoc(chatRef(g.id),up);Object.assign(g,up);const cg=C.get(g.id);if(cg)C.set(g.id,{...cg,...up});if(t!==g.title&&g.type!=='channel')pushMsg(g.id,{type:'service',body:`${me.displayName} nomni «${t}» ga o‘zgartirdi`}).catch(()=>{});closeModal();if(infoOpen)renderInfo()}catch(er){fail(er)}finally{busy(btn,false)}}}
+  busy(btn,true);try{if(photoFile){const hb=await hqImageBlob(photoFile);up.photoFullFileId=await uploadFile(hb,photoFile.name||'profile.jpg',null,null)}await updateDoc(chatRef(g.id),up);Object.assign(g,up);const cg=C.get(g.id);if(cg)C.set(g.id,{...cg,...up});if(t!==g.title&&g.type!=='channel')pushMsg(g.id,{type:'service',body:`${me.displayName} nomni «${t}» ga o‘zgartirdi`}).catch(()=>{});closeModal();if(infoOpen)renderInfo()}catch(er){fail(er)}finally{busy(btn,false)}}}
 function addMembersModal(){const g=active;if(!g||!isAdmin(g))return toast('A’zo qo‘shish faqat administratorlarga ruxsat');
  const room=Math.max(0,GROUP_MEMBER_LIMIT-(g.members?.length||0));if(!room)return toast(`Bu guruhda ${GROUP_MEMBER_LIMIT} ta a’zo bor — limit to‘lgan`);
  const selected=new Map(),excluded=new Set(g.members||[]);
@@ -2994,7 +3010,7 @@ async function addGroupPhotoPosts(){
  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;inp.onchange=async()=>{
   const files=[...inp.files].filter(f=>f.type.startsWith('image/')).slice(0,left);if(!files.length)return;if(inp.files.length>left)toast(`Faqat yana ${left} ta rasm qo‘shish mumkin`);
   const btn=$('[data-add-photo-post]');busy(btn,true);const added=[];
-  try{for(let i=0;i<files.length;i++){const f=files[i];toast(`Rasm ${i+1}/${files.length} yuqori sifatda yuklanmoqda…`,0);const blob=await hqImageBlob(f);const fid=await uploadFile(blob,f.name||`post-${i+1}.jpg`,null,{openTo:g.members});added.push({fileId:fid,at:srvNow(),by:me.id})}
+  try{for(let i=0;i<files.length;i++){const f=files[i];toast(`Rasm ${i+1}/${files.length} yuqori sifatda yuklanmoqda…`,0);const blob=await hqImageBlob(f);const fid=await uploadFile(blob,f.name||`post-${i+1}.jpg`,null,null);added.push({fileId:fid,at:srvNow(),by:me.id})}
    const posts=[...old,...added].slice(-PHOTO_POST_LIMIT);await updateDoc(chatRef(g.id),{photoPosts:posts,updatedAt:srvNow()});g.photoPosts=posts;const cg=C.get(g.id);if(cg)C.set(g.id,{...cg,photoPosts:posts});renderInfo();toast(`${added.length} ta rasm post qo‘shildi`)}
   catch(e){toast(errText(e),5000)}finally{busy(btn,false)}
  };inp.click()
@@ -3079,7 +3095,7 @@ function profileModal(){let photo,video;
  $('#prm')&&($('#prm').onclick=()=>{photo='';video=null;$('#pprev').textContent=initials(me.displayName)});
  $('#puser').oninput=e=>{const n=norm(e.target.value),st=$('#pnst');if(n===me.username){st.textContent='';return}st.style.color=/^[a-z0-9_]{3,32}$/.test(n)?'var(--muted)':'var(--danger)';st.textContent=/^[a-z0-9_]{3,32}$/.test(n)?'':'— noto‘g‘ri'};
  $('#psave').onclick=async e=>{const btn=e.currentTarget,name=$('#pname').value.trim(),un=norm($('#puser').value),pw=$('#ppass')?.value||'';
-  if(name.length<2)return toast('Ism kamida 2 harf');if(!/^[a-z0-9_]{3,32}$/.test(un))return toast('Nickname: 3–32 ta lotin harf, raqam yoki _');if(pw&&pw.length<6)return toast('Parol kamida 6 belgi');
+  if(name.length<2)return toast('Ism kamida 2 harf');if(!/^[a-z0-9_]{3,32}$/.test(un))return toast('Nickname: 3–32 ta lotin harf, raqam yoki _');if(pw&&weakPw(pw))return toast(PW_RULE);
   busy(btn,true);
   try{if(un!==me.username){const old=me.username;await runTransaction(db,async tx=>{const r=doc(db,'usernames',un);if((await tx.get(r)).exists())throw{code:'taken'};tx.set(r,{uid:me.id,email:auth.currentUser.email});tx.delete(doc(db,'usernames',old));tx.update(doc(db,'users',me.id),{username:un})})}
    const up={displayName:name,bio:$('#pbio').value.trim()};
@@ -3147,7 +3163,7 @@ function passwordModal(){
  modal(`<h3>🔒 Parolni o‘zgartirish</h3><label class="lb">Joriy parol</label><input class="field" id="pwOld" type="password" autocomplete="current-password"><label class="lb">Yangi parol</label><input class="field" id="pwNew" type="password" autocomplete="new-password" placeholder="Kamida 6 belgi"><label class="lb">Yangi parolni takrorlang</label><input class="field" id="pwNew2" type="password" autocomplete="new-password"><div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="pwSave">Saqlash</button></div>`);
  $('#pwOld').focus();
  $('#pwSave').onclick=async e=>{const btn=e.currentTarget,o=$('#pwOld').value,n=$('#pwNew').value,n2=$('#pwNew2').value;
-  if(!o)return toast('Joriy parolni kiriting');if(n.length<6)return toast('Yangi parol kamida 6 belgi');if(n!==n2)return toast('Yangi parollar bir xil emas');if(n===o)return toast('Yangi parol eskisidan farq qilsin');
+  if(!o)return toast('Joriy parolni kiriting');if(weakPw(n))return toast(PW_RULE);if(n!==n2)return toast('Yangi parollar bir xil emas');if(n===o)return toast('Yangi parol eskisidan farq qilsin');
   if(!live||!auth?.currentUser)return toast(errText({code:'not-ready'}));busy(btn,true);
   try{const u=auth.currentUser,F=window.firebase;await u.reauthenticateWithCredential(F.auth.EmailAuthProvider.credential(u.email,o));await u.updatePassword(n);
    await faceIdUpdatePassword(me.username,n);closeModal();toast('✅ Parol o‘zgartirildi',3500)}
@@ -3186,944 +3202,3 @@ restoreSnap();
 
 </body>
 </html>
-/* ════════════════════════════════════════════════════════════════════════════
-   TOP 10 YANGILIKLAR MODULE v1.0
-   1. Message Reactions 👍❤️😂🔥
-   2. Message Search 🔍
-   3. Message Pin 📌
-   4. Draft Auto-save 💾
-   5. Typing Indicator ✍️
-   6. Image Compression 📸
-   7. Message Expiry ⏰
-   8. Backup Codes 🔐
-   9. Theme Customizer 🌓
-   10. Advanced Notifications 🔔
-════════════════════════════════════════════════════════════════════════════ */
-
-// ─────────────────────────────────────────────────────────────────────────
-// 1. MESSAGE REACTIONS - Emoji reactions on messages
-// ─────────────────────────────────────────────────────────────────────────
-
-const EMOJI_REACTIONS = ['👍', '❤️', '😂', '🔥', '😍', '😮', '😢', '🎉'];
-
-function addReactionStyles(){
-  const style = document.createElement('style');
-  style.textContent = `
-    .msg-reactions { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
-    .reaction { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; background: rgba(0,0,0,0.15); border-radius: 12px; font-size: 12px; cursor: pointer; user-select: none; transition: all 0.2s; }
-    .reaction:hover { background: rgba(0,0,0,0.25); transform: scale(1.1); }
-    .reaction.active { background: var(--accent); color: #fff; }
-    .reaction-emoji { font-size: 14px; }
-    .reaction-count { font-size: 11px; font-weight: 500; }
-    .emoji-picker { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px; background: var(--bg); border-radius: 8px; }
-    .emoji-btn { width: 32px; height: 32px; border: none; background: var(--bg2); border-radius: 6px; cursor: pointer; font-size: 18px; transition: all 0.2s; }
-    .emoji-btn:hover { background: var(--accent); transform: scale(1.2); }
-  `;
-  document.head.appendChild(style);
-}
-
-function showReactionPicker(msgId, x, y){
-  const existing = document.querySelector('.emoji-picker');
-  if(existing) existing.remove();
-  
-  const picker = document.createElement('div');
-  picker.className = 'emoji-picker';
-  picker.style.position = 'fixed';
-  picker.style.left = x + 'px';
-  picker.style.top = y + 'px';
-  picker.style.zIndex = '1000';
-  
-  EMOJI_REACTIONS.forEach(emoji => {
-    const btn = document.createElement('button');
-    btn.className = 'emoji-btn';
-    btn.textContent = emoji;
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      addMessageReaction(msgId, emoji);
-      picker.remove();
-    };
-    picker.appendChild(btn);
-  });
-  
-  document.body.appendChild(picker);
-  document.addEventListener('click', () => picker.remove(), { once: true });
-}
-
-function addMessageReaction(msgId, emoji){
-  const m = M.find(x => x.id === msgId);
-  if(!m) return;
-  if(!m.reactions) m.reactions = {};
-  if(!m.reactions[emoji]) m.reactions[emoji] = [];
-  
-  if(!m.reactions[emoji].includes(me.id)){
-    m.reactions[emoji].push(me.id);
-  } else {
-    m.reactions[emoji] = m.reactions[emoji].filter(id => id !== me.id);
-    if(m.reactions[emoji].length === 0) delete m.reactions[emoji];
-  }
-  
-  renderMessages();
-  updateDoc(msgRef(active.id, msgId), { reactions: m.reactions }).catch(() => {});
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 2. MESSAGE SEARCH - Search within chat
-// ─────────────────────────────────────────────────────────────────────────
-
-function addSearchStyles(){
-  const style = document.createElement('style');
-  style.textContent = `
-    .msg-search-box { display: flex; gap: 8px; padding: 8px; background: var(--bg); border-bottom: 1px solid var(--line); }
-    .msg-search-input { flex: 1; padding: 8px 12px; background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; color: inherit; }
-    .search-results { font-size: 12px; color: var(--muted); padding: 6px 12px; }
-    .msg-highlight { background: rgba(255, 193, 7, 0.3); animation: highlight-pulse 0.6s; }
-    @keyframes highlight-pulse { 0%, 100% { background: rgba(255, 193, 7, 0.3); } 50% { background: rgba(255, 193, 7, 0.5); } }
-  `;
-  document.head.appendChild(style);
-}
-
-function searchMessages(query){
-  if(!active || !query.trim()) return [];
-  const q = query.toLowerCase();
-  return M.filter(m => 
-    active.id === m.cid && 
-    (m.body?.toLowerCase().includes(q) || m.text?.toLowerCase().includes(q))
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 3. MESSAGE PIN - Pin important messages
-// ─────────────────────────────────────────────────────────────────────────
-
-function addPinStyles(){
-  const style = document.createElement('style');
-  style.textContent = `
-    .pin-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--accent); color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-    .pinned-messages { padding: 8px; background: var(--bg2); border-bottom: 2px solid var(--accent); }
-    .pinned-item { padding: 6px; background: var(--bg); border-left: 3px solid var(--accent); border-radius: 4px; font-size: 13px; cursor: pointer; margin-bottom: 4px; }
-    .pinned-item:hover { background: var(--hover); }
-  `;
-  document.head.appendChild(style);
-}
-
-function pinMessage(msgId){
-  const m = M.find(x => x.id === msgId);
-  if(!m || !isAdmin(active)) return;
-  
-  if(!active.pinnedMsgs) active.pinnedMsgs = [];
-  if(!active.pinnedMsgs.includes(msgId)){
-    active.pinnedMsgs.unshift(msgId);
-    if(active.pinnedMsgs.length > 5) active.pinnedMsgs.pop();
-  } else {
-    active.pinnedMsgs = active.pinnedMsgs.filter(id => id !== msgId);
-  }
-  
-  updateDoc(chatRef(active.id), { pinnedMsgs: active.pinnedMsgs }).catch(() => {});
-  renderMessages();
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 4. DRAFT AUTO-SAVE - Save drafts to localStorage
-// ─────────────────────────────────────────────────────────────────────────
-
-const DRAFT_KEY = 'makktub_drafts';
-
-function saveDraft(chatId, text){
-  try {
-    const drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
-    if(text.trim()) {
-      drafts[chatId] = { text, at: srvNow() };
-    } else {
-      delete drafts[chatId];
-    }
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
-  } catch(e) { console.warn('draft save', e); }
-}
-
-function loadDraft(chatId){
-  try {
-    const drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
-    return drafts[chatId]?.text || '';
-  } catch(e) { return ''; }
-}
-
-function clearDraft(chatId){
-  try {
-    const drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
-    delete drafts[chatId];
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
-  } catch(e) { console.warn('draft clear', e); }
-}
-
-// Hook into message input
-document.addEventListener('DOMContentLoaded', () => {
-  const input = document.querySelector('[contenteditable=true]');
-  if(input) {
-    input.addEventListener('input', () => {
-      if(active) saveDraft(active.id, input.textContent);
-    });
-  }
-});
-
-// ─────────────────────────────────────────────────────────────────────────
-// 5. TYPING INDICATOR - Show when someone is typing
-// ─────────────────────────────────────────────────────────────────────────
-
-const typingUsers = new Map();
-
-function addTypingStyles(){
-  const style = document.createElement('style');
-  style.textContent = `
-    .typing-indicator { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); padding: 4px 8px; font-style: italic; }
-    .typing-dot { width: 6px; height: 6px; background: var(--muted); border-radius: 50%; animation: typing 1.4s infinite; }
-    .typing-dot:nth-child(1) { animation-delay: 0s; }
-    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes typing { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
-  `;
-  document.head.appendChild(style);
-}
-
-function showTyping(userId, userName){
-  typingUsers.set(userId, srvNow());
-  renderTypingIndicator();
-}
-
-function renderTypingIndicator(){
-  const now = srvNow();
-  typingUsers.forEach((time, userId) => {
-    if(now - time > 3000) typingUsers.delete(userId);
-  });
-  
-  if(typingUsers.size > 0 && active?.type === 'direct'){
-    const names = Array.from(typingUsers.keys()).map(id => user(id)?.displayName).filter(Boolean);
-    const text = names.length === 1 ? names[0] : names.slice(0, 2).join(', ');
-    // Update UI to show typing indicator
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 6. IMAGE COMPRESSION - Auto-compress images before sending
-// ─────────────────────────────────────────────────────────────────────────
-
-async function compressImage(blob, maxWidth = 1280, quality = 0.85){
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
-      
-      if(width > maxWidth){
-        height = (maxWidth / width) * height;
-        width = maxWidth;
-      }
-      
-      canvas.width = width;
-      canvas.height = height;
-      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-      
-      canvas.toBlob(resolve, 'image/jpeg', quality);
-    };
-    img.src = URL.createObjectURL(blob);
-  });
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 7. MESSAGE EXPIRY - Auto-delete messages after time
-// ─────────────────────────────────────────────────────────────────────────
-
-function addExpiryStyles(){
-  const style = document.createElement('style');
-  style.textContent = `
-    .expiry-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--muted); }
-    .expiry-timer { font-weight: 600; color: var(--danger); }
-  `;
-  document.head.appendChild(style);
-}
-
-const MESSAGE_EXPIRY_OPTIONS = [
-  { label: '5 минут', value: 300 },
-  { label: '1 соат', value: 3600 },
-  { label: '1 kun', value: 86400 },
-  { label: '7 kun', value: 604800 },
-  { label: 'Hech qachon', value: 0 }
-];
-
-async function setMessageExpiry(msgId, seconds){
-  const m = M.find(x => x.id === msgId);
-  if(!m) return;
-  
-  m.expiresAt = seconds > 0 ? srvNow() + seconds * 1000 : 0;
-  updateDoc(msgRef(active.id, msgId), { expiresAt: m.expiresAt }).catch(() => {});
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 8. BACKUP CODES - Face ID Recovery Codes
-// ─────────────────────────────────────────────────────────────────────────
-
-function generateBackupCodes(count = 6){
-  const codes = [];
-  for(let i = 0; i < count; i++){
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    codes.push(code);
-  }
-  return codes;
-}
-
-function saveBackupCodes(codes){
-  const rec = faceRec(me.username);
-  if(!rec) return;
-  
-  faceSave(me.username, { 
-    ...rec, 
-    backupCodes: codes,
-    codesGeneratedAt: srvNow(),
-    codesUsed: []
-  });
-}
-
-function showBackupCodesModal(){
-  const codes = generateBackupCodes(6);
-  modal(`
-    <h3>🔐 Backup Kodlar</h3>
-    <p class="mp">Agar Face ID ishlamasa, bu kodlardan birini ishlat:</p>
-    <div style="background: var(--bg2); padding: 12px; border-radius: 8px; font-family: monospace; font-size: 13px; word-break: break-all;">
-      ${codes.map(c => `<div style="margin: 4px 0;">${c}</div>`).join('')}
-    </div>
-    <p class="mp" style="color: var(--danger); font-weight: 600;">⚠️ Bu kodlarni xavfsiz joyga yozing!</p>
-    <div class="mact">
-      <button class="btn" onclick="saveBackupCodes(['${codes.join("','")}'']); closeModal(); toast('Backup kodlar saqlandi')">Saqlash</button>
-    </div>
-  `);
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 9. ADVANCED THEME CUSTOMIZER
-// ─────────────────────────────────────────────────────────────────────────
-
-function addThemeCustomizer(){
-  const style = document.createElement('style');
-  style.textContent = `
-    .theme-customizer { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; padding: 12px; }
-    .theme-option { padding: 12px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; text-align: center; transition: all 0.2s; }
-    .theme-option:hover { transform: scale(1.05); }
-    .theme-option.active { border-color: var(--accent); background: var(--accent); color: #fff; }
-    .theme-option.light { background: #f5f5f5; color: #333; }
-    .theme-option.dark { background: #1a1a1a; color: #fff; }
-    .theme-option.auto { background: linear-gradient(45deg, #f5f5f5 50%, #1a1a1a 50%); }
-  `;
-  document.head.appendChild(style);
-}
-
-function toggleThemeCustomizer(){
-  const current = document.documentElement.dataset.theme || 'auto';
-  modal(`
-    <h3>🌓 Tema Tanlang</h3>
-    <div class="theme-customizer">
-      <div class="theme-option light ${current === 'light' ? 'active' : ''}" onclick="setTheme('light');">
-        ☀️ Kunduz
-      </div>
-      <div class="theme-option dark ${current === 'dark' ? 'active' : ''}" onclick="setTheme('dark');">
-        🌙 Tun
-      </div>
-      <div class="theme-option auto ${current === 'auto' ? 'active' : ''}" onclick="setTheme('auto');">
-        ⚡ Avto
-      </div>
-    </div>
-    <div class="mact">
-      <button class="btn flat" data-close>Yopish</button>
-    </div>
-  `);
-}
-
-function setTheme(theme){
-  document.documentElement.dataset.theme = theme;
-  localStorage.setItem('makktub_theme', theme);
-  closeModal();
-  toggleThemeCustomizer();
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 10. ADVANCED NOTIFICATIONS
-// ─────────────────────────────────────────────────────────────────────────
-
-const NOTIFICATION_SOUNDS = {
-  'ping': 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA==',
-  'bell': 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA==',
-  'chime': 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA=='
-};
-
-function playNotificationSound(soundType = 'ping'){
-  try {
-    const audio = new Audio(NOTIFICATION_SOUNDS[soundType] || NOTIFICATION_SOUNDS.ping);
-    audio.volume = 0.5;
-    audio.play().catch(() => {});
-  } catch(e) { console.warn('sound play error', e); }
-}
-
-// Initialize all features
-function initTopTenFeatures(){
-  addReactionStyles();
-  addSearchStyles();
-  addPinStyles();
-  addExpiryStyles();
-  addTypingStyles();
-  addThemeCustomizer();
-  
-  // Load theme preference
-  const savedTheme = localStorage.getItem('makktub_theme') || 'auto';
-  document.documentElement.dataset.theme = savedTheme;
-  
-  console.log('✅ Top 10 Features Initialized');
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 🎬 ADVANCED BOMB FEATURES MODULE (Voice, Stickers, GIF, P2P, File Control)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// ─────────────────────────────────────────────────────────────────────────
-// 1. 🎙️ VOICE MESSAGES - Record & Send Audio
-// ─────────────────────────────────────────────────────────────────────────
-
-let mediaRecorder = null;
-let audioChunks = [];
-let recordingTime = 0;
-let recordTimer = null;
-
-const STICKER_PACKS = {
-  'emoji': {name: 'Emoji Pack', emoji: ['😀','😃','😄','😁','😆','😅','🤣','😊','😇','🙂','😉','😍','🥰','😘','😋','😎']},
-  'hearts': {name: 'Hearts Pack', emoji: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','❤️‍🔥','💔','💕','💞','💓','💗']},
-  'gestures': {name: 'Gestures', emoji: ['👍','👎','👏','🙌','👐','🤝','👏','✌️','🤞','🤟','🤘','🤙','👌','🤌','☝️']},
-  'sport': {name: 'Sport', emoji: ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎳','🏓','🏸','🥊','🥋','🎣']},
-  'animals': {name: 'Animals', emoji: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵']}
-};
-
-const GIF_REACTIONS = {
-  'wow': {name:'WOW!', emoji:'🤯', gif:'https://media.giphy.com/media/xT9IgEx8SbH0teblUQ/giphy.gif'},
-  'lol': {name:'LOL', emoji:'😂', gif:'https://media.giphy.com/media/l3q2K5jinAlZ6tFjG/giphy.gif'},
-  'fire': {name:'🔥 FIRE', emoji:'🔥', gif:'https://media.giphy.com/media/g9GUusdUZsKFO/giphy.gif'},
-  'clap': {name:'CLAP', emoji:'👏', gif:'https://media.giphy.com/media/l0HlR3rsQk0x0q8Hs/giphy.gif'},
-  'yes': {name:'YES!', emoji:'😎', gif:'https://media.giphy.com/media/xT8qBeGtVnhBNwG2gE/giphy.gif'},
-  'no': {name:'NO', emoji:'🙅', gif:'https://media.giphy.com/media/QAsBwSjx9zVKoGp9PL/giphy.gif'},
-  'love': {name:'LOVE', emoji:'❤️', gif:'https://media.giphy.com/media/l0HlTy9x-Zy1Xo8Y4/giphy.gif'},
-  'sorry': {name:'SORRY', emoji:'🥺', gif:'https://media.giphy.com/media/l3q2K5jinAlZ6tFjG/giphy.gif'}
-};
-
-// Voice Recording Styles
-function addVoiceStyles(){
-  const style = document.createElement('style');
-  style.textContent = `
-    .voice-recorder { display: flex; gap: 10px; align-items: center; padding: 10px; background: #1a1a2e; border-radius: 10px; }
-    .voice-btn { background: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 50%; cursor: pointer; font-size: 20px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
-    .voice-btn:hover { background: #c0392b; transform: scale(1.1); }
-    .voice-btn.recording { background: #c0392b; animation: pulse 1s infinite; }
-    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
-    .voice-timer { font-size: 12px; color: #fff; min-width: 40px; font-weight: bold; }
-    .voice-msg { background: #2ecc71; padding: 10px; border-radius: 10px; color: white; display: flex; align-items: center; gap: 10px; }
-    .voice-play { cursor: pointer; padding: 5px 10px; background: rgba(255,255,255,0.3); border-radius: 5px; border: none; color: white; font-size: 14px; }
-    .voice-play:hover { background: rgba(255,255,255,0.5); }
-    .sticker-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 10px; max-height: 200px; overflow-y: auto; }
-    .sticker-item { cursor: pointer; font-size: 32px; text-align: center; padding: 5px; border-radius: 5px; hover: background: rgba(255,255,255,0.1); transition: all 0.2s; }
-    .sticker-item:hover { background: rgba(255,255,255,0.2); transform: scale(1.2); }
-    .gif-reaction { width: 100%; max-width: 200px; border-radius: 10px; cursor: pointer; transition: transform 0.2s; }
-    .gif-reaction:hover { transform: scale(1.05); }
-    .file-access-control { display: flex; gap: 10px; padding: 10px; background: #f39c12; border-radius: 5px; color: white; font-size: 12px; }
-    .file-access-control input { margin: 0 5px; cursor: pointer; }
-  `;
-  document.head.appendChild(style);
-}
-
-// Start Voice Recording
-function startVoiceRecord(){
-  if(!navigator.mediaDevices?.getUserMedia) {
-    toast('Microphone ishlamayapti');
-    return;
-  }
-
-  navigator.mediaDevices.getUserMedia({audio: true})
-    .then(stream => {
-      mediaRecorder = new MediaRecorder(stream);
-      audioChunks = [];
-      recordingTime = 0;
-
-      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-      mediaRecorder.onstart = () => {
-        recordTimer = setInterval(() => {
-          recordingTime++;
-          const min = Math.floor(recordingTime / 60);
-          const sec = recordingTime % 60;
-          document.querySelector('.voice-timer')?.textContent = `${min}:${String(sec).padStart(2,'0')}`;
-        }, 1000);
-      };
-
-      mediaRecorder.onstop = () => {
-        clearInterval(recordTimer);
-        const audioBlob = new Blob(audioChunks, {type: 'audio/webm'});
-        sendVoiceMessage(audioBlob);
-      };
-
-      mediaRecorder.start();
-      document.querySelector('.voice-btn').classList.add('recording');
-      document.querySelector('.voice-btn').textContent = '⏹';
-    })
-    .catch(e => {
-      console.error('Microphone xatosi:', e);
-      toast('Microphone ruxsati kerak');
-    });
-}
-
-function stopVoiceRecord(){
-  if(mediaRecorder?.state === 'recording'){
-    mediaRecorder.stop();
-    mediaRecorder.stream?.getTracks().forEach(t => t.stop());
-    document.querySelector('.voice-btn').classList.remove('recording');
-    document.querySelector('.voice-btn').textContent = '🎙️';
-  }
-}
-
-function sendVoiceMessage(audioBlob){
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const voiceData = e.target.result;
-    const msg = {
-      id: 'vm_' + Date.now(),
-      type: 'voice',
-      body: 'Ovozli xabar',
-      data: voiceData,
-      duration: recordingTime,
-      timestamp: new Date().toLocaleTimeString()
-    };
-    M.push(msg);
-    renderMessages();
-    recordingTime = 0;
-  };
-  reader.readAsDataURL(audioBlob);
-}
-
-function playVoiceMessage(msgId){
-  const msg = M.find(m => m.id === msgId);
-  if(!msg) return;
-  const audio = new Audio(msg.data);
-  audio.play();
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 2. 🎨 STICKER PACKS
-// ─────────────────────────────────────────────────────────────────────────
-
-function showStickerPicker(){
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-  modal.style.display = 'flex';
-  modal.style.flexDirection = 'column';
-
-  let html = '<div style="padding: 10px; border-bottom: 1px solid #333;"><strong>Sticker Paklar</strong></div>';
-
-  for(const [key, pack] of Object.entries(STICKER_PACKS)){
-    html += `<div><strong>${pack.name}</strong></div>`;
-    html += '<div class="sticker-grid">';
-    for(const emoji of pack.emoji){
-      html += `<div class="sticker-item" onclick="sendSticker('${emoji}')">${emoji}</div>`;
-    }
-    html += '</div>';
-  }
-
-  html += '<button onclick="this.closest(\\'div\\').remove()" style="margin-top:10px;">Yopish</button>';
-  modal.innerHTML = html;
-  document.body.appendChild(modal);
-}
-
-function sendSticker(emoji){
-  const msg = {
-    id: 'stk_' + Date.now(),
-    type: 'sticker',
-    emoji: emoji,
-    body: 'Stiker',
-    timestamp: new Date().toLocaleTimeString()
-  };
-  M.push(msg);
-  renderMessages();
-  document.querySelector('.modal')?.remove();
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 3. 🎬 GIF REACTIONS
-// ─────────────────────────────────────────────────────────────────────────
-
-function showGifReactions(msgId){
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-  modal.style.display = 'flex';
-  modal.style.flexDirection = 'column';
-  modal.style.maxWidth = '300px';
-
-  let html = '<div style="padding: 10px;"><strong>GIF Reaction</strong></div>';
-
-  for(const [key, gif] of Object.entries(GIF_REACTIONS)){
-    html += `
-      <div style="cursor: pointer; padding: 5px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 10px;"
-           onclick="sendGifReaction('${msgId}', '${key}'); this.closest('.modal').remove();">
-        <span style="font-size: 20px;">${gif.emoji}</span>
-        <span>${gif.name}</span>
-      </div>
-    `;
-  }
-
-  modal.innerHTML = html;
-  document.body.appendChild(modal);
-}
-
-function sendGifReaction(msgId, gifType){
-  const gif = GIF_REACTIONS[gifType];
-  const msg = {
-    id: 'gif_' + Date.now(),
-    type: 'gif-reaction',
-    replyTo: msgId,
-    gifType: gifType,
-    emoji: gif.emoji,
-    name: gif.name,
-    url: gif.gif,
-    timestamp: new Date().toLocaleTimeString()
-  };
-  M.push(msg);
-  renderMessages();
-  toast(`${gif.name} reaction jo'natildi!`);
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 4. 📁 P2P FILE SHARING (Simplified)
-// ─────────────────────────────────────────────────────────────────────────
-
-const p2pTransfers = new Map();
-
-function initP2PFileSharing(){
-  const style = document.createElement('style');
-  style.textContent = `
-    .p2p-transfer { display: flex; flex-direction: column; gap: 5px; padding: 10px; background: #16a085; border-radius: 10px; color: white; }
-    .p2p-progress { height: 6px; background: rgba(255,255,255,0.3); border-radius: 3px; overflow: hidden; }
-    .p2p-bar { height: 100%; background: #fff; width: 0%; transition: width 0.3s; }
-    .p2p-status { font-size: 12px; opacity: 0.9; }
-  `;
-  document.head.appendChild(style);
-}
-
-function startP2PTransfer(fileId, fileName, fileSize){
-  const transfer = {
-    id: fileId,
-    name: fileName,
-    size: fileSize,
-    transferred: 0,
-    startTime: Date.now(),
-    speed: 0
-  };
-  p2pTransfers.set(fileId, transfer);
-
-  // Simulate P2P transfer
-  const interval = setInterval(() => {
-    const t = p2pTransfers.get(fileId);
-    if(!t) { clearInterval(interval); return; }
-
-    t.transferred += Math.random() * 50000;
-    t.speed = t.transferred / ((Date.now() - t.startTime) / 1000);
-
-    if(t.transferred >= t.size){
-      t.transferred = t.size;
-      clearInterval(interval);
-      toast(`${fileName} tayyorlandi!`);
-      p2pTransfers.delete(fileId);
-    }
-
-    updateP2PDisplay(fileId);
-  }, 500);
-}
-
-function updateP2PDisplay(fileId){
-  const t = p2pTransfers.get(fileId);
-  if(!t) return;
-
-  const pct = Math.round(t.transferred / t.size * 100);
-  const el = document.querySelector(`[data-p2p="${fileId}"]`);
-  if(el){
-    el.innerHTML = `
-      <strong>${t.name}</strong>
-      <div class="p2p-progress"><div class="p2p-bar" style="width:${pct}%"></div></div>
-      <div class="p2p-status">${pct}% · ${(t.speed/1024/1024).toFixed(1)} MB/s</div>
-    `;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 5. 🔒 FILE ACCESS CONTROL
-// ─────────────────────────────────────────────────────────────────────────
-
-function showFileAccessControl(msgId){
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-
-  modal.innerHTML = `
-    <div style="padding: 15px; max-width: 400px;">
-      <h3>📁 Fayl Ruxsati</h3>
-      <div class="file-access-control">
-        <label><input type="checkbox" checked> Barcha ko'rsin</label>
-        <label><input type="checkbox"> Faqat admin'lar</label>
-        <label><input type="checkbox"> Parol bilan</label>
-      </div>
-      <div style="margin-top: 10px; display: flex; gap: 10px;">
-        <button onclick="this.closest('.modal').remove()" style="flex:1; padding:8px; cursor:pointer; background:#2ecc71; color:white; border:none; border-radius:5px;">Saqlash</button>
-        <button onclick="this.closest('.modal').remove()" style="flex:1; padding:8px; cursor:pointer; background:#e74c3c; color:white; border:none; border-radius:5px;">Bekor</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 6. ⭐ MESSAGE THREADING
-// ─────────────────────────────────────────────────────────────────────────
-
-function showMessageThread(msgId){
-  const msg = M.find(m => m.id === msgId);
-  if(!msg) return;
-
-  const replies = M.filter(m => m.replyTo === msgId);
-
-  let html = `
-    <div style="padding: 15px; max-width: 500px; max-height: 400px; overflow-y: auto;">
-      <div style="border-left: 3px solid #3498db; padding-left: 10px; margin-bottom: 15px;">
-        <strong>${msg.name || 'Siz'}</strong>
-        <div>${msg.body}</div>
-        <small style="opacity: 0.7;">${msg.timestamp}</small>
-      </div>
-
-      <div><strong>Javoblar (${replies.length})</strong></div>
-      ${replies.map(r => `
-        <div style="border-left: 2px solid #2ecc71; padding: 8px 0 8px 10px; margin-bottom: 10px;">
-          <strong>${r.name || 'Siz'}</strong>
-          <div style="font-size: 14px;">${r.body}</div>
-          <small style="opacity: 0.7;">${r.timestamp}</small>
-        </div>
-      `).join('')}
-
-      <textarea placeholder="Javob yozing..." style="width:100%; height:60px; padding:8px; border-radius:5px; border:1px solid #ddd; margin-top:10px;"></textarea>
-      <button onclick="this.closest('div').remove()" style="width:100%; padding:8px; margin-top:8px; background:#3498db; color:white; border:none; border-radius:5px; cursor:pointer;">Jo'natish</button>
-    </div>
-  `;
-
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-  modal.innerHTML = html;
-  document.body.appendChild(modal);
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 7. 💬 MESSAGE FORMATTING (Bold, Italic, Code)
-// ─────────────────────────────────────────────────────────────────────────
-
-function applyMessageFormat(text, format){
-  switch(format){
-    case 'bold': return `**${text}**`;
-    case 'italic': return `*${text}*`;
-    case 'code': return `` + "`" + `${text}` + "`" + ``;
-    case 'strikethrough': return `~~${text}~~`;
-    default: return text;
-  }
-}
-
-function renderFormattedText(text){
-  if(!text) return text;
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`(.*?)`/g, '<code style="background:#f0f0f0; padding:2px 4px; border-radius:3px;">$1</code>')
-    .replace(/~~(.*?)~~/g, '<del>$1</del>');
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 8. 📌 CUSTOM EMOJI REACTIONS
-// ─────────────────────────────────────────────────────────────────────────
-
-const CUSTOM_EMOJIS = {
-  'excellent': '😍',
-  'good': '👍',
-  'bad': '👎',
-  'funny': '😂',
-  'thinking': '🤔',
-  'shocked': '😮',
-  'sad': '😢',
-  'angry': '😠',
-  'love': '❤️',
-  'fire': '🔥'
-};
-
-function addEmojiReactionToMessage(msgId, emojiKey){
-  const msg = M.find(m => m.id === msgId);
-  if(!msg) return;
-
-  if(!msg.emojiReactions) msg.emojiReactions = {};
-  msg.emojiReactions[emojiKey] = (msg.emojiReactions[emojiKey] || 0) + 1;
-  renderMessages();
-  toast('Emoji reaction qo\'shildi!');
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 9. 📸 MEDIA PREVIEW
-// ─────────────────────────────────────────────────────────────────────────
-
-function showMediaPreview(msgId){
-  const msg = M.find(m => m.id === msgId);
-  if(!msg || !msg.media) return;
-
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-  modal.style.display = 'flex';
-  modal.style.alignItems = 'center';
-  modal.style.justifyContent = 'center';
-
-  let content = '';
-  if(msg.media.type === 'image'){
-    content = `<img src="${msg.media.url}" style="max-width:90%; max-height:90%; border-radius:10px;" onclick="this.closest('.modal').remove()">`;
-  } else if(msg.media.type === 'video'){
-    content = `<video controls style="max-width:90%; max-height:90%; border-radius:10px;" onclick="event.stopPropagation()"><source src="${msg.media.url}" type="video/mp4"></video>`;
-  } else if(msg.media.type === 'audio'){
-    content = `<audio controls style="width:90%; max-width:400px;"><source src="${msg.media.url}" type="audio/webm"></audio>`;
-  }
-
-  modal.innerHTML = content;
-  modal.addEventListener('click', () => modal.remove());
-  document.body.appendChild(modal);
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// 10. 📊 ADVANCED MESSAGE STATISTICS
-// ─────────────────────────────────────────────────────────────────────────
-
-function showMessageStats(){
-  const totalMsgs = M.length;
-  const voiceMsgs = M.filter(m => m.type === 'voice').length;
-  const stickerMsgs = M.filter(m => m.type === 'sticker').length;
-  const gifReactions = M.filter(m => m.type === 'gif-reaction').length;
-
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-  modal.innerHTML = `
-    <div style="padding: 20px; max-width: 400px;">
-      <h3>📊 Chat Statistikasi</h3>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0;">
-        <div style="background: #3498db; color: white; padding: 15px; border-radius: 10px; text-align: center;">
-          <div style="font-size: 24px; font-weight: bold;">${totalMsgs}</div>
-          <div>Jami xabarlar</div>
-        </div>
-        <div style="background: #2ecc71; color: white; padding: 15px; border-radius: 10px; text-align: center;">
-          <div style="font-size: 24px; font-weight: bold;">${voiceMsgs}</div>
-          <div>Ovozli xabarlar</div>
-        </div>
-        <div style="background: #f39c12; color: white; padding: 15px; border-radius: 10px; text-align: center;">
-          <div style="font-size: 24px; font-weight: bold;">${stickerMsgs}</div>
-          <div>Stikerlar</div>
-        </div>
-        <div style="background: #e74c3c; color: white; padding: 15px; border-radius: 10px; text-align: center;">
-          <div style="font-size: 24px; font-weight: bold;">${gifReactions}</div>
-          <div>GIF Reactions</div>
-        </div>
-      </div>
-      <button onclick="this.closest('.modal').remove()" style="width:100%; padding:10px; background:#9b59b6; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">Yopish</button>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-// ═════════════════════════════════════════════════════════════════════════
-// INITIALIZE ALL ADVANCED FEATURES
-// ═════════════════════════════════════════════════════════════════════════
-
-function initAdvancedFeatures(){
-  addVoiceStyles();
-  initP2PFileSharing();
-  console.log('✅ Advanced Features Initialized (Voice, Stickers, GIF, P2P, File Control)');
-}
-
-// ═════════════════════════════════════════════════════════════════════════
-// UI INTEGRATION HANDLERS
-// ═════════════════════════════════════════════════════════════════════════
-
-function initAllFeatures(){
-  initTopTenFeatures();
-  initAdvancedFeatures();
-
-  // Add UI event listeners
-  document.addEventListener('keydown', (e) => {
-    // Ctrl+K = Voice record toggle
-    if(e.ctrlKey && e.key === 'k' && mediaRecorder?.state === 'recording'){
-      stopVoiceRecord();
-    }
-  });
-}
-
-// Message context menu enhancements
-document.addEventListener('contextmenu', (e) => {
-  if(e.target.closest('[data-msg-id]')){
-    e.preventDefault();
-    const msgId = e.target.closest('[data-msg-id]').dataset.msgId;
-    showAdvancedMessageMenu(msgId, e.clientX, e.clientY);
-  }
-});
-
-function showAdvancedMessageMenu(msgId, x, y){
-  const menu = document.createElement('div');
-  menu.style.cssText = `position:fixed; left:${x}px; top:${y}px; background:#1a1a2e; border:1px solid #444; border-radius:8px; z-index:9999; min-width:150px; box-shadow:0 0 10px rgba(0,0,0,0.5);`;
-
-  menu.innerHTML = `
-    <div style="padding:8px; cursor:pointer; border-bottom:1px solid #333;" onclick="showGifReactions('${msgId}'); this.parentElement.remove();">🎬 GIF Reaction</div>
-    <div style="padding:8px; cursor:pointer; border-bottom:1px solid #333;" onclick="showMessageThread('${msgId}'); this.parentElement.remove();">💬 Reply</div>
-    <div style="padding:8px; cursor:pointer; border-bottom:1px solid #333;" onclick="pinMessage('${msgId}'); this.parentElement.remove();">📌 Pin</div>
-    <div style="padding:8px; cursor:pointer; border-bottom:1px solid #333;" onclick="setMessageExpiry('${msgId}', 3600); this.parentElement.remove();">⏰ Expiry</div>
-    <div style="padding:8px; cursor:pointer;" onclick="showMessageStats(); this.parentElement.remove();">📊 Stats</div>
-  `;
-  document.body.appendChild(menu);
-  setTimeout(() => menu.addEventListener('blur', () => menu.remove()), 100);
-}
-
-// Enhanced Settings with Advanced Features
-function enhanceSettingsUI(){
-  const settingsBtn = document.querySelector('[data-action="settings"]');
-  if(!settingsBtn) return;
-
-  settingsBtn.addEventListener('click', () => {
-    // Add advanced settings sections
-    setTimeout(() => {
-      const settingsModal = document.querySelector('.settings-modal') || document.querySelector('.modal');
-      if(!settingsModal) return;
-
-      // Add Advanced Features section if not exists
-      if(!settingsModal.querySelector('[data-section="advanced-features"]')){
-        const advSection = document.createElement('div');
-        advSection.setAttribute('data-section', 'advanced-features');
-        advSection.innerHTML = `
-          <div style="border-top: 1px solid #333; padding-top: 15px; margin-top: 15px;">
-            <h4>⚡ Advanced Features</h4>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-              <button onclick="showStickerPicker()" style="padding:10px; background:#f39c12; color:white; border:none; border-radius:5px; cursor:pointer;">🎨 Stickers</button>
-              <button onclick="startVoiceRecord()" style="padding:10px; background:#e74c3c; color:white; border:none; border-radius:5px; cursor:pointer;">🎙️ Voice Msg</button>
-              <button onclick="showMessageStats()" style="padding:10px; background:#9b59b6; color:white; border:none; border-radius:5px; cursor:pointer;">📊 Statistics</button>
-              <button onclick="initP2PFileSharing()" style="padding:10px; background:#16a085; color:white; border:none; border-radius:5px; cursor:pointer;">📁 P2P Files</button>
-            </div>
-          </div>
-        `;
-        settingsModal.appendChild(advSection);
-      }
-    }, 100);
-  });
-}
-
-// Run on load
-if(document.readyState === 'loading'){
-  document.addEventListener('DOMContentLoaded', () => {
-    initAllFeatures();
-    enhanceSettingsUI();
-  });
-} else {
-  initAllFeatures();
-  enhanceSettingsUI();
-}
-
