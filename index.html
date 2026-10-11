@@ -880,7 +880,7 @@ function errText(e){const c=String(e?.code||e?.message||'');
  if(c==='too-big')return'Bu kichik fayl yuklash yo‘li uchun juda katta';
  if(c==='nick-taken'||c.includes('email-already-in-use')||c.includes('credential-already-in-use'))return'Bu nickname band. Boshqa nickname tanlang';
  if(c==='face-lib')return'Yuzni tanish modeli yuklanmadi. Internet ulanganini tekshiring';
- if(c==='face-timeout')return'Yuz tanilmadi. Yorug‘roq joyda, kameraga to‘g‘ri qarab qayta urining';
+ if(c==='face-timeout')return'Yuz tanilmadi. Yorug‘roq joyda, kameraga to‘g‘ri qarab qayta urining';if(c==='face-blink-timeout')return'Ko‘z yumib-ochish sezilmadi. Yorug‘roq joyda ko‘zingizni yumib, 1 soniyadan keyin oching';
  if(c==='faceid-unsupported')return'Bu qurilma yoki brauzer Face ID / barmoq izi bilan kirishni qo‘llamaydi';
  if(c==='faceid-cancel')return'Face ID bekor qilindi yoki yuz tanilmadi';
  if(c==='faceid-broken')return'Face ID ma’lumoti eskirgan. Parol bilan kiring va Sozlamalarda Face ID’ni qayta yoqing';
@@ -1694,8 +1694,33 @@ function faceScanner(F,video){const st={level:0,lum:128,noFace:0,frames:0,size:2
   const input=st.level>=2?enhancedFrame(video,st.lum<30?3:2.2):video;
   let all;try{all=await F.detectAllFaces(input,new F.TinyFaceDetectorOptions({inputSize:st.size,scoreThreshold:st.level>=2?0.35:0.45})).withFaceLandmarks().withFaceDescriptors()}catch(e){console.warn('face scan',e);await sleep(80);return{n:0}}
   if(!all||!all.length){st.noFace++;return{n:0}}st.noFace=0;if(all.length>1)return{n:all.length};const r=all[0];
-  return{n:1,score:r.detection?.score||0,desc:Array.from(r.descriptor),ear:(faceEAR(r.landmarks.getLeftEye())+faceEAR(r.landmarks.getRightEye()))/2,pose:facePose(r.landmarks),dark:st.level>=2}};
+  const eL=faceEAR(r.landmarks.getLeftEye()),eR=faceEAR(r.landmarks.getRightEye());
+  return{n:1,score:r.detection?.score||0,desc:Array.from(r.descriptor),ear:(eL+eR)/2,earL:eL,earR:eR,pose:facePose(r.landmarks),dark:st.level>=2}};
+ // Tez rejim (ko‘z yumib-ochishni kuzatish uchun): yuz "barmoq izi" hisoblanmaydi — kadrlar 2–3 barobar tez keladi,
+ // shuning uchun qisqa ko‘z yumish ham o‘tkazib yuborilmaydi.
+ st.quick=async()=>{await nextFrame(video);st.frames++;
+  if(st.frames%4===1){st.lum=frameLum(video);if(st.lum<40)setLevel(2);else if(st.lum<70)setLevel(1)}
+  const input=st.level>=2?enhancedFrame(video,st.lum<30?3:2.2):video;
+  let all;try{all=await F.detectAllFaces(input,new F.TinyFaceDetectorOptions({inputSize:st.size,scoreThreshold:st.level>=2?0.3:0.4})).withFaceLandmarks()}catch(e){await sleep(60);return{n:0}}
+  if(!all||!all.length)return{n:0};if(all.length>1)return{n:all.length};const r=all[0];
+  return{n:1,earL:faceEAR(r.landmarks.getLeftEye()),earR:faceEAR(r.landmarks.getRightEye())}};
  return st}
+// Ko‘z yumib-ochish (tiriklik) aniqlagichi. Har bir ko‘z o‘zining "ochiq" holatiga nisbatan o‘lchanadi
+// (odamdan odamga ko‘z o‘lchami farq qiladi), ikkala ko‘z BIRGA yumilishi shart — rasmdagi titrash bilan adashmaydi.
+function blinkTracker(){let hl=[],hr=[],phase='open',bl=0,br=0,closedAt=0,minL=9,minR=9;
+ const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[b.length>>1]},mad=(a,m)=>{const b=a.map(x=>Math.abs(x-m)).sort((x,y)=>x-y);return 1.4826*b[b.length>>1]},add=(a,v)=>{a.push(v);if(a.length>10)a.shift()};
+ return{
+  reset(){hl=[];hr=[];phase='open';closedAt=0;minL=9;minR=9},
+  seed(L,R){if(L>0.03&&R>0.03){add(hl,L);add(hr,R)}},
+  push(L,R,t){if(!(L>0.02&&R>0.02))return phase;
+   if(phase==='open'){
+    if(hl.length>=3){bl=med(hl);br=med(hr);const tl=Math.min(bl*0.82,bl-2*mad(hl,bl)),tr=Math.min(br*0.82,br-2*mad(hr,br));
+     if(L<tl&&R<tr){phase='closed';closedAt=t;minL=L;minR=R;return'closed'}}
+    add(hl,L);add(hr,R);return'open'}
+   minL=Math.min(minL,L);minR=Math.min(minR,R);
+   if((L+R)/2>(bl+br)/2*0.92&&L>minL*1.1&&R>minR*1.1){phase='open';hl=[];hr=[];return'blink'}
+   if(t-closedAt>5000){phase='open';hl=[];hr=[];return'open'}
+   return'closed'}}}
 const faceDist=(a,b)=>{let s=0;for(let i=0;i<a.length;i++){const d=a[i]-b[i];s+=d*d}return Math.sqrt(s)};
 function camModalHtml(title,sub){return`<h3>🙂 ${title}</h3><p class="mp">${sub}</p><div class="cam-hint" id="camHint"></div><div class="cam-wrap"><video id="camV" autoplay muted playsinline></video><svg class="cam-prog" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" id="camProg"/></svg><div class="cam-ring" id="camRing"></div></div><div class="cam-st" id="camSt">Kamera yoqilmoqda…</div><div class="mact"><button class="btn flat" data-close>Bekor</button></div>`}
 const camSay=(t,state='')=>{const s=$('#camSt'),r=$('#camRing');if(s)s.textContent=t;if(r)r.dataset.s=state};
@@ -1724,24 +1749,43 @@ async function faceCamEnroll(){
    samples.push(s.desc);got++;lastAt=rawNow();camProg(samples.length/total);camSay(`✓ ${Math.round(samples.length/total*100)}%`,'ok')}}
  camHint('');stopFaceCam();return samples.map(d=>d.map(x=>Math.round(x*1e4)/1e4))}
 // KIRISH: yuz 2 kadr ketma-ket mos kelsa — darhol ochiladi. (Ixtiyoriy: ko‘z yumib-ochish himoyasi.)
+// Himoya yoqilgan bo‘lsa: yuz tanilgach TEZ rejimga o‘tiladi (faqat ko‘z kuzatiladi), ko‘z yumib-ochilgach
+// yuz yana bir marta solishtiriladi — boshqa odam almashib qolmasligi uchun.
 async function faceCamVerify(rec){
- modal(camModalHtml('Face ID bilan kirish',rec.blink?'Kameraga qarang va ko‘zingizni bir marta yumib-oching.':'Kameraga qarang.'));
+ modal(camModalHtml('Face ID bilan kirish',rec.blink?'Kameraga qarang. Yuz tanilgach ko‘zingizni yumib, 1 soniyadan keyin oching.':'Kameraga qarang.'));
  const video=$('#camV');camSay('Kamera yoqilmoqda…','scan');
  const [F,my]=await Promise.all([loadFaceLib(),openFaceCam(video)]);if(my!==faceCamRun)throw{code:'faceid-cancel'};
- const sc=faceScanner(F,video);camSay('Yuz tekshirilmoqda…','scan');const t0=rawNow();let strong=0,matched=false,base=0,closed=false,bad=0,badSince=0;
- const reset=()=>{strong=0;matched=false;base=0;closed=false;bad=0};
- while(true){if(my!==faceCamRun)throw{code:'faceid-cancel'};if(rawNow()-t0>25000)throw{code:'face-timeout'};
-  const s=await sc.scan();if(my!==faceCamRun)throw{code:'faceid-cancel'};
-  if(s.n>1){reset();camSay('Kamerada faqat bitta yuz bo‘lsin','bad');continue}
-  if(!s.n){if(!matched)camSay(sc.level>=1?'Yoritilmoqda… yuzingizni ekranga yaqinlashtiring':'Yuzingizni kameraga qarating','scan');continue}
-  const d=Math.min(...rec.faces.map(f=>faceDist(f,s.desc))),lim=s.dark?FACE_MATCH_DARK:FACE_MATCH,need=s.dark?3:2;
-  if(!matched){
-   if(d<=lim){badSince=0;camProg(++strong/need);if(strong>=need){matched=true;base=s.ear;if(!rec.blink){camSay('✓ Tanildi','ok');stopFaceCam();return true}camSay('✓ Yuz tanildi — endi ko‘zingizni bir marta yumib-oching','ok')}else camSay('Yuz tekshirilmoqda…','scan')}
+ const sc=faceScanner(F,video),bt=blinkTracker();camSay('Yuz tekshirilmoqda…','scan');
+ let t0=rawNow(),strong=0,badSince=0,phase='id',tB=0,lost=0,lim=FACE_MATCH;
+ const toId=msg=>{phase='id';strong=0;badSince=0;t0=rawNow();bt.reset();camHint('');camProg(0);camSay(msg||'Yuz tekshirilmoqda…','scan')};
+ while(true){if(my!==faceCamRun)throw{code:'faceid-cancel'};
+  if(phase==='id'){
+   if(rawNow()-t0>25000)throw{code:'face-timeout'};
+   const s=await sc.scan();if(my!==faceCamRun)throw{code:'faceid-cancel'};
+   if(s.n>1){strong=0;camSay('Kamerada faqat bitta yuz bo‘lsin','bad');continue}
+   if(!s.n){camSay(sc.level>=1?'Yoritilmoqda… yuzingizni ekranga yaqinlashtiring':'Yuzingizni kameraga qarating','scan');continue}
+   const d=Math.min(...rec.faces.map(f=>faceDist(f,s.desc))),need=s.dark?3:2;lim=s.dark?FACE_MATCH_DARK:FACE_MATCH;
+   if(d<=lim){badSince=0;bt.seed(s.earL,s.earR);camProg(++strong/need);
+    if(strong>=need){
+     if(!rec.blink){camSay('✓ Tanildi','ok');stopFaceCam();return true}
+     phase='blink';tB=rawNow();lost=0;camSay('✓ Yuz tanildi','ok');camHint('👁 Ko‘zingizni yumib, keyin oching')}
+    else camSay('Yuz tekshirilmoqda…','scan')}
    else{strong=0;camProg(0);if(!badSince)badSince=rawNow();const no=rawNow()-badSince>1500;camSay(no?'❌ Yuz mos kelmadi — bu akkaunt egasi emas':'Yuz tekshirilmoqda…',no?'bad':'scan')}
    continue}
-  if(d>lim+0.08){if(++bad>=3){reset();camSay('Yuz tekshirilmoqda…','scan')}continue}
-  bad=0;if(!closed){if(s.ear>base)base=s.ear;if(s.ear<base*0.72)closed=true;continue}
-  if(s.ear>base*0.86&&d<=lim){camSay('✓ Tasdiqlandi','ok');stopFaceCam();return true}}}
+  // Ko‘z yumib-ochishni kutish (tez rejim)
+  if(rawNow()-tB>20000)throw{code:'face-blink-timeout'};
+  const q=await sc.quick();if(my!==faceCamRun)throw{code:'faceid-cancel'};
+  if(q.n>1){toId('Kamerada faqat bitta yuz bo‘lsin');continue}
+  // Ko‘z yumilganda yuz bir-ikki kadr yo‘qolishi mumkin — yumilgan holat saqlanadi, faqat 2.5 soniyadan oshsa qaytadan.
+  if(!q.n){if(!lost)lost=rawNow();else if(rawNow()-lost>2500)toId();continue}
+  lost=0;const st=bt.push(q.earL,q.earR,rawNow());
+  if(st==='closed'){camHint('👁 Yaxshi — endi ko‘zingizni oching');continue}
+  if(st==='blink'){
+   camHint('');camSay('Tekshirilmoqda…','scan');
+   const s=await sc.scan();if(my!==faceCamRun)throw{code:'faceid-cancel'};
+   if(s.n===1&&Math.min(...rec.faces.map(f=>faceDist(f,s.desc)))<=lim+0.03){camSay('✓ Tasdiqlandi','ok');stopFaceCam();return true}
+   toId('Yuz qayta tekshirilmoqda…');continue}
+  if(rawNow()-tB>8000)camHint('👁 Ko‘zingizni sekinroq yumib, 1 soniyadan keyin oching')}}
 async function faceIdUnlock(nick){
  const rec=faceRec(nick);if(!rec||rec.mode!=='cam')throw{code:'faceid-broken'};
  await faceCamVerify(rec);closeModal();return faceDecrypt(rec)
