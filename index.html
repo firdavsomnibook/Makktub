@@ -225,6 +225,46 @@ audio{width:270px;max-width:100%;height:40px;display:block}
 .voice-state{font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .reacts{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
 .reacts button{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:14px;background:var(--quote);font-size:13px;color:var(--accent);font-weight:600}
+.bub.poll-bub{min-width:245px}
+.poll-q{font-weight:700;margin-bottom:8px;line-height:1.35;min-width:200px}
+.poll-opt{position:relative;display:block;width:100%;text-align:left;padding:9px 12px;margin-top:6px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:inherit;cursor:pointer;overflow:hidden;font-size:14.5px;font:inherit}
+.poll-opt:disabled{cursor:default}
+.poll-opt.picked{border-color:var(--accent)}
+.out .poll-opt{border-color:var(--out-quote);background:transparent;color:var(--out-text)}
+.out .poll-opt.picked{border-color:#fff}
+.poll-opt .pofill{position:absolute;inset:0;width:0;background:var(--quote);transition:width .45s ease;z-index:0}
+.out .poll-opt .pofill{background:rgba(255,255,255,.16)}
+.poll-opt.correct .pofill{background:rgba(34,197,94,.22)}
+.poll-opt.wrong .pofill{background:rgba(229,57,53,.18)}
+.poll-opt .porow{position:relative;z-index:1;display:flex;align-items:center;gap:8px}
+.poll-opt .potxt{flex:1;min-width:0;word-break:break-word}
+.poll-opt .popct{font-weight:700;font-size:12.5px;color:var(--muted);flex:none}
+.out .poll-opt .popct{color:var(--out-meta)}
+.poll-opt .poic{flex:none;width:17px;height:17px;display:flex}
+.poll-opt .poic .i{width:17px;height:17px}
+.poll-opt.correct .poic{color:var(--online)}
+.poll-opt.wrong .poic{color:var(--danger)}
+.out .poll-opt.correct .poic,.out .poll-opt.wrong .poic{color:var(--out-text)}
+.poll-voters{font-size:11.5px;color:var(--muted);margin:2px 0 0 14px;word-break:break-word}
+.out .poll-voters{color:var(--out-meta)}
+.poll-meta{display:flex;align-items:center;gap:5px;margin-top:9px;font-size:12px;color:var(--muted)}
+.out .poll-meta{color:var(--out-meta)}
+.poll-meta .meta{margin-left:auto;color:inherit}
+.poll-correct-banner{display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;margin-top:8px}
+.poll-correct-banner.ok{color:var(--online)}
+.poll-correct-banner.bad{color:var(--danger)}
+.poll-correct-banner .i{width:16px;height:16px}
+.out .poll-correct-banner.ok,.out .poll-correct-banner.bad{color:var(--out-text)}
+.pcreate-opt{display:flex;align-items:center;gap:8px;margin-top:8px}
+.pcreate-opt .field{flex:1}
+.pcreate-correct{flex:none;width:36px;height:36px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted)}
+.pcreate-correct .i{width:18px;height:18px}
+.pcreate-correct.on{border-color:var(--online);background:rgba(34,197,94,.14);color:var(--online)}
+.pcreate-rm{flex:none;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted)}
+.pcreate-rm .i{width:17px;height:17px}
+.pcreate-rm:hover{background:var(--hover);color:var(--danger)}
+.pcreate-add{margin-top:10px;display:inline-flex;align-items:center;gap:6px}
+.pcreate-add .i{width:16px;height:16px}
 .reacts button.mine{background:var(--accent);color:#fff}
 .out .reacts button{background:var(--out-quote);color:var(--out-accent)}
 .out .reacts button.mine{background:var(--out-accent);color:var(--out)}
@@ -769,7 +809,8 @@ phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19
 videocam:'<path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>',
 phoneoff:'<path d="M10.68 13.31a16 16 0 0 0 3.31 2.68l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-10.86-4.28"/><path d="M5.77 11.8A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.73"/><path d="M1 1l22 22"/>',
 flipcam:'<path d="M20 7h-5l2-2"/><path d="M4 17h5l-2 2"/><path d="M19 13a7 7 0 0 0-12-5M5 11a7 7 0 0 0 12 5"/>',
-mic:'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/>',speaker:'<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 5a9 9 0 0 1 0 14"/>'};
+mic:'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/>',speaker:'<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 5a9 9 0 0 1 0 14"/>',
+poll:'<path d="M5 20V12M12 20V4M19 20v-8"/>'};
 const ic=(n,c='')=>`<svg class="i ${c}" viewBox="0 0 24 24">${P[n]||''}</svg>`;
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1255,7 +1296,7 @@ const vis=(m,cid)=>!(m.deletedFor||[]).includes(me.id)&&(m.createdAt||0)>cleared
 const unread=c=>{if(!c.lastMsg||c.lastMsg.at<=cleared(c.id))return 0;if(Array.isArray(c.lastMsg.visibleTo)&&c.lastMsg.senderId!==me.id&&!c.lastMsg.visibleTo.includes(me.id))return 0;if(isGroup(c))return c.lastMsg.senderId!==me.id&&c.lastMsg.at>(c.reads?.[me.id]||0)?1:0;return Math.max(0,Number(c.unread?.[me.id])||0)};
 const readBy=(m,c)=>c.type==='saved'||(c.members||[]).some(id=>id!==me.id&&(c.reads?.[id]||0)>=m.createdAt);
 const ticks=(m,c)=>`<span class="tk">${ic(readBy(m,c)?'checks':'check')}</span>`;
-const kindLabel=m=>({image:'Rasm',video:'Video',audio:m.fileName||'Audio',voice:'Ovozli xabar',file:m.fileName||'Fayl',sticker:'Stiker'}[m.type]||'');
+const kindLabel=m=>({image:'Rasm',video:'Video',audio:m.fileName||'Audio',voice:'Ovozli xabar',file:m.fileName||'Fayl',sticker:'Stiker',poll:'📊 '+(m.question||'Test')}[m.type]||'');
 const msgText=m=>m.type==='text'||m.type==='service'?(m.body||''):kindLabel(m)+(m.body?' · '+m.body:'');
 const senderTitle=(m,c)=>c?.type==='channel'?c.title:uname(user(m.senderId));
 const findMsg=id=>M.find(m=>m.id===id);
@@ -2411,6 +2452,23 @@ function fileBox(m){if(!canOpenAttachment(m))return restrictedFileBox(m);const e
  if(m.p2pId){const dir=isP2PFolder(m);return`<button class="file p2pfile" data-p2p="${esc(m.p2pId)}" data-mid="${esc(m.id||'')}" title="${dir?'Papkani tuzilishi bilan ko‘chirish':'Bepul P2P yuklab olish'}"><div class="fic">${ic(dir?'folder':'download')}</div><div class="fi"><span class="fn">${esc(m.fileName||'Fayl')}</span><small>${fsize(m.fileSize)}${dir?` · Papka · ${Number(m.fileCount)||0} fayl`:ext&&ext.length<=5?' · '+esc(ext):''} · P2P (serverda saqlanmaydi)</small></div></button>`}
  if(m.url)return`<a class="file" href="${esc(safeUrl(m.url))}" target="_blank" rel="noopener" download="${esc(m.fileName||'fayl')}"><div class="fic">${ic('download')}</div><div class="fi"><span class="fn">${esc(m.fileName||'Fayl')}</span><small>${fsize(m.fileSize)}${ext&&ext.length<=5?' · '+esc(ext):''}</small></div></a>`;
  return`<a class="file" ${fhref(m.fileId)} download="${esc(m.fileName||'fayl')}"><div class="fic">${ic('download')}</div><div class="fi"><span class="fn">${esc(m.fileName||'Fayl')}</span><small>${fsize(m.fileSize)}${ext&&ext.length<=5?' · '+esc(ext):''}${resolved.has(m.fileId)?'':`<b class="ldp2" data-pfid="${esc(m.fileId)}"></b>`}</small></div></a>`}
+const pollPicks=new Map();
+function pollBodyHtml(m,meta){
+const opts=m.options||[],votes=m.votes||{},mine=votes[me.id],voted=Array.isArray(mine)&&mine.length>0;
+const total=Object.keys(votes).length;
+const names=i=>Object.entries(votes).filter(([,a])=>Array.isArray(a)&&a.includes(i)).map(([uid])=>uname(user(uid)));
+const picked=pollPicks.get(m.id)||new Set();
+const rows=opts.map((o,i)=>{
+const cnt=voted?names(i).length:0,pct=voted&&total?Math.round(cnt/total*100):0;
+const isMine=voted&&mine.includes(i),isCorrect=i===m.correctIndex;
+const stateCls=voted?(isCorrect?' correct':(isMine?' wrong':'')):(picked.has(i)?' picked':'');
+const nmList=voted?names(i):[];
+return`<button type="button" class="poll-opt${stateCls}" ${voted?'disabled':''} data-pollopt="${i}"><div class="pofill" style="width:${voted?pct:0}%"></div><div class="porow"><span class="poic">${voted?(isCorrect?ic('check'):(isMine?ic('x'):'')):''}</span><span class="potxt">${esc(o)}</span>${voted?`<span class="popct">${pct}% · ${cnt}</span>`:''}</div></button>${voted&&nmList.length?`<div class="poll-voters">${esc(nmList.join(', '))}</div>`:''}`
+}).join('');
+const banner=voted?`<div class="poll-correct-banner ${mine.includes(m.correctIndex)?'ok':'bad'}">${mine.includes(m.correctIndex)?ic('check'):ic('x')} ${mine.includes(m.correctIndex)?'To‘g‘ri javob!':'Noto‘g‘ri javob — to‘g‘risi yashil bilan belgilangan'}</div>`:'';
+const submitBtn=(!voted&&m.multi)?`<button type="button" class="btn sm block" style="margin-top:10px" data-pollsend="${esc(m.id)}">Javobni yuborish</button>`:'';
+return`<div class="poll-q">${ic('poll','sm')} ${esc(m.question||'')}</div>${rows}${banner}${submitBtn}<div class="poll-meta">${voted?`${total} kishi ovoz berdi`:(m.multi?'Bir nechtasini tanlang':'Birini tanlang')}${meta}</div>`
+}
 function msgHtml(m,c,q){if(m.type==='service')return`<div class="svc">${esc(m.body)}</div>`;
 const out=m.senderId===me.id&&c.type!=='channel';let top='';
  if(!out&&(c.type==='group'||c.type==='supergroup'))top+=`<div class="who" style="color:${color(m.senderId)}">${esc(uname(user(m.senderId)))}</div>`;
@@ -2429,6 +2487,7 @@ const isGif=m.type==='image'&&(m.mime==='image/gif'||/\.gif$/i.test(m.fileName||
    const el=m.type==='image'?`<img class="media${isGif?' gif-media':''}" ${msrc(m)} data-view="${esc(m.id)}" alt="" loading="lazy" decoding="async" style="${ar}${th&&!isGif?`background-image:url(${th});background-size:cover;`:''}">${loaded?'':`<span class="ldp" data-pfid="${esc(m.fileId)}"></span>`}`:`<video class="media ${vn?'vnote '+vn:''}" ${msrc(m)} controls preload="metadata" playsinline></video>`;if(!m.body&&!top)cls=isGif?'mo gif-bub':'mo';body=`<div class="mwrap">${el}${m.body?'':meta}</div>${cap}`}}
  else if(m.type==='voice'){body=`<div class="aud">${voicePlayerHtml(m)}</div>`+(cap||`<div class="mline">${meta}</div>`)}
  else if(m.type==='audio'){body=`<div class="aud"><div class="an">${ic('music','sm')}${esc(m.fileName)}</div><audio controls preload="metadata" playsinline ${msrc(m)}></audio></div>`+(cap||`<div class="mline">${meta}</div>`)}
+ else if(m.type==='poll'){cls='poll-bub';body=pollBodyHtml(m,meta)}
  else body=fileBox(m)+(cap||`<div class="mline">${meta}</div>`);
 const R={};for(const[u,e]of Object.entries(m.reactions||{}))(R[e]||(R[e]=[])).push(u);const rk=Object.keys(R);
  const reacts=rk.length?`<div class="reacts">${rk.map(k=>`<button data-react="${esc(k)}" class="${R[k].includes(me.id)?'mine':''}" title="${esc(R[k].map(id=>uname(user(id))).join(', '))}">${esc(String(k).slice(0,16))} ${R[k].length}</button>`).join('')}</div>`:'';
@@ -2436,7 +2495,7 @@ const R={};for(const[u,e]of Object.entries(m.reactions||{}))(R[e]||(R[e]=[])).pu
 function renderMessages(toBottom=false){if(!active)return;const c=active,box=$('#msgs');if(c.type==='supergroup'&&forumHome){renderForumList();return}
 let arr=M.filter(m=>vis(m,c.id)&&msgVisibleToMe(m)&&(c.type!=='supergroup'||(m.topicId||'general')===activeTopic));
 const q=chatQuery.trim();if(q){const lq=q.toLowerCase();arr=arr.filter(m=>m.type!=='service'&&((m.body||'')+' '+(m.fileName||'')).toLowerCase().includes(lq))}
-const sig=[c.id,activeTopic,q,JSON.stringify(prefs.aliases),arr.map(m=>user(m.senderId)?.displayName||'').join(),arr.map(m=>m.id+(m.edited||'')+JSON.stringify(m.reactions||{})+(m.senderId===me.id?readBy(m,c):'')+(m.body||'')).join()].join('|');
+const sig=[c.id,activeTopic,q,JSON.stringify(prefs.aliases),arr.map(m=>user(m.senderId)?.displayName||'').join(),arr.map(m=>m.id+(m.edited||'')+JSON.stringify(m.reactions||{})+(m.senderId===me.id?readBy(m,c):'')+(m.body||'')+(m.type==='poll'?JSON.stringify(m.votes||{}):'')).join()].join('|');
 if(sig===lastSig&&!toBottom)return;lastSig=sig;
 const prevTop=box.scrollTop;let h='',prev=null;
  for(const m of arr){if(!prev||!sameDay(prev.createdAt,m.createdAt))h+=`<div class="day">${dayLabel(m.createdAt)}</div>`;h+=msgHtml(m,c,q);prev=m}
@@ -2584,7 +2643,7 @@ ta.addEventListener('input',()=>{autosize();updSendBtn();if(live&&active&&!activ
 ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&!IS_MOBILE){e.preventDefault();sendText()}
 else if(e.key==='ArrowUp'&&!ta.value&&!draft&&active){const last=M.filter(m=>m.senderId===me.id&&m.type==='text'&&vis(m,active.id)).at(-1);if(last){e.preventDefault();setDraft('edit',last)}}});
 ta.addEventListener('paste',e=>{const fs=[...(e.clipboardData?.files||[])];if(fs.length){e.preventDefault();filesModal(fs)}});
-$('#attach').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();showMenu(r.right-250,r.top-220,[['file','Fayl yuborish',()=>$('#fileInput').click()],['folder','Papka yuborish (tuzilishi bilan)',()=>$('#dirInput').click()],['camera','Dumaloq video xabar',()=>videoNoteModal('circle')],['videocam','To‘rtburchak video xabar',()=>videoNoteModal('square')],['image','GIF yuborish',()=>$('#gifInput').click()],['image','GIF yasash',gifMakerModal]])};
+$('#attach').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();showMenu(r.right-250,r.top-260,[['file','Fayl yuborish',()=>$('#fileInput').click()],['folder','Papka yuborish (tuzilishi bilan)',()=>$('#dirInput').click()],['camera','Dumaloq video xabar',()=>videoNoteModal('circle')],['videocam','To‘rtburchak video xabar',()=>videoNoteModal('square')],['image','GIF yuborish',()=>$('#gifInput').click()],['image','GIF yasash',gifMakerModal],['poll','Test / so‘rovnoma yuborish',pollModal]])};
 $('#fileInput').onchange=e=>{const fs=[...e.target.files];e.target.value='';filesModal(fs)};
 $('#dirInput').onchange=e=>{const fs=[...e.target.files];e.target.value='';folderModal(fs)};
 function setDraft(mode,m){draft={mode,id:m.id};if(mode==='edit')ta.value=m.body||'';renderDraft();autosize();updSendBtn();ta.focus();if(mode==='edit')ta.setSelectionRange(ta.value.length,ta.value.length)}
@@ -2778,6 +2837,26 @@ showMenu(x,y,it,m)}
 function copyText(t){(navigator.clipboard?.writeText(t)||Promise.reject()).then(()=>toast('Nusxa olindi')).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();toast('Nusxa olindi')})}
 async function download(m){if(!canOpenAttachment(m))return toast('Bu faylni ochish yoki yuklab olish uchun sizga ruxsat berilmagan',6000);if(m.p2pId){try{return await startP2PDownload(m)}catch(e){return toast(errText(e),6000)}}if(m.url){const a=document.createElement('a');a.href=m.url;a.target='_blank';a.rel='noopener';a.download=m.fileName||'fayl';document.body.appendChild(a);a.click();a.remove();return}toast('Yuklanmoqda…');const u=await fileUrl(m.fileId);if(!u)return toast('Faylni yuklab bo‘lmadi');const a=document.createElement('a');a.href=u;a.download=m.fileName||'fayl';document.body.appendChild(a);a.click();a.remove()}
 function toggleReact(mid,e){const m=findMsg(mid);if(!m||!active)return;const cur=m.reactions?.[me.id];updateDoc(msgRef(active.id,mid),{[`reactions.${me.id}`]:cur===e?deleteField():e}).catch(fail)}
+function pollVote(mid,sel){const c=active;if(!c)return;const m=findMsg(mid);if(!m||m.type!=='poll')return;
+if(Array.isArray(m.votes?.[me.id])&&m.votes[me.id].length)return;
+if(!Array.isArray(sel)||!sel.length)return;
+pollPicks.delete(mid);m.votes={...(m.votes||{}),[me.id]:sel};lastSig='';renderMessages();
+updateDoc(msgRef(c.id,mid),{[`votes.${me.id}`]:sel}).catch(e=>{delete m.votes[me.id];lastSig='';renderMessages();fail(e)})}
+function pollModal(){if(!active)return;let opts=['',''],correct=0;
+const draw=()=>{$('#pcOpts').innerHTML=opts.map((v,i)=>`<div class="pcreate-opt" data-i="${i}"><button type="button" class="pcreate-correct${i===correct?' on':''}" data-pc-correct="${i}" title="To‘g‘ri javob sifatida belgilash">${ic('check')}</button><input class="field" data-pc-text="${i}" placeholder="${i+1}-variant" value="${esc(v)}" maxlength="120">${opts.length>2?`<button type="button" class="pcreate-rm" data-pc-rm="${i}" title="O‘chirish">${ic('x')}</button>`:''}</div>`).join('')};
+modal(`<h3>Test / so‘rovnoma</h3><label class="lb">Savol</label><input class="field" id="pcQ" placeholder="Savolingizni yozing" maxlength="300"><label class="lb">Variantlar <small style="color:var(--muted);font-weight:400">— to‘g‘ri javobni belgilang</small></label><div id="pcOpts"></div><button type="button" class="btn flat pcreate-add" id="pcAdd">${ic('plus')}<span>Variant qo‘shish</span></button><label class="check-row" style="margin-top:14px"><input type="checkbox" id="pcMulti"><span>Bir nechta javob tanlashga ruxsat berish</span></label><div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="pcSend">Yuborish</button></div>`);
+draw();$('#pcQ').focus();
+const sync=()=>{opts=$$('#pcOpts [data-pc-text]').map(i=>i.value)};
+$('#pcOpts').oninput=e=>{const i=e.target.closest('[data-pc-text]');if(i)opts[+i.dataset.pcText]=i.value};
+$('#pcOpts').onclick=e=>{const rm=e.target.closest('[data-pc-rm]');if(rm){sync();const idx=+rm.dataset.pcRm;opts.splice(idx,1);if(correct===idx)correct=0;else if(correct>idx)correct--;draw();return}
+const cb=e.target.closest('[data-pc-correct]');if(cb){sync();correct=+cb.dataset.pcCorrect;draw()}};
+$('#pcAdd').onclick=()=>{sync();if(opts.length>=10)return toast('Ko‘pi bilan 10 ta variant');opts.push('');draw()};
+$('#pcSend').onclick=()=>{sync();const q=$('#pcQ').value.trim(),cleanOpts=opts.map(o=>o.trim()).filter(Boolean);
+if(!q)return toast('Savolni yozing');
+if(cleanOpts.length<2)return toast('Kamida 2 ta variant kiriting');
+const nonBlank=opts.map((o,i)=>o.trim()?i:-1).filter(i=>i>=0),newCorrect=nonBlank.indexOf(correct);
+if(newCorrect<0)return toast('To‘g‘ri deb belgilangan variant matni bo‘sh bo‘lmasligi kerak');
+closeModal();pushMsg(active.id,{type:'poll',question:q,options:cleanOpts,correctIndex:newCorrect,multi:!!$('#pcMulti').checked,votes:{}}).catch(()=>{})}}
 function togglePin(m){const c=active;if(c.pinned===m.id)updateDoc(chatRef(c.id),{pinned:deleteField(),pinnedText:deleteField()}).catch(fail);
  else{updateDoc(chatRef(c.id),{pinned:m.id,pinnedText:msgText(m).slice(0,200)}).catch(fail);if(isGroup(c)&&c.type!=='channel')pushMsg(c.id,{type:'service',body:`${me.displayName} xabarni qadadi`}).catch(()=>{})}}
 function deleteModal(m){const c=active,adminForce=isGroup(c)&&isAdmin(c)&&m.senderId!==me.id,canAll=c.type!=='saved'&&(m.senderId===me.id||isAdmin(c));
@@ -2796,6 +2875,7 @@ function forwardModal(m){const tg=fwdTargets();
 $('#fwq').oninput=draw;draw();$('#fwq').focus();$('#fwl').onclick=e=>{const r=e.target.closest('[data-to]');if(!r)return;closeModal();forwardTo(m,r.dataset.to);openChat(r.dataset.to)}}
 function forwardTo(m,cid,quiet){if(hasF(m)&&!canOpenAttachment(m))return toast('Bu faylni uzatish uchun sizga ruxsat berilmagan',5000);const src=active;const n={type:m.type,body:m.body||'',fwd:m.fwd||(src?.type==='channel'?src.title:(user(m.senderId)?.displayName||'Noma’lum'))};
 if(m.type==='sticker')n.stickerId=m.stickerId;
+if(m.type==='poll')Object.assign(n,{question:m.question,options:m.options,correctIndex:m.correctIndex,multi:!!m.multi,votes:{}});
 if(hasF(m))Object.assign(n,clean({fileId:m.fileId,url:m.url,p2pId:m.p2pId,p2pSender:m.p2pSender||m.senderId,p2pCid:m.p2pCid,p2pDir:isP2PFolder(m)?true:undefined,p2pKind:isP2PFolder(m)?'folder':m.p2pKind,p2pVersion:m.p2pVersion|| (isP2PFolder(m)?2:undefined),fileCount:m.fileCount,spath:m.spath,fwdFile:m.url?1:undefined,fileName:m.fileName,fileSize:m.fileSize,mime:m.mime,w:m.w,h:m.h,thumb:m.thumb,videoNote:m.videoNote,p2pDir:m.p2pDir,p2pFolderV:m.p2pFolderV,fileCount:m.fileCount,}));
 pushMsg(cid,n).then(()=>{},()=>{});toast(quiet?'Saqlangan xabarlarga qo‘shildi':'Uzatildi')}
 
@@ -2809,6 +2889,10 @@ if(el=t.closest('[data-view]')){viewMedia(el.dataset.view);return}
 if(el=t.closest('[data-p2p]')){const mm=findMsg(el.dataset.mid||el.closest('[data-mid]')?.dataset.mid);if(mm)download(mm);return}
 if(el=t.closest('a.file.loading')){e.preventDefault();const pr=el.querySelector('[data-pfid]')?.textContent;toast('Fayl yuklanmoqda'+(pr?' — '+pr:'')+', biroz kuting…');return}
 if(el=t.closest('.mention')){const u=[...U.values()].find(x=>x.username===el.dataset.uname);if(!u)toast('Bunday foydalanuvchi yo‘q');else if(u.id!==me.id)openChat(dId(me.id,u.id));return}
+if(el=t.closest('[data-pollopt]')){const mid=t.closest('[data-mid]').dataset.mid,m=findMsg(mid);if(!m)return;const idx=+el.dataset.pollopt;
+ if(m.multi){const set=pollPicks.get(mid)||new Set();set.has(idx)?set.delete(idx):set.add(idx);pollPicks.set(mid,set);lastSig='';renderMessages()}
+ else pollVote(mid,[idx]);return}
+if(el=t.closest('[data-pollsend]')){const mid=el.dataset.pollsend,set=pollPicks.get(mid);if(!set||!set.size)return toast('Kamida bitta javobni tanlang');pollVote(mid,[...set].sort((a,b)=>a-b));return}
 if(chatQuery&&(el=t.closest('[data-mid]'))&&!t.closest('a,audio,video'))jumpTo(el.dataset.mid)});
 msgsEl.addEventListener('dblclick',e=>{const el=e.target.closest('[data-mid]');if(!el||e.target.closest('a,audio,video,img,button'))return;const m=findMsg(el.dataset.mid);if(m&&m.type!=='service'&&canPost(active)){getSelection()?.removeAllRanges();setDraft('reply',m)}});
 msgsEl.addEventListener('contextmenu',e=>{const el=e.target.closest('[data-mid]');if(!el||e.target.closest('a[href^=http]'))return;e.preventDefault();msgMenu(e.clientX,e.clientY,el.dataset.mid)});
