@@ -352,6 +352,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .check-row{display:flex;align-items:center;gap:12px;padding:7px 6px;border-radius:10px;cursor:pointer}
 .check-row:hover{background:var(--hover)}
 .check-row input{width:18px;height:18px;accent-color:var(--accent);flex:none}
+.po-row{display:flex;align-items:center;gap:12px;padding:7px 6px;border-radius:10px}
+.po-row input[type="radio"]{width:18px;height:18px;accent-color:var(--accent);flex:none;cursor:pointer}
+.po-row input.field{flex:1}
 .fprevs{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto}
 .fprev{display:flex;align-items:center;gap:12px}
 .fprev img{width:56px;height:56px;object-fit:cover;border-radius:8px;flex:none}
@@ -3537,27 +3540,27 @@ async function votePoll(mid,opt){
  await submitPollVote(mid,[opt])
 }
 function pollModal(){
- if(!active||!canPost(active))return toast('Avval chatni oching');
- const cid=active.id,topic=active.type==='supergroup'?activeTopic:'';
- modal(`<h3>📊 Test</h3><label class="lb">Savol</label><input class="field" id="pq" maxlength="180" placeholder="Savol yozing"><div id="popts">${[1,2,3].map(i=>`<input class="field po" placeholder="${i}-variant" maxlength="100">`).join('')}</div><button class="btn flat sm" id="poadd">+ Variant</button>
- <label class="lb">To‘g‘ri javob raqami <small style="color:var(--muted);font-weight:400">— har doim aynan 1 ta to‘g‘ri javob</small></label><input class="field" id="pcorrect" type="number" min="1" max="3" step="1" value="1" inputmode="numeric">
- <label class="lb">Izoh (ixtiyoriy)</label><input class="field" id="pexplain" maxlength="180" placeholder="Nega shu javob to‘g‘ri?">
+ if(!active||!canPost(active))return toast(‘Avval chatni oching’);
+ const cid=active.id,topic=active.type===’supergroup’?activeTopic:’’;
+ const initialRows=[0,1,2].map(i=>`<div class="po-row"><input type="radio" name="pcor" value="${i}" ${i===0?’checked’:’’}><input class="field po" placeholder="${i+1}-variant" maxlength="100"></div>`).join(‘’);
+ modal(`<h3>📊 Test</h3><label class="lb">Savol</label><input class="field" id="pq" maxlength="180" placeholder="Savol yozing"><div id="popts">${initialRows}</div><button class="btn flat sm" id="poadd">+ Variant</button>
+ <label class="lb">Izoh (ixtiyoriy)</label><input class="field" id="pexplain" maxlength="180" placeholder="Nega shu javob to’g’ri?">
  <div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="psendpoll">Yuborish</button></div>`);
- $('#poadd').onclick=()=>{const n=$$('#popts .po').length;if(n>=10)return toast('Maksimum 10 ta variant');const i=document.createElement('input');i.className='field po';i.maxLength=100;i.placeholder=(n+1)+'-variant';$('#popts').append(i);$('#pcorrect').max=String(n+1);i.focus()};
- $('#psendpoll').onclick=async e=>{
+ $(‘#poadd’).onclick=()=>{const rows=$$(‘#popts .po-row’);const n=rows.length;if(n>=10)return toast(‘Maksimum 10 ta variant’);const row=document.createElement(‘div’);row.className=’po-row’;const radio=document.createElement(‘input’);radio.type=’radio’;radio.name=’pcor’;radio.value=String(n);const input=document.createElement(‘input’);input.className=’field po’;input.maxLength=100;input.placeholder=(n+1)+’-variant’;row.append(radio,input);$(‘#popts’).append(row);input.focus()};
+ $(‘#psendpoll’).onclick=async e=>{
   const btn=e.currentTarget;if(btn.disabled)return;
-  const q=$('#pq').value.trim(),raw=$$('#popts .po').map(x=>x.value.trim()),vals=raw.filter(Boolean);
-  if(!q)return toast('Savol yozing');if(vals.length<2)return toast('Kamida 2 ta variant kerak');
-  const low=vals.map(v=>v.toLowerCase());if(new Set(low).size!==low.length)return toast('Variantlar bir-biridan farq qilsin');
-  const ci=Number($('#pcorrect').value.trim());
-  // Raqam jimgina "to‘g‘rilanmaydi": noto‘g‘ri raqamda boshqa variant to‘g‘ri deb belgilanib qolardi.
-  if(!Number.isInteger(ci)||ci<1||ci>raw.length)return toast(`To‘g‘ri javob raqamini 1 dan ${raw.length} gacha kiriting`);
-  if(!raw[ci-1])return toast(`${ci}-variant bo‘sh. To‘g‘ri javob sifatida matni bor variantni tanlang`);
-  const options=[];let correct='';
-  raw.forEach((t,i)=>{if(!t)return;const id='o'+(options.length+1);options.push({id,text:t});if(i===ci-1)correct=id});
-  const poll={question:q,options,multi:false,correct,explanation:$('#pexplain').value.trim(),closed:false};
+  const q=$(‘#pq’).value.trim(),raw=$$(‘#popts .po’).map(x=>x.value.trim()),vals=raw.filter(Boolean);
+  if(!q)return toast(‘Savol yozing’);if(vals.length<2)return toast(‘Kamida 2 ta variant kerak’);
+  const low=vals.map(v=>v.toLowerCase());if(new Set(low).size!==low.length)return toast(‘Variantlar bir-biridan farq qilsin’);
+  const selectedRadio=document.querySelector(‘input[name="pcor"]:checked’);
+  if(!selectedRadio)return toast(‘To’g’ri javobni belgilang’);
+  const correctRawIdx=Number(selectedRadio.value);
+  if(!raw[correctRawIdx])return toast(‘Belgilangan variant bo’sh. To’g’ri javob sifatida matni bor variantni tanlang’);
+  const options=[];let correct=’’;
+  raw.forEach((t,i)=>{if(!t)return;const id=’o’+(options.length+1);options.push({id,text:t});if(i===correctRawIdx)correct=id});
+  const poll={question:q,options,multi:false,correct,explanation:$(‘#pexplain’).value.trim(),closed:false};
   btn.disabled=true;closeModal();
-  await pushMsg(cid,{type:'poll',body:q,poll,pollVotes:{},...(topic?{topicId:topic}:{})}).catch(()=>{})
+  await pushMsg(cid,{type:’poll’,body:q,poll,pollVotes:{},...(topic?{topicId:topic}:{})}).catch(()=>{})
  }
 }
 const canClosePoll=(m,c=active)=>!!(m?.type==='poll'&&m.poll&&!m.poll.closed&&c&&(m.senderId===me.id||(isAdmin(c)&&adminCan(c,'poll'))));
