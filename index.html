@@ -827,7 +827,7 @@ phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19
 videocam:'<path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>',
 phoneoff:'<path d="M10.68 13.31a16 16 0 0 0 3.31 2.68l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-10.86-4.28"/><path d="M5.77 11.8A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.73"/><path d="M1 1l22 22"/>',
 flipcam:'<path d="M20 7h-5l2-2"/><path d="M4 17h5l-2 2"/><path d="M19 13a7 7 0 0 0-12-5M5 11a7 7 0 0 0 12 5"/>',
-mic:'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/>',speaker:'<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 5a9 9 0 0 1 0 14"/>'};
+speaker:'<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 5a9 9 0 0 1 0 14"/>'};
 const ic=(n,c='')=>`<svg class="i ${c}" viewBox="0 0 24 24">${P[n]||''}</svg>`;
 
 /* ---------- helpers ---------- */
@@ -1082,7 +1082,7 @@ async function serveP2P(req){
  let sigReady=false;const candBuf=[];
  pc.onicecandidate=e=>{if(!e.candidate)return;const j=candJson(e.candidate);if(sigReady)updateDoc(p2pRef(req.id),{senderCandidates:arrayUnion(j)}).catch(()=>{});else candBuf.push(j)};
  dc.onmessage=e=>{const m=typeof e.data==='string'?parseJson(e.data):null;if(m?.t==='ready'){readyOffset=m.offset||0;readyResolve(readyOffset)}if(m?.t==='ack')lastAck=Math.max(lastAck,m.offset||0);if(m?.t==='cancel'){readyReject?.({code:'p2p-cancel'});try{pc.close()}catch{}}};
- const un=onSnapshot(p2pRef(req.id),async sn=>{if(!sn.exists())return;const d=sn.data();try{
+ const un=onSnapshot(p2pRef(req.id),async sn=>{if(!sn.exists)return;const d=sn.data();try{
   if(d.answer&&!remoteSet){const a=parseJson(d.answer);if(a){await pc.setRemoteDescription(a);remoteSet=true;for(const c of pending.splice(0))await pc.addIceCandidate(c).catch(()=>{})}}
   for(const raw of d.receiverCandidates||[]){if(rcSeen.has(raw))continue;rcSeen.add(raw);const c=parseJson(raw);if(!c)continue;if(remoteSet)await pc.addIceCandidate(c).catch(()=>{});else pending.push(c)}
  }catch{}});
@@ -1141,7 +1141,7 @@ async function startP2PFolderDownload(m){
     const buf=ev.data;writeChain=writeChain.then(async()=>{if(u.cancelled)return;if(!currentWritable)throw new Error('no-file');await currentWritable.write(new Uint8Array(buf));written+=buf.byteLength;u.done=written;renderUps();if(written-lastAck>=P2P_BATCH||written>=u.size){lastAck=written;dcSend(dc,JSON.stringify({t:'ack',offset:written}))}}).catch(e=>{u.cancelled=true;console.error(e);toast('Papkani yozishda xato',5000)})
    }
   }};
- const un=onSnapshot(ref,async sn=>{if(!sn.exists())return;const d=sn.data();try{
+ const un=onSnapshot(ref,async sn=>{if(!sn.exists)return;const d=sn.data();try{
   if(d.status==='protocol-mismatch'){u.cancelled=true;toast('Papka uzatish versiyasi mos emas. Ikkala qurilmada ham Makktub’ning yangi versiyasini oching.',8000);return}
   if(d.status==='forbidden'){u.cancelled=true;toast('Bu faylni ochish yoki yuklab olish uchun sizga ruxsat berilmagan',6500);return}
   if(d.status==='unavailable'){u.cancelled=true;toast(errText({code:'p2p-unavailable'}),6000);return}
@@ -1180,7 +1180,7 @@ async function startP2PDownload(m){
  pc.ondatachannel=e=>{dc=e.channel;u.dc=dc;dc.binaryType='arraybuffer';dc.onopen=()=>dcSend(dc,JSON.stringify({t:'ready',offset:0}));dc.onmessage=ev=>{
    if(typeof ev.data==='string'){const x=parseJson(ev.data);if(x?.t==='cancel'){u.cancelled=true;toast('Yuboruvchi fayl uzatishni bekor qildi');return}if(x?.t==='done'){done=true;writeChain.then(async()=>{await target.finish();u.done=u.size||written;renderUps(true);toast('Katta fayl yuklab olindi');await updateDoc(ref,{status:'done',updatedAt:srvNow()}).catch(()=>{})}).catch(()=>{});return}}
    else{const buf=ev.data;writeChain=writeChain.then(async()=>{if(u.cancelled)return;await writable.write(new Uint8Array(buf));written+=buf.byteLength;u.done=written;renderUps();if(written-lastAck>=P2P_BATCH||written>=u.size){lastAck=written;dcSend(dc,JSON.stringify({t:'ack',offset:written}))}})}}};
- const un=onSnapshot(ref,async sn=>{if(!sn.exists())return;const d=sn.data();try{
+ const un=onSnapshot(ref,async sn=>{if(!sn.exists)return;const d=sn.data();try{
   if(d.status==='forbidden'){u.cancelled=true;toast('Bu faylni ochish yoki yuklab olish uchun sizga ruxsat berilmagan',6500);return}
   if(d.status==='unavailable'){u.cancelled=true;toast(errText({code:'p2p-unavailable'}),6000);return}
   if(d.offer&&!remoteSet){const o=parseJson(d.offer);if(o){await pc.setRemoteDescription(o);remoteSet=true;for(const c of pending.splice(0))await pc.addIceCandidate(c).catch(()=>{});const ans=await pc.createAnswer();await pc.setLocalDescription(ans);await updateDoc(ref,{answer:descJson(pc.localDescription),status:'answer',updatedAt:srvNow()})}}
@@ -1289,7 +1289,7 @@ async function hqImageBlob(file){
 }
 
 /* ---------- state ---------- */
-let me=null,U=new Map(),C=new Map(),M=[],prefs=null,active=null,activeTopic='general',forumHome=false,folder='all',draft=null,chatQuery='',infoOpen=false,infoTab='media',lastSig='',rec=null,stick=true;
+let me=null,U=new Map(),C=new Map(),M=[],prefs=null,prefsBase=null,active=null,activeTopic='general',forumHome=false,folder='all',draft=null,chatQuery='',infoOpen=false,infoTab='media',lastSig='',rec=null,stick=true;
 let creating=new Set(),unsubs=[],unsubMsgs=null,msgsFor=null,registering=false,firstChats=true,seenLast={},markKey='';
 let callSession=null,incomingCall=null,callListenUnsub=null;let noteStream=null,noteFacing='user',noteRecorder=null,noteTimer=null;
 let deviceTestPending=new Map(),deviceTestSeen=new Set();
@@ -1302,9 +1302,20 @@ function cleanupNoteCapture(cancel=true){
  noteStream=null;
 }
 const normPrefs=d=>({pinned:[],muted:[],aliases:{},cleared:{},topicReads:{},myGifs:[],ringtone:{kind:'classic'},bg:null,...(d||{})});
-prefs=normPrefs();
+prefs=normPrefs();setPrefsBase();
 const prefsRef=()=>doc(db,'users',me.id,'private','prefs');
-function savePrefs(){saveSnap();if(!live){if(restSendReady())restPatchFields(`users/${encodeURIComponent(me.id)}/private/prefs`,prefs,null,null).catch(()=>{});return}setDoc(prefsRef(),prefs).catch(fail)}
+/* Sozlamalar faqat O‘ZGARGAN maydonlari bilan yoziladi. Avval har safar butun hujjat yozilardi: ikki qurilma
+   ochiq bo‘lsa, biri ikkinchisining yangi o‘zgarishlarini (rejalashtirilgan xabarlar, qurilmalar, qoralamalar,
+   qadalgan chatlar...) eski nusxasi bilan ustidan yozib yuborardi. prefsBase — serverdan oxirgi kelgan holat. */
+const prefsJ=v=>JSON.stringify(v===undefined?null:v);
+function setPrefsBase(){try{prefsBase=JSON.parse(JSON.stringify(prefs||{}))}catch{prefsBase=null}}
+function savePrefs(){saveSnap();if(!me||!prefs)return;
+ const keys=prefsBase?[...new Set([...Object.keys(prefs),...Object.keys(prefsBase)])].filter(k=>prefsJ(prefs[k])!==prefsJ(prefsBase[k])):Object.keys(prefs);
+ if(!keys.length)return;
+ const data={};for(const k of keys)data[k]=prefs[k]===undefined?null:prefs[k];
+ const markSaved=()=>{if(!prefsBase)prefsBase={};for(const k of keys)prefsBase[k]=JSON.parse(prefsJ(prefs[k]))};
+ if(!live){if(restSendReady()){markSaved();restPatchFields(`users/${encodeURIComponent(me.id)}/private/prefs`,data,null,keys).catch(()=>{})}return}
+ markSaved();setDoc(prefsRef(),data,{mergeFields:keys}).catch(fail)}
 const chatRef=id=>doc(db,'chats',id);
 const msgRef=(cid,mid)=>doc(db,'chats',cid,'messages',mid);
 const online=u=>!!u&&srvNow()-(u.lastSeen||0)<80000;
@@ -1322,6 +1333,16 @@ const isGroup=c=>['group','supergroup','channel'].includes(c?.type);
 const isMember=c=>c.virtual||(c.members||[]).includes(me.id);
 const isAdmin=c=>isGroup(c)&&(c.ownerId===me.id||(c.admins||[]).includes(me.id));
 function restriction(c,id=me?.id){const r=c?.restrictions?.[id];if(!r)return null;return r.until===0||r.until>srvNow()?r:null}
+/* Guruh adminining alohida huquqlari (egasi — hammasi; eski adminlar — hammasi; aks holda adminPerms bo‘yicha).
+   Avval MEGA blokida e’lon qilingan edi, lekin canPost/canPin ilova yuklanayotganda ham chaqiriladi. */
+function adminCan(c,perm,id=me?.id){
+ if(!c||!isGroup(c))return true;
+ if(c.ownerId===id)return true;
+ if(!(c.admins||[]).includes(id))return false;
+ const p=c.adminPerms?.[id];
+ if(!p)return true; // eski adminlar migratsiyada barcha eski huquqlarini saqlaydi
+ return p[perm]!==false
+}
 const canPost=c=>c.type==='channel'?adminCan(c,'post'):isMember(c)&&!restriction(c);
 const canPin=c=>!isGroup(c)||adminCan(c,'pin');
 const cleared=cid=>prefs.cleared?.[cid]||0;
@@ -1350,7 +1371,7 @@ function showMenu(x,y,items,rm){closeMenu();const el=document.createElement('div
  setTimeout(()=>document.addEventListener('pointerdown',outside,true))}
 function outside(e){if(!e.target.closest('#menu'))closeMenu()}
 function closeMenu(){$('#menu')?.remove();document.removeEventListener('pointerdown',outside,true)}
-function modal(h){closeMenu();$('#modalCard').innerHTML=h;$('#modal').classList.remove('hidden');$$('[data-close]',$('#modalCard')).forEach(b=>b.onclick=closeModal);hydrate($('#modalCard'))}
+function modal(h){closeMenu();$('#modalCard').onclick=null;$('#modalCard').innerHTML=h;$('#modal').classList.remove('hidden');$$('[data-close]',$('#modalCard')).forEach(b=>b.onclick=closeModal);hydrate($('#modalCard'))}
 function closeModal(){cleanupNoteCapture(true);if(typeof stopFaceCam==='function')stopFaceCam();if(gifPreviewTimer){clearInterval(gifPreviewTimer);gifPreviewTimer=null}$('#modal').classList.add('hidden');$('#modalCard').innerHTML=''}
 $('#modal').addEventListener('mousedown',e=>{if(e.target.id==='modal')closeModal()});
 function confirmModal(text,btn,fn){modal(`<h3>Tasdiqlang</h3><p class="mp">${esc(text)}</p><div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn flat red" id="cfGo">${esc(btn)}</button></div>`);$('#cfGo').onclick=()=>{closeModal();fn()}}
@@ -1373,10 +1394,10 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const netish=e=>{const c=String(e?.code||e?.message||'');return c.includes('network')||c.includes('unavailable')||c.includes('timeout')||c.includes('sdk-load')||c.includes('sdk-timeout')};
 const nickEmail=nick=>`${nick}@${EMAIL_DOMAIN}`;
 async function authRetry(fn,tries=4){let last;for(let i=0;i<tries;i++){try{return await fn()}catch(e){last=e;if(!netish(e)||i===tries-1)throw e;toast('Ulanmoqda…',0);await sleep(500*(i+1))}}throw last}
-async function legacyEmail(nick){const c=accs().find(a=>a.nick===nick)?.email;if(c)return c;try{const s=await getDoc(doc(db,'usernames',nick));return s.exists()?s.data().email:null}catch{return null}}
+async function legacyEmail(nick){const c=accs().find(a=>a.nick===nick)?.email;if(c)return c;try{const s=await getDoc(doc(db,'usernames',nick));return s.exists?s.data().email:null}catch{return null}}
 let nickMapChecked='';
 // Xavfsizlik: eski akkauntlarda usernames yozuvi bo'lmasa, uni bir marta tiklaymiz — boshqa odam shu nickname'ni egallay olmaydi.
-async function ensureNickMapping(){try{if(!me?.username||!live||nickMapChecked===me.id)return;nickMapChecked=me.id;const r=doc(db,'usernames',me.username);const sn=await getDoc(r);if(!sn.exists())await setDoc(r,{uid:me.id,email:auth?.currentUser?.email||nickEmail(me.username)})}catch(e){console.debug('nick mapping',e?.code||e)}}
+async function ensureNickMapping(){try{if(!me?.username||!live||nickMapChecked===me.id)return;nickMapChecked=me.id;const r=doc(db,'usernames',me.username);const sn=await getDoc(r);if(!sn.exists)await setDoc(r,{uid:me.id,email:auth?.currentUser?.email||nickEmail(me.username)})}catch(e){console.debug('nick mapping',e?.code||e)}}
 async function ensureOwnProfile(fu,nick,dn,email){const now=srvNow();const b=writeBatch(db);b.set(doc(db,'usernames',nick),{uid:fu.uid,email},{merge:true});b.set(doc(db,'users',fu.uid),{username:nick,displayName:dn,bio:'',photo:'',createdAt:now,lastSeen:now},{merge:true});await b.commit()}
 
 /* Mobil file:// uchun tez ro'yxatdan o'tish: Firebase SDK yuklanishini kutmaydi. */
@@ -1442,7 +1463,7 @@ function enterCreatedShell(r,nick,dn){
  try{stop()}catch{}
  setRestFallbackAuth({uid:r.uid,token:r.token,refreshToken:r.refreshToken});try{if(r.refreshToken)LS.setItem('smsfb_rt',JSON.stringify({uid:r.uid,rt:r.refreshToken}))}catch{}
  me={id:r.uid,username:nick,displayName:dn,bio:'',photo:'',createdAt:srvNow(),lastSeen:srvNow(),pending:true};
- U=new Map([[me.id,me]]);C=new Map();M=[];prefs=normPrefs();live=false;pend={nick,name:dn};
+ U=new Map([[me.id,me]]);C=new Map();M=[];prefs=normPrefs();setPrefsBase();window.__prefsReady=false;live=false;pend={nick,name:dn};
  rememberCreatedAccount(nick,dn,r.email);showShell();renderList();renderMe();startRestInboxPolling();syncServerClock();
 }
 async function connectRegisteredSession(reg,seq){
@@ -1601,12 +1622,12 @@ async function enterRestLoginShell(rl,nick){
  try{stop()}catch{}
  setRestFallbackAuth(rl);try{if(rl.refreshToken)LS.setItem('smsfb_rt',JSON.stringify({uid:rl.localId,rt:rl.refreshToken}))}catch{}
  me={id:rl.localId,username:nick,displayName:accs().find(a=>a.nick===nick)?.name||nick,bio:'',photo:'',createdAt:srvNow(),lastSeen:srvNow(),pending:true};
- U=new Map([[me.id,me]]);C=new Map();M=[];prefs=normPrefs();live=false;pend={nick,name:me.displayName};
+ U=new Map([[me.id,me]]);C=new Map();M=[];prefs=normPrefs();setPrefsBase();window.__prefsReady=false;live=false;pend={nick,name:me.displayName};
  showShell();renderMe();renderList();
  // Profil va chatlar SDKni kutmasdan REST orqali fonda chiqadi.
  Promise.allSettled([
   restAuthedDoc(`users/${encodeURIComponent(me.id)}`,rl.idToken).then(d=>{const u=fsRestDoc(d);if(u){me={id:me.id,...u,pending:true};U.set(me.id,me);renderMe();renderList()}}),
-  restAuthedDoc(`users/${encodeURIComponent(me.id)}/private/prefs`,rl.idToken).then(d=>{const x=fsRestDoc(d);if(x){prefs=normPrefs(x);applyBg();renderList();warmRingtone().catch(()=>{})}}),
+  restAuthedDoc(`users/${encodeURIComponent(me.id)}/private/prefs`,rl.idToken).then(d=>{const x=d?fsRestDoc(d):null;if(!live)window.__prefsReady=true;if(x&&!live){prefs=normPrefs(x);setPrefsBase();applyBg();renderList();warmRingtone().catch(()=>{})}}),
   restInitialChats(me.id,rl.idToken).then(async arr=>{if(!me||me.id!==rl.localId)return;C=new Map(arr.map(c=>[c.id,c]));renderList();saveSnap();const ids=[...new Set(arr.flatMap(c=>c.members||[]).filter(id=>id&&id!==me.id))].slice(0,40);await Promise.allSettled(ids.map(id=>restAuthedDoc(`users/${encodeURIComponent(id)}`,rl.idToken,6500).then(d=>{const u=fsRestDoc(d);if(u)U.set(id,u)})));if(me&&me.id===rl.localId){renderList();saveUserDirectoryCache()}})
  ]).catch(()=>{});
  startRestInboxPolling();syncServerClock().finally(beat);
@@ -1860,7 +1881,7 @@ $('#lNick').addEventListener('input',updateFaceLoginBtn);
 let nickT;
 $('#rNick').oninput=e=>{const n=norm(e.target.value),st=$('#nickSt');clearTimeout(nickT);if(!n){st.textContent='';return}if(!/^[a-z0-9_]{3,32}$/.test(n)){st.style.color='var(--danger)';st.textContent='— 3–32 ta lotin harf, raqam, _';return}
  st.style.color='var(--online)';st.textContent='— mos';
- nickT=setTimeout(async()=>{try{await waitLimit(ensureFirebaseRuntime(),7000,'sdk-timeout');const ss=await waitLimit(getDoc(doc(db,'usernames',n)),7000,'network-timeout');if(norm($('#rNick').value)!==n)return;if(ss.exists()){st.style.color='var(--danger)';st.textContent='— band'}}catch{}},350)};
+ nickT=setTimeout(async()=>{try{await waitLimit(ensureFirebaseRuntime(),7000,'sdk-timeout');const ss=await waitLimit(getDoc(doc(db,'usernames',n)),7000,'network-timeout');if(norm($('#rNick').value)!==n)return;if(ss.exists){st.style.color='var(--danger)';st.textContent='— band'}}catch{}},350)};
 
 /* ---------- RO‘YXATDAN O‘TISH: nickname + ism + parol → darhol akkaunt ochiladi ---------- */
 $('#regForm').onsubmit=async e=>{
@@ -1923,20 +1944,24 @@ function putUserSnap(sn){if(!sn?.exists?.())return null;const u={id:sn.id,...sn.
 async function ensureUsers(ids){const arr=[...new Set((ids||[]).filter(id=>id&&id!==me?.id&&!U.has(id)&&!userFetchPending.has(id)))];if(!arr.length)return;arr.forEach(id=>userFetchPending.add(id));await pool(arr.length,12,async i=>{try{const sn=await getDoc(doc(db,'users',arr[i]));putUserSnap(sn)}catch{}finally{userFetchPending.delete(arr[i])}});renderList();if(active)refreshActive();saveSnap()}
 function watchUser(id){if(!id||id===me?.id||userWatches.has(id))return;const un=onSnapshot(doc(db,'users',id),sn=>{if(putUserSnap(sn)){renderList();if(active?.peerId===id)refreshActive()}},()=>{});userWatches.set(id,un)}
 function syncChatUsers(){if(!me)return;const keep=new Set(),need=[];for(const c of C.values()){if(c.type==='direct'){const pid=(c.members||[]).find(x=>x!==me.id);if(pid){keep.add(pid);need.push(pid)}}const sid=c.lastMsg?.senderId;if(sid&&sid!==me.id)need.push(sid)}for(const id of keep)watchUser(id);for(const[id,un]of [...userWatches])if(!keep.has(id)){try{un()}catch{};userWatches.delete(id)}ensureUsers(need).catch(()=>{})}
-function loadGroupMembers(c){if(!c||!isGroup(c))return;const miss=(c.members||[]).filter(id=>id!==me.id&&!U.has(id));if(miss.length)ensureUsers(miss).then(()=>{if(infoOpen&&active?.id===c.id)renderInfo()}).catch(()=>{})}
+const memberFetchTried=new Map(); // uid -> vaqt: bitta profil har 60 soniyada ko‘pi bilan bir marta so‘raladi
+function loadGroupMembers(c){if(!c||!isGroup(c))return;const now=Date.now(),miss=(c.members||[]).filter(id=>id!==me.id&&!U.has(id)&&!(now-(memberFetchTried.get(id)||0)<60000));if(!miss.length)return;miss.forEach(id=>memberFetchTried.set(id,now));
+ // Faqat haqiqatan yangi profil kelgandagina qayta chiziladi. Avval: profil boshqa joyda yuklanayotgan bo‘lsa
+ // renderInfo → loadGroupMembers → renderInfo cheksiz aylanib, sahifa qotib qolardi.
+ ensureUsers(miss).then(()=>{if(infoOpen&&active?.id===c.id&&miss.some(id=>U.has(id)))renderInfo()}).catch(()=>{})}
 function saveSnap(){clearTimeout(snapT);snapT=setTimeout(()=>{if(!me||!live)return;try{const chats=convList().slice(0,40).map(c=>C.get(c.id)).filter(Boolean);const need=new Set([me.id]);chats.forEach(c=>(c.members||[]).slice(0,40).forEach(u=>need.add(u)));
  const users={};need.forEach(id=>{const u=U.get(id);if(u)users[id]=u});LS.setItem(SNAP+'_'+me.id,JSON.stringify({uid:me.id,me,chats,users,prefs,msgs:snapMsgs}));LS.setItem(SNAP+'_last',me.id);SS.setItem(SNAP+'_last',me.id)}catch{try{LS.removeItem(SNAP+'_'+me.id) }catch{} }},400)}
 function keepMsgs(cid){snapMsgs[cid]=M.slice(-30);const ks=Object.keys(snapMsgs);if(ks.length>12)delete snapMsgs[ks[0]];saveSnap()}
 function showShell(){window.__booted=true;$('#bootHelp')?.classList.add('hidden');$('#auth').classList.add('hidden');showSplash(false);$('#app').classList.remove('hidden');$('#search').value='';closeChat();updSendBtn();applyBg();queueMicrotask(()=>warmRingtone().catch(()=>{}))}
 function restoreSnap(){try{if(!LS.getItem('smsfb_session'))return false;const uid=SS.getItem(SNAP+'_last')||LS.getItem(SNAP+'_last');const s=uid&&JSON.parse(LS.getItem(SNAP+'_'+uid)||'null');if(!s||!s.me||s.me.id!==uid)return false;
- me=s.me;U=new Map(Object.entries(s.users||{}));C=new Map((s.chats||[]).map(c=>[c.id,c]));prefs=normPrefs(s.prefs);snapMsgs=s.msgs||{};window.__booted=true;showShell();
+ me=s.me;U=new Map(Object.entries(s.users||{}));C=new Map((s.chats||[]).map(c=>[c.id,c]));prefs=normPrefs(s.prefs);setPrefsBase();snapMsgs=s.msgs||{};window.__booted=true;showShell();
  try{const x=JSON.parse(LS.getItem('smsfb_rt')||'null');if(x&&x.uid===uid&&x.rt){restFallbackAuth={uid,token:'',refreshToken:x.rt,expiresAt:0};setTimeout(()=>{if(me&&me.id===uid&&!live){startRestInboxPolling();syncServerClock()}},2500)}}catch{}
  return true}catch{return false}}
-function stop(){live=false;rtOk=false;restMarkKey='';stopRingtone();stopRestFallbackPolling();restFallbackAuth={uid:'',token:'',refreshToken:'',expiresAt:0};if(callSession)endCall('ended').catch(()=>{});incomingCall=null;$('#incomingCall')?.classList.add('hidden');resetAuthed();unsubs.forEach(f=>{try{f()}catch{}});unsubs=[];for(const[,f]of userWatches){try{f()}catch{}}userWatches.clear();unsubMsgs?.();unsubMsgs=null;msgsFor=null;me=null;snapMsgs={};C=new Map();U=new Map();M=[];active=null;firstChats=true;seenLast={};prefs=normPrefs();usersPreloaded=false;remotePrefixLookups.clear();remotePrefixDone.clear()}
+function stop(){live=false;rtOk=false;restMarkKey='';stopRingtone();stopRestFallbackPolling();restFallbackAuth={uid:'',token:'',refreshToken:'',expiresAt:0};if(callSession)endCall('ended').catch(()=>{});incomingCall=null;$('#incomingCall')?.classList.add('hidden');resetAuthed();unsubs.forEach(f=>{try{f()}catch{}});unsubs=[];for(const[,f]of userWatches){try{f()}catch{}}userWatches.clear();unsubMsgs?.();unsubMsgs=null;msgsFor=null;me=null;snapMsgs={};C=new Map();U=new Map();M=[];active=null;firstChats=true;seenLast={};prefs=normPrefs();setPrefsBase();window.__prefsReady=false;usersPreloaded=false;remotePrefixLookups.clear();remotePrefixDone.clear()}
 let memberSignalBusy=false;
 async function forceLoadJoinedChat(chatId){
  if(!chatId||!me||!live)return false;
- try{const sn=await getDoc(chatRef(chatId));if(!sn.exists())return false;const c={id:sn.id,...sn.data()};if(!(c.members||[]).includes(me.id))return false;C.set(c.id,c);syncChatUsers();renderList();refreshActive();saveSnap();return true}catch(e){console.warn('joined chat refresh',e);return false}
+ try{const sn=await getDoc(chatRef(chatId));if(!sn.exists)return false;const c={id:sn.id,...sn.data()};if(!(c.members||[]).includes(me.id))return false;C.set(c.id,c);syncChatUsers();renderList();refreshActive();saveSnap();return true}catch(e){console.warn('joined chat refresh',e);return false}
 }
 async function refreshJoinedChats(){
  if(memberSignalBusy||!me||!live||!db)return;memberSignalBusy=true;
@@ -1951,13 +1976,18 @@ async function start(fu){if(live&&me?.id===fu.uid)return;const warm=me?.id===fu.
  if(!warm){const keep=snapMsgs;stop();me={id:fu.uid,username:pend?.nick||'',displayName:pend?.name||pend?.nick||'…',photo:''};U.set(me.id,me);loadUserDirectoryCache()}
  live=true;authedR();pend=null;const uid=fu.uid;
  unsubs.push(onSnapshot(doc(db,'users',uid),s=>{
-  if(s.exists()){me={id:s.id,...s.data()};U.set(uid,me);rememberAcc();ensureNickMapping();try{LS.removeItem('sms_pending_profile')}catch{}}
+  if(s.exists){me={id:s.id,...s.data()};U.set(uid,me);rememberAcc();ensureNickMapping();try{LS.removeItem('sms_pending_profile')}catch{}}
   else{if(me)U.set(uid,me);try{const q=JSON.parse(LS.getItem('sms_pending_profile')||'null');if(q&&q.uid===uid)authRetry(()=>ensureOwnProfile({uid},q.nick,q.dn,q.email),5).then(()=>LS.removeItem('sms_pending_profile')).catch(()=>{})}catch{}}
   renderList();refreshActive();saveSnap()},fail));
  // includeMetadataChanges: realtime serverga ulanganini (fromCache=false) bilish uchun. Uzilsa REST zaxira yoqiladi.
  unsubs.push(db.collection('chats').where('members','array-contains',uid).onSnapshot({includeMetadataChanges:true},s=>{rtOk=!s.metadata.fromCache;if(!firstChats&&!s.docChanges().length)return;onChats(s)},fail));
- unsubs.push(onSnapshot(doc(db,'memberSignals',uid),s=>{if(!s.exists())return;const x=s.data()||{},cid=x.chatId;if(cid)forceLoadJoinedChat(cid).finally(()=>deleteDoc(doc(db,'memberSignals',uid)).catch(()=>{}))},e=>console.warn('member signal listen',e)));
- unsubs.push(onSnapshot(doc(db,'users',uid,'private','prefs'),s=>{if(s.metadata?.fromCache&&!s.exists())return;prefs=normPrefs(s.data());applyBg();renderList();refreshActive();saveSnap();warmRingtone().catch(()=>{})},fail));
+ unsubs.push(onSnapshot(doc(db,'memberSignals',uid),s=>{if(!s.exists)return;const x=s.data()||{},cid=x.chatId;if(cid)forceLoadJoinedChat(cid).finally(()=>deleteDoc(doc(db,'memberSignals',uid)).catch(()=>{}))},e=>console.warn('member signal listen',e)));
+ // includeMetadataChanges: keshdagi (eski bo‘lishi mumkin) nusxa emas, SERVERdan kelgan holat aniq bilinadi —
+ // shundan keyingina Pro funksiyalar (qurilmalar, navbat, qoralama) sozlamalarga yozadi.
+ unsubs.push(doc(db,'users',uid,'private','prefs').onSnapshot({includeMetadataChanges:true},(()=>{let last=null;return s=>{if(s.metadata?.fromCache&&!s.exists)return;
+  const fromServer=!s.metadata?.fromCache,raw=JSON.stringify(s.data()||null);
+  if(raw===last){if(fromServer)window.__prefsReady=true;return} // faqat metama’lumot o‘zgardi — qayta chizish shart emas
+  last=raw;prefs=normPrefs(s.data());setPrefsBase();if(fromServer)window.__prefsReady=true;applyBg();renderList();refreshActive();saveSnap();warmRingtone().catch(()=>{})}})(),fail));
  listenP2PRequests(uid);
  listenIncomingCalls(uid);
  setTimeout(()=>preloadKnownUsers().catch(()=>{}),100);setTimeout(()=>refreshJoinedChats(),100);
@@ -2077,10 +2107,10 @@ async function fetchUserByNickname(n){
    try{
     await waitLimit(ensureFirebaseRuntime(),3500,'sdk-timeout');
     const ns=await waitLimit(getDoc(doc(db,'usernames',n)),3500,'network-timeout');
-    if(ns.exists()){
+    if(ns.exists){
      const uid=ns.data()?.uid;if(!uid||uid===me.id)return null;
      let u=U.get(uid);
-     if(!u){const us=await waitLimit(getDoc(doc(db,'users',uid)),3500,'network-timeout');if(us.exists()){u={id:uid,...us.data()};U.set(uid,u)}}
+     if(!u){const us=await waitLimit(getDoc(doc(db,'users',uid)),3500,'network-timeout');if(us.exists){u={id:uid,...us.data()};U.set(uid,u)}}
      if(u)return u;
     }
    }catch(e){console.warn('SDK nickname search fallback',e)}
@@ -2403,7 +2433,7 @@ async function placeCall(type='video'){
   let sigReady=false;const candBuf=[];
   pc.onicecandidate=e=>{if(!e.candidate)return;const j=candJson(e.candidate);if(sigReady)updateDoc(callRef(id),{callerCandidates:arrayUnion(j)}).catch(()=>{});else candBuf.push(j)};
   let remoteSet=false,pending=[];
-  const un=onSnapshot(callRef(id),async sn=>{if(!sn.exists())return;const d=sn.data();try{
+  const un=onSnapshot(callRef(id),async sn=>{if(!sn.exists)return;const d=sn.data();try{
    if(callSession?.id!==id)return;
    if(d.status==='accepted'){clearCallTimer(callSession);$('#callStatus').textContent=remoteSet?'Jonli':'Ulanmoqda…'}
    if(terminalCall(d.status)){const msg=d.status==='declined'?'Qo‘ng‘iroq rad etildi':d.status==='busy'?'Foydalanuvchi band':d.status==='missed'?'Javob berilmadi':'Qo‘ng‘iroq tugadi';toast(msg);return endCall(d.status,true)}
@@ -2429,7 +2459,7 @@ async function showIncomingCall(d){
  if(!u){
   try{
    const us=await getDoc(doc(db,'users',d.callerId));
-   if(us.exists()){u={id:us.id,...us.data()};U.set(u.id,u);if(incomingCall?.id===d.id)$('#incomingName').textContent=uname(u)+' qo‘ng‘iroq qilmoqda'}
+   if(us.exists){u={id:us.id,...us.data()};U.set(u.id,u);if(incomingCall?.id===d.id)$('#incomingName').textContent=uname(u)+' qo‘ng‘iroq qilmoqda'}
   }catch{}
  }
 }
@@ -2457,7 +2487,7 @@ async function acceptIncoming(){
   const ans=await pc.createAnswer();await pc.setLocalDescription(ans);
   let un=null;callSession={id:d.id,pc,stream,type:d.type,facing:'user',light:false,speaker:false,un:null,role:'receiver',ringTimer:null,disconnectTimer:null};
   await updateDoc(callRef(d.id),{answer:descJson(pc.localDescription),status:'accepted',updatedAt:srvNow()});
-  un=onSnapshot(callRef(d.id),async sn=>{if(!sn.exists())return;const x=sn.data();if(callSession?.id!==d.id)return;if(terminalCall(x.status))return endCall(x.status,true);for(const raw of x.callerCandidates||[]){if(seen.has(raw))continue;seen.add(raw);const c=parseJson(raw);if(c)await pc.addIceCandidate(c).catch(()=>{})}});callSession.un=un;$('#callStatus').textContent='Ulandi'
+  un=onSnapshot(callRef(d.id),async sn=>{if(!sn.exists)return;const x=sn.data();if(callSession?.id!==d.id)return;if(terminalCall(x.status))return endCall(x.status,true);for(const raw of x.callerCandidates||[]){if(seen.has(raw))continue;seen.add(raw);const c=parseJson(raw);if(c)await pc.addIceCandidate(c).catch(()=>{})}});callSession.un=un;$('#callStatus').textContent='Ulandi'
  }catch(e){console.error(e);toast(errText(e?.code?e:{code:'media-unavailable'}),5000);updateDoc(callRef(d.id),{status:'declined',updatedAt:srvNow()}).catch(()=>{});endCall('ended',true)}
 }
 $('#acceptCall').onclick=acceptIncoming;
@@ -2547,7 +2577,7 @@ function msgHtml(m,c,q){if(m.type==='service')return`<div class="svc">${esc(m.bo
 function renderMessages(toBottom=false){if(!active)return;const c=active,box=$('#msgs');if(c.type==='supergroup'&&forumHome){renderForumList();return}
  let arr=M.filter(m=>vis(m,c.id)&&msgVisibleToMe(m)&&(c.type!=='supergroup'||(m.topicId||'general')===activeTopic));
  const q=chatQuery.trim();if(q){const lq=q.toLowerCase();arr=arr.filter(m=>m.type!=='service'&&((m.body||'')+' '+(m.fileName||'')).toLowerCase().includes(lq))}
- const sig=[c.id,activeTopic,q,JSON.stringify(prefs.aliases),arr.map(m=>user(m.senderId)?.displayName||'').join(),arr.map(m=>m.id+(m.edited||'')+JSON.stringify(m.reactions||{})+(m.senderId===me.id?readBy(m,c):'')+(m.body||'')+(m.type==='poll'?JSON.stringify(m.pollVotes||{})+(m.poll?.closed||''):'')).join()].join('|');
+ const sig=[c.id,activeTopic,q,JSON.stringify(prefs.aliases),arr.map(m=>user(m.senderId)?.displayName||'').join(),arr.map(m=>m.id+(m.edited||'')+JSON.stringify(m.reactions||{})+(m.senderId===me.id?readBy(m,c):'')+(m.body||'')+(m.type==='poll'?JSON.stringify(m.pollVotes||m.votes||{})+(m.poll?.closed||''):'')).join()].join('|');
  if(sig===lastSig&&!toBottom)return;lastSig=sig;
  const prevTop=box.scrollTop;let h='',prev=null;
  for(const m of arr){if(!prev||!sameDay(prev.createdAt,m.createdAt))h+=`<div class="day">${dayLabel(m.createdAt)}</div>`;h+=msgHtml(m,c,q);prev=m}
@@ -2748,7 +2778,7 @@ function myGifList(){
 async function persistMyGifs(arr){
  const cleanArr=(arr||[]).filter(g=>g?.fileId).slice(0,80);prefs.myGifs=cleanArr;
  try{LS.setItem(myGifLocalKey(),JSON.stringify(cleanArr))}catch{}
- if(live){try{await setDoc(prefsRef(),prefs)}catch(e){console.warn('my gifs save',e)}}
+ if(live){try{await setDoc(prefsRef(),{myGifs:cleanArr},{mergeFields:['myGifs']});if(prefsBase)prefsBase.myGifs=JSON.parse(JSON.stringify(cleanArr))}catch(e){console.warn('my gifs save',e)}}
  else if(restSendReady())try{const token=await refreshRestFallbackToken();if(token)await restPatchFields(`users/${encodeURIComponent(me.id)}/private/prefs`,{myGifs:cleanArr},token,['myGifs'])}catch(e){console.warn('my gifs rest save',e)}
 }
 async function saveMyGif(meta){
@@ -2913,7 +2943,7 @@ function forwardModal(m){const tg=fwdTargets();
  $('#fwq').oninput=draw;draw();$('#fwq').focus();$('#fwl').onclick=e=>{const r=e.target.closest('[data-to]');if(!r)return;closeModal();forwardTo(m,r.dataset.to);openChat(r.dataset.to)}}
 function forwardTo(m,cid,quiet){if(hasF(m)&&!canOpenAttachment(m))return toast('Bu faylni uzatish uchun sizga ruxsat berilmagan',5000);const src=active;const n={type:m.type,body:m.body||'',fwd:m.fwd||(src?.type==='channel'?src.title:(user(m.senderId)?.displayName||'Noma’lum'))};
  if(m.type==='sticker')n.stickerId=m.stickerId;
- if(hasF(m))Object.assign(n,clean({fileId:m.fileId,url:m.url,p2pId:m.p2pId,p2pSender:m.p2pSender||m.senderId,p2pCid:m.p2pCid,p2pDir:isP2PFolder(m)?true:undefined,p2pKind:isP2PFolder(m)?'folder':m.p2pKind,p2pVersion:m.p2pVersion|| (isP2PFolder(m)?2:undefined),fileCount:m.fileCount,spath:m.spath,fwdFile:m.url?1:undefined,fileName:m.fileName,fileSize:m.fileSize,mime:m.mime,w:m.w,h:m.h,thumb:m.thumb,videoNote:m.videoNote,p2pDir:m.p2pDir,p2pFolderV:m.p2pFolderV,fileCount:m.fileCount,}));
+ if(hasF(m))Object.assign(n,clean({fileId:m.fileId,url:m.url,p2pId:m.p2pId,p2pSender:m.p2pSender||m.senderId,p2pCid:m.p2pCid,p2pDir:isP2PFolder(m)?true:undefined,p2pKind:isP2PFolder(m)?'folder':m.p2pKind,p2pVersion:m.p2pVersion|| (isP2PFolder(m)?2:undefined),fileCount:m.fileCount,spath:m.spath,fwdFile:m.url?1:undefined,fileName:m.fileName,fileSize:m.fileSize,mime:m.mime,w:m.w,h:m.h,thumb:m.thumb,videoNote:m.videoNote,p2pFolderV:m.p2pFolderV}));
  pushMsg(cid,n).then(()=>{},()=>{});toast(quiet?'Saqlangan xabarlarga qo‘shildi':'Uzatildi')}
 
 const msgsEl=$('#msgs');
@@ -3207,7 +3237,7 @@ function profileModal(){let photo,video;
  $('#psave').onclick=async e=>{const btn=e.currentTarget,name=$('#pname').value.trim(),un=norm($('#puser').value),pw=$('#ppass')?.value||'';
   if(name.length<2)return toast('Ism kamida 2 harf');if(!/^[a-z0-9_]{3,32}$/.test(un))return toast('Nickname: 3–32 ta lotin harf, raqam yoki _');if(pw&&weakPw(pw))return toast(PW_RULE);
   busy(btn,true);
-  try{if(un!==me.username){const old=me.username;await runTransaction(db,async tx=>{const r=doc(db,'usernames',un);if((await tx.get(r)).exists())throw{code:'taken'};tx.set(r,{uid:me.id,email:auth.currentUser.email});tx.delete(doc(db,'usernames',old));tx.update(doc(db,'users',me.id),{username:un})})}
+  try{if(un!==me.username){const old=me.username;await runTransaction(db,async tx=>{const r=doc(db,'usernames',un);if((await tx.get(r)).exists)throw{code:'taken'};tx.set(r,{uid:me.id,email:auth.currentUser.email});tx.delete(doc(db,'usernames',old));tx.update(doc(db,'users',me.id),{username:un})})}
    const up={displayName:name,bio:$('#pbio').value.trim()};
    if(photo!==undefined){up.photo=photo;if(photo)up.videoId=deleteField()}
    if(video===null)up.videoId=deleteField();else if(video){toast('Video yuklanmoqda…',0);up.videoId=await uploadFile(video,video.name);toast('Yuklandi')}
@@ -3320,47 +3350,86 @@ restoreSnap();
    saved collections, multi-pin, draft sync and UI polish.
    ========================================================= */
 
-function adminCan(c,perm,id=me?.id){
- if(!c||!isGroup(c))return true;
- if(c.ownerId===id)return true;
- if(!(c.admins||[]).includes(id))return false;
- const p=c.adminPerms?.[id];
- if(!p)return true; // eski adminlar migratsiyada barcha eski huquqlarini saqlaydi
- return p[perm]!==false
+/* adminCan() asosiy skriptga ko‘chirildi (canPost/canPin uni ilova yuklanayotganda ham chaqiradi). */
+
+/* Firestore yozuvlari: SDK hali ulanmagan bo‘lsa notReady() SINXRON xato otadi va chaqirgan funksiyani
+   (masalan openChat → markRead) yarmida to‘xtatib qo‘yadi. mkSafe uni oddiy Promise rad etishiga aylantiradi. */
+function mkSafe(fn){try{return Promise.resolve(fn())}catch(e){return Promise.reject(e)}}
+const isPermErr=e=>String(e?.code||e?.message||'').includes('permission-denied');
+/* Sozlamalar (prefs) serverdan kelmaguncha ularni qayta yozish — serverdagi haqiqiy sozlamalarni
+   (qadalgan chatlar, fon, GIF, rejalashtirilganlar...) standart qiymatlar bilan ustidan yozib yuboradi. */
+const prefsReady=()=>!!(me&&prefs&&window.__prefsReady);
+function prefsReadyOrToast(){if(prefsReady())return true;ensurePrefsRest(true);toast('Sozlamalar yuklanmoqda, bir soniyadan keyin qayta urining');return false}
+// Serverdagi aniq holat ma’lum bo‘lgan kalitni mahalliy nusxa va "oxirgi server holati"ga birga yozamiz (keyingi savePrefs uni qayta yozmaydi).
+function syncPrefsKey(k,v){prefs[k]=v;if(prefsBase)prefsBase[k]=JSON.parse(JSON.stringify(v===undefined?null:v))}
+// Firestore hujjati 1 MB dan oshsa, BARCHA sozlamalar saqlanmay qoladi — oldindan to‘xtatamiz.
+const prefsTooBig=()=>{try{return new TextEncoder().encode(JSON.stringify(prefs||{})).length>900000}catch{return false}}; // baytlarda (kirill/emoji 2–4 bayt)
+/* Xarita ichidagi faqat KERAKLI yozuvlarni yangilash (qurilmalar, qoralamalar): boshqa qurilma shu paytda
+   o‘zinikini yozgan bo‘lsa ham, uning yozuvi saqlanib qoladi. entries: {kalit: qiymat | null (o‘chirish)} */
+function writePrefsEntries(field,entries){
+ const cur={...(prefs[field]||{})};for(const[k,v]of Object.entries(entries)){if(v==null)delete cur[k];else cur[k]=v}
+ if(!live){prefs[field]=cur;savePrefs();return}
+ const data={};for(const[k,v]of Object.entries(entries))data[k]=v==null?deleteField():v;
+ syncPrefsKey(field,cur);saveSnap();
+ mkSafe(()=>setDoc(prefsRef(),{[field]:data},{merge:true})).catch(fail)
 }
-function proIsExpired(m){return !!(m?.expiresAt&&m.expiresAt<=srvNow())}
+/* Firebase SDK ulanmagan (faqat REST ishlayotgan) holatda sozlamalarni REST orqali bir marta yuklab olamiz. */
+let __mkPrefsRestAt=0;
+async function ensurePrefsRest(force=false){
+ if(!me||window.__prefsReady||live||!restSendReady())return;
+ if(!force&&srvNow()-__mkPrefsRestAt<30000)return;__mkPrefsRestAt=srvNow();
+ const uid=me.id;
+ try{
+  const token=await refreshRestFallbackToken();if(!token||me?.id!==uid||window.__prefsReady||live)return;
+  const d=await restAuthedDoc(`users/${encodeURIComponent(uid)}/private/prefs`,token);
+  if(me?.id!==uid||window.__prefsReady||live)return;
+  const x=d?fsRestDoc(d):null;if(x){prefs=normPrefs(x);setPrefsBase();applyBg();renderList()}
+  window.__prefsReady=true
+ }catch(e){console.warn('prefs REST',e)}
+}
+
+/* "O‘qilganda" rejimidagi yo‘qoluvchi xabarlar uchun mahalliy taymer (server qoidasi rad etsa ham shu qurilmada ishlaydi). */
+const __mkTtlLocal=new Map(),__mkTtlSent=new Set();
+const ttlOf=m=>Number(m?.expiresAt||__mkTtlLocal.get(m?.id)||0);
+function proIsExpired(m){const e=ttlOf(m);return !!(e&&e<=srvNow())}
 function proTtlText(m){
- if(!m?.expiresAt)return'';
- const s=Math.max(0,Math.ceil((m.expiresAt-srvNow())/1000));
+ const e=ttlOf(m);if(!e)return'';
+ const s=Math.max(0,Math.ceil((e-srvNow())/1000));
  if(s<60)return`${s}s`;
  if(s<3600)return`${Math.ceil(s/60)}m`;
  if(s<86400)return`${Math.ceil(s/3600)}h`;
  return`${Math.ceil(s/86400)}d`
 }
 
+/* ---------- Slow mode ---------- */
+function slowLeft(c){
+ if(!c||!isGroup(c)||isAdmin(c))return 0;
+ const slow=Number(c.slowModeSec)||0;if(!slow)return 0;
+ const local=Number((window.__mkSlowLocal||(window.__mkSlowLocal=new Map())).get(c.id))||0;
+ const remote=Number(c.slowLast?.[me.id])||0,until=Math.max(local,remote)+slow*1000;
+ return Math.max(0,Math.ceil((until-srvNow())/1000))
+}
+
 /* ---------- Core wrappers: slow mode + auto delete ---------- */
 const __mkPushMsg=pushMsg;
 pushMsg=function(cid,data){
  const c=conv(cid);
+ const slowOn=!!(c&&data?.type!=='service'&&isGroup(c)&&!isAdmin(c)&&Number(c.slowModeSec)>0);
+ if(slowOn){const left=slowLeft(c);if(left>0){toast(`Slow mode: yana ${left} soniya kuting`);return Promise.reject({code:'slow-mode'})}}
  if(c&&data?.type!=='service'){
-  const slow=Number(c.slowModeSec)||0;
-  const exempt=isGroup(c)&&adminCan(c,'post');
-  if(slow&&!exempt){
-   const local=Number((window.__mkSlowLocal||(window.__mkSlowLocal=new Map())).get(cid))||0;
-   const remote=Number(c.slowLast?.[me.id])||0,until=Math.max(local,remote)+slow*1000;
-   if(srvNow()<until){toast(`Slow mode: yana ${Math.max(1,Math.ceil((until-srvNow())/1000))} soniya kuting`);return Promise.reject({code:'slow-mode'})}
-   window.__mkSlowLocal.set(cid,srvNow())
-  }
   const ttl=Number(c.autoDeleteSec)||0;
   if(ttl&&!data.expiresAt&&!data.ttlSec){
-   data={...data,ttlSec:ttl,ttlMode:c.autoDeleteMode||'send'};
+   data={...data,ttlSec:ttl,ttlMode:c.autoDeleteMode==='read'?'read':'send'};
    if(data.ttlMode!=='read')data.expiresAt=srvNow()+ttl*1000
   }
  }
+ const slowMap=window.__mkSlowLocal||(window.__mkSlowLocal=new Map()),prevSlow=slowMap.get(cid);
+ if(slowOn)slowMap.set(cid,srvNow());
  const p=__mkPushMsg(cid,data);
- if(c&&data?.type!=='service'&&Number(c.slowModeSec)>0){
-  Promise.resolve(p).then(()=>updateDoc(chatRef(cid),{[`slowLast.${me.id}`]:srvNow()}).catch(()=>{})).catch(()=>{})
- }
+ if(slowOn)Promise.resolve(p).then(
+  ()=>mkSafe(()=>updateDoc(chatRef(cid),{[`slowLast.${me.id}`]:srvNow()})).catch(()=>{}),
+  ()=>{if(prevSlow===undefined)slowMap.delete(cid);else slowMap.set(cid,prevSlow)} // yuborilmagan xabar slow mode vaqtini band qilmaydi
+ );
  return p
 };
 
@@ -3373,61 +3442,93 @@ const __mkMarkRead=markRead;
 markRead=function(){
  const c=active;
  __mkMarkRead();
- if(!c||forumHome)return;
+ // Faqat ekranda haqiqatan ko‘rinib turgan chat "o‘qilgan" hisoblanadi.
+ if(!c||forumHome||c.virtual||!me||document.visibilityState!=='visible')return;
  for(const m of M){
-  if(m.senderId===me.id||m.expiresAt||!m.ttlSec||m.ttlMode!=='read'||proIsExpired(m))continue;
+  if(m.senderId===me.id||m.expiresAt||!m.ttlSec||m.ttlMode!=='read')continue;
+  if(!vis(m,c.id)||!msgVisibleToMe(m))continue;
   if(c.type==='supergroup'&&(m.topicId||'general')!==activeTopic)continue;
-  const exp=srvNow()+Number(m.ttlSec)*1000;
-  m.expiresAt=exp;updateDoc(msgRef(c.id,m.id),{expiresAt:exp}).catch(()=>{})
+  if(!__mkTtlLocal.has(m.id))__mkTtlLocal.set(m.id,srvNow()+Number(m.ttlSec)*1000);
+  if(live&&!__mkTtlSent.has(m.id)){__mkTtlSent.add(m.id);const exp=__mkTtlLocal.get(m.id);mkSafe(()=>updateDoc(msgRef(c.id,m.id),{expiresAt:exp})).catch(()=>{})}
  }
 };
 
 /* ---------- Poll / Quiz (har doim quiz: aynan 1 ta to‘g‘ri javob; ovoz bir marta, qulflangan; anonim emas) ---------- */
-const pollPicks=new Map(); // mid -> Set(optId) — faqat "bir nechta javob" rejimida, yuborilgunga qadar vaqtinchalik tanlov
-function pollCounts(m){
- const opts=m.poll?.options||[],votes=m.pollVotes||{},counts=Object.fromEntries(opts.map(o=>[o.id,0]));
- for(const v of Object.values(votes)){for(const id of(Array.isArray(v)?v:[v]))if(id in counts)counts[id]++}
- return{counts,total:Object.keys(votes).length}
+const pollPicks=new Map(); // mid -> Set(optId) — faqat eski "bir nechta javob" testlarida, yuborilgunga qadar vaqtinchalik tanlov
+/* Ikkala ma’lumot modeli bitta ko‘rinishga keltiriladi:
+   2-model (shu fayl): poll:{question,options:[{id,text}],correct,multi,closed,explanation}, pollVotes:{uid:[optId]}
+   1-model (eski work.html): question, options:[matn], correctIndex, multi, votes:{uid:[indeks]} */
+function pollView(m){
+ if(m?.poll&&Array.isArray(m.poll.options)){const p=m.poll;
+  return{v:2,question:p.question||m.body||'Test',options:p.options.map(o=>({id:String(o?.id??''),text:String(o?.text??'')})),correct:String(p.correct??''),multi:!!p.multi,closed:!!p.closed,explanation:p.explanation||'',votes:m.pollVotes||{}}}
+ const opts=Array.isArray(m?.options)?m.options:[],votes={};
+ for(const[u,v]of Object.entries(m?.votes||{}))votes[u]=(Array.isArray(v)?v:[v]).map(String);
+ return{v:1,question:m?.question||m?.body||'Test',options:opts.map((t,i)=>({id:String(i),text:typeof t==='string'?t:String(t?.text??'')})),correct:Number.isInteger(m?.correctIndex)?String(m.correctIndex):'',multi:!!m?.multi,closed:!!m?.closed,explanation:'',votes}
 }
+function pollMine(pv){const r=pv.votes?.[me.id];return Array.isArray(r)?r.map(String):(r!=null&&r!==''?[String(r)]:[])}
+// Test: aynan 1 ta to‘g‘ri javob bor — faqat shu bitta variant tanlangan bo‘lsagina "to‘g‘ri" (hammasini belgilab aldab bo‘lmaydi).
+const pollIsCorrect=(pv,mine)=>mine.length===1&&mine[0]===pv.correct;
+function pollCounts(m){
+ const pv=pollView(m),counts=Object.fromEntries(pv.options.map(o=>[o.id,0]));
+ for(const v of Object.values(pv.votes)){for(const id of new Set((Array.isArray(v)?v:[v]).map(String)))if(id in counts)counts[id]++}
+ return{counts,total:Object.keys(pv.votes).length}
+}
+const __mkVoterFetch=new Set();
 function pollVoterNames(m,optId){
- const votes=m.pollVotes||{};
- return Object.entries(votes).filter(([,v])=>(Array.isArray(v)?v:[v]).includes(optId)).map(([uid])=>uname(user(uid)));
+ const pv=pollView(m);
+ const ids=Object.entries(pv.votes).filter(([,v])=>(Array.isArray(v)?v:[v]).map(String).includes(String(optId))).map(([uid])=>uid);
+ // Guruhda hali yuklanmagan a’zolar "O‘chirilgan akkaunt" bo‘lib ko‘rinmasin — profilini bir marta yuklab, qayta chizamiz.
+ const miss=live?ids.filter(id=>id!==me.id&&!U.has(id)&&!__mkVoterFetch.has(id)):[];
+ if(miss.length){miss.forEach(id=>__mkVoterFetch.add(id));ensureUsers(miss).then(()=>{lastSig='';renderMessages();if(infoOpen&&infoTab==='polls')renderInfoTab()}).catch(()=>{})}
+ return ids.map(uid=>uid===me.id||U.has(uid)?uname(user(uid)):(__mkVoterFetch.has(uid)&&!userFetchPending.has(uid)?'O‘chirilgan akkaunt':'…'))
 }
 function pollHtml(m){
- const p=m.poll||{},opts=p.options||[],{counts,total}=pollCounts(m);
- const mineRaw=m.pollVotes?.[me.id],mine=Array.isArray(mineRaw)?mineRaw:(mineRaw?[mineRaw]:[]),voted=mine.length>0;
+ const pv=pollView(m),opts=pv.options,{counts,total}=pollCounts(m);
+ const mine=pollMine(pv),voted=mine.length>0,reveal=voted||pv.closed; // yopilgan testda natija hammaga ko‘rinadi
  const picked=pollPicks.get(m.id)||new Set();
  const rows=opts.map(o=>{
-  const n=counts[o.id]||0,pc=voted&&total?Math.round(n/total*100):0;
-  const isMine=voted&&mine.includes(o.id),isCorrect=o.id===p.correct;
-  const stCls=voted?(isCorrect?' correct':(isMine?' wrong':'')):(picked.has(o.id)?' mine':'');
-  const names=voted?pollVoterNames(m,o.id):[];
-  return`<button type="button" class="poll-opt${stCls}" data-poll-opt="${esc(o.id)}" data-mid="${esc(m.id)}" ${voted||p.closed?'disabled':''}><i style="width:${voted?pc:0}%"></i><span><b>${voted?(isCorrect?'✅ ':(isMine?'❌ ':'')):''}${esc(o.text)}</b>${voted?`<em>${n} · ${pc}%</em>`:''}</span></button>${voted&&names.length?`<div class="poll-voters">${esc(names.join(', '))}</div>`:''}`
+  const n=counts[o.id]||0,pc=reveal&&total?Math.round(n/total*100):0;
+  const isMine=voted&&mine.includes(o.id),isCorrect=o.id===pv.correct;
+  const stCls=reveal?(isCorrect?' correct':(isMine?' wrong':'')):(picked.has(o.id)?' mine':'');
+  const names=reveal?pollVoterNames(m,o.id):[];
+  return`<button type="button" class="poll-opt${stCls}" data-poll-opt="${esc(o.id)}" data-mid="${esc(m.id)}" ${reveal?'disabled':''}><i style="width:${reveal?pc:0}%"></i><span><b>${reveal?(isCorrect?'✅ ':(isMine?'❌ ':'')):''}${esc(o.text)}</b>${reveal?`<em>${n} · ${pc}%</em>`:''}</span></button>${reveal&&names.length?`<div class="poll-voters">${esc(names.join(', '))}</div>`:''}`
  }).join('');
- const sendBtn=(!voted&&!p.closed&&p.multi)?`<button type="button" class="btn flat sm" style="margin-top:2px" data-poll-send="${esc(m.id)}">Javobni yuborish</button>`:'';
- const note=voted?`<div class="poll-correct-note ${mine.includes(p.correct)?'ok':'bad'}">${mine.includes(p.correct)?'✅ To‘g‘ri javob!':'❌ Noto‘g‘ri javob — to‘g‘risi yashil bilan belgilangan'}</div>${p.explanation?`<small class="muted">${esc(p.explanation)}</small>`:''}`:'';
- return`<div class="poll-box"><div class="poll-q">${esc(p.question||m.body||'Test')}</div>
+ const sendBtn=(!reveal&&pv.multi)?`<button type="button" class="btn flat sm" style="margin-top:2px" data-poll-send="${esc(m.id)}">Javobni yuborish</button>`:'';
+ const ok=pollIsCorrect(pv,mine);
+ const note=voted?`<div class="poll-correct-note ${ok?'ok':'bad'}">${ok?'✅ To‘g‘ri javob!':'❌ Noto‘g‘ri javob — to‘g‘risi yashil bilan belgilangan'}</div>`
+  :(pv.closed?`<div class="poll-correct-note" style="color:var(--muted)">Test yopilgan — siz javob bermagansiz. To‘g‘ri javob yashil bilan belgilangan</div>`:'');
+ const expl=reveal&&pv.explanation?`<small class="muted">${esc(pv.explanation)}</small>`:'';
+ return`<div class="poll-box"><div class="poll-q">${esc(pv.question)}</div>
  ${rows}${sendBtn}
- <div class="poll-foot"><span>${voted?`${total} ta ovoz berdi`:(p.closed?'Yopilgan':(p.multi?'Bir nechtasini tanlang':'Birini tanlang'))}</span><span>Test</span></div>
- ${note}</div>`
+ <div class="poll-foot"><span>${reveal?`${total} ta ovoz berdi${pv.closed?' · yopilgan':''}`:(pv.multi?'Bir nechtasini tanlang':'Birini tanlang')}</span><span>Test</span></div>
+ ${note}${expl}</div>`
 }
 async function submitPollVote(mid,optIds){
- const c=active;if(!c)return;const ref=msgRef(c.id,mid);
+ const c=active;if(!c)return;
  pollPicks.delete(mid);
+ if(!live){lastSig='';renderMessages();return toast(errText({code:'not-ready'}))}
  try{
+  const ref=msgRef(c.id,mid);let res='';
   await runTransaction(db,async tx=>{
-   const sn=await tx.get(ref);if(!sn.exists())return;const d=sn.data();
-   const cur=d.pollVotes?.[me.id];if(Array.isArray(cur)?cur.length:cur)return; // allaqachon ovoz bergan — qulflangan, o‘zgartirib bo‘lmaydi
-   if(d.poll?.closed)return;
-   tx.update(ref,{[`pollVotes.${me.id}`]:optIds})
+   res='';
+   const sn=await tx.get(ref);if(!sn.exists){res='gone';return}
+   const d=sn.data(),pv=pollView(d);
+   if(pollMine(pv).length){res='locked';return} // allaqachon ovoz bergan — qulflangan, o‘zgartirib bo‘lmaydi
+   if(pv.closed){res='closed';return}
+   const valid=new Set(pv.options.map(o=>o.id)),ids=[...new Set((optIds||[]).map(String))].filter(id=>valid.has(id));
+   if(!ids.length||(!pv.multi&&ids.length!==1)){res='bad';return}
+   if(pv.v===2)tx.update(ref,{[`pollVotes.${me.id}`]:ids});
+   else tx.update(ref,{[`votes.${me.id}`]:ids.map(Number)}); // eski model: indekslar raqam ko‘rinishida
   });
+  if(res==='closed')toast('Test yopilgan — endi javob berib bo‘lmaydi');
+  else if(res==='gone')toast('Bu test o‘chirilgan');
   lastSig='';renderMessages()
- }catch(e){fail(e)}
+ }catch(e){lastSig='';renderMessages();fail(e)}
 }
 async function votePoll(mid,opt){
- const c=active,m=findMsg(mid);if(!c||!m||m.type!=='poll'||m.poll?.closed)return;
- const mineRaw=m.pollVotes?.[me.id];if(Array.isArray(mineRaw)?mineRaw.length:mineRaw)return; // qulflangan
- if(m.poll?.multi){
+ const c=active,m=findMsg(mid);if(!c||!m||m.type!=='poll')return;
+ const pv=pollView(m);if(pv.closed||pollMine(pv).length)return; // yopilgan yoki qulflangan
+ if(pv.multi){
   const set=pollPicks.get(mid)||new Set();
   set.has(opt)?set.delete(opt):set.add(opt);
   pollPicks.set(mid,set);lastSig='';renderMessages();
@@ -3437,35 +3538,44 @@ async function votePoll(mid,opt){
 }
 function pollModal(){
  if(!active||!canPost(active))return toast('Avval chatni oching');
- modal(`<h3>📊 Test / So‘rov</h3><label class="lb">Savol</label><input class="field" id="pq" maxlength="180" placeholder="Savol yozing"><div id="popts">${[1,2,3].map(i=>`<input class="field po" placeholder="${i}-variant" maxlength="100">`).join('')}</div><button class="btn flat sm" id="poadd">+ Variant</button>
- <label class="check-row"><input type="checkbox" id="pmulti"><span>Bir nechta javob tanlashga ruxsat berish</span></label>
- <label class="lb">To‘g‘ri javob raqami <small style="color:var(--muted);font-weight:400">— har doim 1 ta to‘g‘ri javob bo‘lishi shart</small></label><input class="field" id="pcorrect" type="number" min="1" value="1">
+ const cid=active.id,topic=active.type==='supergroup'?activeTopic:'';
+ modal(`<h3>📊 Test</h3><label class="lb">Savol</label><input class="field" id="pq" maxlength="180" placeholder="Savol yozing"><div id="popts">${[1,2,3].map(i=>`<input class="field po" placeholder="${i}-variant" maxlength="100">`).join('')}</div><button class="btn flat sm" id="poadd">+ Variant</button>
+ <label class="lb">To‘g‘ri javob raqami <small style="color:var(--muted);font-weight:400">— har doim aynan 1 ta to‘g‘ri javob</small></label><input class="field" id="pcorrect" type="number" min="1" max="3" step="1" value="1" inputmode="numeric">
  <label class="lb">Izoh (ixtiyoriy)</label><input class="field" id="pexplain" maxlength="180" placeholder="Nega shu javob to‘g‘ri?">
  <div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="psendpoll">Yuborish</button></div>`);
- $('#poadd').onclick=()=>{const n=$$('#popts .po').length;if(n>=10)return toast('Maksimum 10 ta variant');const i=document.createElement('input');i.className='field po';i.maxLength=100;i.placeholder=(n+1)+'-variant';$('#popts').append(i);i.focus()};
- $('#psendpoll').onclick=async()=>{
-  const q=$('#pq').value.trim(),vals=$$('#popts .po').map(x=>x.value.trim()).filter(Boolean);if(!q)return toast('Savol yozing');if(vals.length<2)return toast('Kamida 2 ta variant kerak');
-  const ci=Math.max(1,Math.min(vals.length,Number($('#pcorrect').value)||1));
-  const options=vals.map((t,i)=>({id:'o'+(i+1),text:t}));
-  const poll={question:q,options,multi:$('#pmulti').checked,correct:options[ci-1].id,explanation:$('#pexplain').value.trim(),closed:false};
-  closeModal();await pushMsg(active.id,{type:'poll',body:q,poll,pollVotes:{},...(active.type==='supergroup'?{topicId:activeTopic}:{})}).catch(()=>{})
+ $('#poadd').onclick=()=>{const n=$$('#popts .po').length;if(n>=10)return toast('Maksimum 10 ta variant');const i=document.createElement('input');i.className='field po';i.maxLength=100;i.placeholder=(n+1)+'-variant';$('#popts').append(i);$('#pcorrect').max=String(n+1);i.focus()};
+ $('#psendpoll').onclick=async e=>{
+  const btn=e.currentTarget;if(btn.disabled)return;
+  const q=$('#pq').value.trim(),raw=$$('#popts .po').map(x=>x.value.trim()),vals=raw.filter(Boolean);
+  if(!q)return toast('Savol yozing');if(vals.length<2)return toast('Kamida 2 ta variant kerak');
+  const low=vals.map(v=>v.toLowerCase());if(new Set(low).size!==low.length)return toast('Variantlar bir-biridan farq qilsin');
+  const ci=Number($('#pcorrect').value.trim());
+  // Raqam jimgina "to‘g‘rilanmaydi": noto‘g‘ri raqamda boshqa variant to‘g‘ri deb belgilanib qolardi.
+  if(!Number.isInteger(ci)||ci<1||ci>raw.length)return toast(`To‘g‘ri javob raqamini 1 dan ${raw.length} gacha kiriting`);
+  if(!raw[ci-1])return toast(`${ci}-variant bo‘sh. To‘g‘ri javob sifatida matni bor variantni tanlang`);
+  const options=[];let correct='';
+  raw.forEach((t,i)=>{if(!t)return;const id='o'+(options.length+1);options.push({id,text:t});if(i===ci-1)correct=id});
+  const poll={question:q,options,multi:false,correct,explanation:$('#pexplain').value.trim(),closed:false};
+  btn.disabled=true;closeModal();
+  await pushMsg(cid,{type:'poll',body:q,poll,pollVotes:{},...(topic?{topicId:topic}:{})}).catch(()=>{})
  }
 }
+const canClosePoll=(m,c=active)=>!!(m?.type==='poll'&&m.poll&&!m.poll.closed&&c&&(m.senderId===me.id||(isAdmin(c)&&adminCan(c,'poll'))));
 async function closePoll(m){
- if(!m||m.senderId!==me.id&&!adminCan(active,'poll'))return;
- updateDoc(msgRef(active.id,m.id),{'poll.closed':true}).catch(fail)
+ if(!canClosePoll(m))return toast(m?.poll?.closed?'Test allaqachon yopilgan':'Testni faqat muallif yoki ruxsatli admin yopa oladi');
+ mkSafe(()=>updateDoc(msgRef(active.id,m.id),{'poll.closed':true})).then(()=>toast('Test yopildi')).catch(fail)
 }
 
 /* custom message HTML for poll + edit/expiry labels */
 const __mkMsgHtml=msgHtml;
 msgHtml=function(m,c,q){
  if(m.type==='poll'){
-  const out=m.senderId===me.id&&c.type!=='channel',meta=`<span class="meta">${m.expiresAt?`<span class="expire-tag">⏳ ${proTtlText(m)}</span>`:''}${hm(m.createdAt)}${out?ticks(m,c):''}</span>`;
+  const out=m.senderId===me.id&&c?.type!=='channel',meta=`<span class="meta">${ttlOf(m)?`<span class="expire-tag">⏳ ${proTtlText(m)}</span>`:''}${hm(m.createdAt)}${out?ticks(m,c):''}</span>`;
   let top='';if(!out&&(c.type==='group'||c.type==='supergroup'))top=`<div class="who" style="color:${color(m.senderId)}">${esc(uname(user(m.senderId)))}</div>`;
   return`<div class="m${out?' out':''}" data-mid="${esc(m.id)}"><div class="bub">${top}${pollHtml(m)}<div class="mline">${meta}</div></div></div>`
  }
  let h=__mkMsgHtml(m,c,q);
- if(m.expiresAt)h=h.replace('<span class="meta">',`<span class="meta"><span class="expire-tag">⏳ ${proTtlText(m)}</span>`);
+ if(ttlOf(m))h=h.replace('<span class="meta">',`<span class="meta"><span class="expire-tag">⏳ ${proTtlText(m)}</span>`);
  if(m.edited&&Array.isArray(m.editHistory)&&m.editHistory.length)h=h.replace('<i>tahrirlangan</i>',`<button class="edit-history-btn" data-edit-history="${esc(m.id)}">tahrirlangan</button>`);
  return h
 };
@@ -3476,14 +3586,18 @@ sendText=function(){
  const v=ta.value.trim();
  if(draft?.mode==='edit'&&v&&active){
   if(!live)return toast(errText({code:'not-ready'}));
-  const m=findMsg(draft.id);if(m&&m.body!==v){
-   const hist=[...(Array.isArray(m.editHistory)?m.editHistory:[]),{body:m.body||'',at:srvNow(),by:me.id}].slice(-50);
-   updateDoc(msgRef(active.id,m.id),{body:v,edited:srvNow(),editHistory:hist}).catch(fail);
-   if(active.lastMsg?.id===m.id)updateDoc(chatRef(active.id),{'lastMsg.text':msgText({...m,body:v}).slice(0,200)}).catch(()=>{})
+  const m=findMsg(draft.id);if(!m)toast('Tahrirlanayotgan xabar topilmadi');else if(m.body!==v){
+   const ref=msgRef(active.id,m.id),at=srvNow();
+   const hist=[...(Array.isArray(m.editHistory)?m.editHistory:[]),{body:(m.body||'').slice(0,4000),at,by:me.id}].slice(-50);
+   // Eski Firestore qoidalari "editHistory" maydonini rad etadi — shunda tahrir baribir saqlanadi (tarixsiz).
+   mkSafe(()=>updateDoc(ref,{body:v,edited:at,editHistory:hist})).catch(e=>{if(isPermErr(e))return updateDoc(ref,{body:v,edited:at});throw e}).catch(fail);
+   if(active.lastMsg?.id===m.id)mkSafe(()=>updateDoc(chatRef(active.id),{'lastMsg.text':msgText({...m,body:v}).slice(0,200)})).catch(()=>{})
   }
-  draft=null;renderDraft();ta.value='';autosize();updSendBtn();clearDraftSync();return
+  draft=null;renderDraft();ta.value='';autosize();updSendBtn();return
  }
- const key=draftKey();const r=__mkSendText();if(key)clearDraftSync(key);return r
+ // Slow mode: matn o‘chirib yuborilmasdan OLDIN tekshiriladi (aks holda yozilgan xabar yo‘qolardi).
+ if(v&&active&&draft?.mode!=='edit'){const left=slowLeft(active);if(left>0)return toast(`Slow mode: yana ${left} soniya kuting`)}
+ const key=draftKey();cancelPendingDraft();const r=__mkSendText();if(key&&!ta.value.trim())clearDraftSync(key);return r
 };
 function editHistoryModal(m){
  const a=Array.isArray(m?.editHistory)?m.editHistory:[];if(!a.length)return toast('Tahrir tarixi yo‘q');
@@ -3492,12 +3606,24 @@ function editHistoryModal(m){
 
 /* ---------- Multi-pin ---------- */
 function pinIds(c){const a=Array.isArray(c?.pins)?c.pins.filter(Boolean):[];if(c?.pinned&&!a.includes(c.pinned))a.unshift(c.pinned);return [...new Set(a)].slice(0,50)}
+/* Faqat haqiqatan o‘zgargan maydonlar yoziladi: "pinned" o‘zgarmasa, uni qayta yozmaymiz
+   (oddiy a’zo o‘z qadalgan xabarini o‘chirganda Firestore qoidasi aynan shuni tekshiradi). */
+function pinUpdate(c,a){
+ const up={},first=a[0]||'',cur=Array.isArray(c?.pins)?c.pins:[];
+ if(a.length!==cur.length||a.some((x,i)=>x!==cur[i]))up.pins=a;
+ if(first!==(c?.pinned||'')){up.pinned=first||deleteField();up.pinnedText=first?(findMsg(first)?msgText(findMsg(first)).slice(0,200):'Qadalgan xabar'):deleteField()}
+ return up
+}
+// Eski qoidalar "pins" maydonini bilmasa — bitta qadalgan xabar rejimida saqlanadi (qadash umuman ishlamay qolmaydi).
+function legacyPin(up){const {pins,...l}=up;return l}
+function writePins(c,a){
+ const up=pinUpdate(c,a);if(!Object.keys(up).length)return Promise.resolve();
+ return mkSafe(()=>updateDoc(chatRef(c.id),up)).catch(e=>{if(!isPermErr(e))throw e;const l=legacyPin(up);if(!Object.keys(l).length)throw e;return updateDoc(chatRef(c.id),l)})
+}
 togglePin=function(m){
- const c=active;if(!c||!canPin(c))return;
+ const c=active;if(!c||!m||!canPin(c))return;
  let a=pinIds(c);const had=a.includes(m.id);a=had?a.filter(x=>x!==m.id):[m.id,...a].slice(0,50);
- const up={pins:a,pinned:a[0]||deleteField(),pinnedText:a[0]?(findMsg(a[0])?msgText(findMsg(a[0])).slice(0,200):'Qadalgan xabar'):deleteField()};
- updateDoc(chatRef(c.id),up).catch(fail);
- if(!had&&isGroup(c)&&c.type!=='channel')pushMsg(c.id,{type:'service',body:`${me.displayName} xabarni qadadi`}).catch(()=>{})
+ writePins(c,a).then(()=>{if(!had&&isGroup(c)&&c.type!=='channel')pushMsg(c.id,{type:'service',body:`${me.displayName} xabarni qadadi`}).catch(()=>{})}).catch(fail)
 };
 renderPinbar=function(){
  const bar=$('#pinbar'),c=active;if(c?.type==='supergroup'&&forumHome){bar.classList.add('hidden');return}
@@ -3506,13 +3632,30 @@ renderPinbar=function(){
  bar.classList.remove('hidden');bar.dataset.mid=id;$('#pintext').innerHTML=`${esc(m?msgText(m):(c.pinnedText||'Qadalgan xabar'))}<span class="pin-count">${ix+1}/${a.length}</span>`;$('#pinx').classList.toggle('hidden',!canPin(c))
 };
 $('#pinbar').onclick=e=>{
- const c=active,a=pinIds(c);if(!a.length)return;
- if(e.target.closest('#pinx')){const id=$('#pinbar').dataset.mid,na=a.filter(x=>x!==id);updateDoc(chatRef(c.id),{pins:na,pinned:na[0]||deleteField(),pinnedText:na[0]?(findMsg(na[0])?msgText(findMsg(na[0])).slice(0,200):'Qadalgan xabar'):deleteField()}).catch(fail);return}
- if(a.length>1&&!e.target.closest('button')){$('#pinbar').dataset.pix=(Number($('#pinbar').dataset.pix||0)+1)%a.length;renderPinbar();return}
- jumpTo($('#pinbar').dataset.mid)
+ const c=active,a=pinIds(c);if(!c||!a.length)return;
+ const id=$('#pinbar').dataset.mid;
+ if(e.target.closest('#pinx')){if(canPin(c))writePins(c,a.filter(x=>x!==id)).catch(fail);return}
+ // Telegram kabi: bosilganda shu qadalgan xabarga o‘tadi va keyingi qadalganni ko‘rsatadi.
+ jumpTo(id);
+ if(a.length>1){$('#pinbar').dataset.pix=(Number($('#pinbar').dataset.pix||0)+1)%a.length;renderPinbar()}
 };
 const __mkRemoveMsg=removeMsg;
-removeMsg=function(m,all){const c=active,r=__mkRemoveMsg(m,all);if(all&&c&&pinIds(c).includes(m.id)){const a=pinIds(c).filter(x=>x!==m.id);updateDoc(chatRef(c.id),{pins:a,pinned:a[0]||deleteField(),pinnedText:a[0]?(findMsg(a[0])?msgText(findMsg(a[0])).slice(0,200):'Qadalgan xabar'):deleteField()}).catch(()=>{})}return r};
+removeMsg=function(m,all){
+ const c=active;
+ if(!all||!c||!m||!pinIds(c).includes(m.id))return __mkRemoveMsg(m,all);
+ // Qadalgan xabar o‘chirilsa: avval xabar o‘chadi, keyin BITTA yozuvda qadalganlar ro‘yxati va oxirgi xabar yangilanadi.
+ if(draft?.id===m.id){draft=null;renderDraft()}
+ const delP=mkSafe(()=>deleteDoc(msgRef(c.id,m.id)));delP.catch(fail);
+ const up=pinUpdate(c,pinIds(c).filter(x=>x!==m.id));
+ if(c.lastMsg?.id===m.id){const p=M.filter(x=>x.id!==m.id).at(-1);up.lastMsg=p?{id:p.id,senderId:p.senderId,type:p.type,text:msgText(p).slice(0,200),at:p.createdAt}:deleteField()}
+ if(!Object.keys(up).length){delP.catch(()=>{});return}
+ delP.then(()=>updateDoc(chatRef(c.id),up).catch(e=>{
+  if(!isPermErr(e))throw e;
+  const l=legacyPin(up);
+  if(c.pinned===m.id){l.pinned=deleteField();l.pinnedText=deleteField()}else{delete l.pinned;delete l.pinnedText}
+  if(!Object.keys(l).length)return;return updateDoc(chatRef(c.id),l)
+ })).catch(()=>{})
+};
 
 /* ---------- Message menu upgrade ---------- */
 msgMenu=function(x,y,mid){
@@ -3522,14 +3665,31 @@ msgMenu=function(x,y,mid){
  if(m.editHistory?.length)it.push(['history','Tahrir tarixi',()=>editHistoryModal(m)]);
  if(m.body)it.push(['copy','Nusxa olish',()=>copyText(m.body)]);
  if(hasF(m))it.push(['download','Yuklab olish',()=>download(m)]);
- if(m.type==='poll'&&(own||adminCan(c,'poll')))it.push(['check','So‘rovni yopish',()=>closePoll(m)]);
+ if(canClosePoll(m,c))it.push(['check','Testni yopish',()=>closePoll(m)]);
  if(canPin(c))it.push(['pin',pinIds(c).includes(m.id)?'Qadashni bekor qilish':'Qadash',()=>togglePin(m)]);
  it.push(['forward','Uzatish',()=>forwardModal(m)]);
  it.push(['bookmark','Collectionga saqlash',()=>addToCollectionModal(m)]);
  if(c.type!=='saved')it.push(['bookmark','Saqlanganlarga',()=>forwardTo(m,sId(me.id),true)]);
- const canDel=own||!isGroup(c)||adminCan(c,'delete');
- if(canDel)it.push(['trash','O‘chirish',()=>deleteModal(m),'red']);
+ // "O‘chirish" har doim bor: oddiy a’zo begona xabarni "faqat o‘zimda" o‘chira oladi (deleteModal o‘zi huquqni hal qiladi).
+ it.push(['trash','O‘chirish',()=>deleteModal(m),'red']);
  showMenu(x,y,it,m)
+};
+P.history='<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>';
+/* Admin huquqlari: "Boshqalarning xabarini o‘chirish" o‘chirilgan admin begona xabarni hamma uchun o‘chira olmaydi. */
+deleteModal=function(m){
+ const c=active;if(!c||!m)return;
+ const adminDel=isGroup(c)&&isAdmin(c)&&adminCan(c,'delete'),adminForce=adminDel&&m.senderId!==me.id,canAll=c.type!=='saved'&&(m.senderId===me.id||adminDel);
+ modal(`<h3>Xabarni o‘chirish</h3><p class="mp">${adminForce?'Administrator sifatida bu xabar barcha a’zolardan o‘chiriladi.':'Bu xabarni o‘chirmoqchimisiz?'}</p>${canAll&&!adminForce?`<label class="check-row"><input type="checkbox" id="delAll" checked><span>${c.type==='direct'?esc(uname(c.peer))+' uchun ham o‘chirish':'Hamma uchun o‘chirish'}</span></label>`:''}<div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn flat red" id="delGo">O‘chirish</button></div>`);
+ $('#delGo').onclick=()=>{removeMsg(m,c.type==='saved'||adminForce||(canAll&&$('#delAll')?.checked));closeModal()}
+};
+/* Testni uzatish: savol, variantlar va to‘g‘ri javob ko‘chiriladi, ovozlar esa noldan boshlanadi
+   (avval faqat {type:'poll'} ketardi — bo‘sh test chiqardi va server uni rad etardi). */
+const __mkForwardTo=forwardTo;
+forwardTo=function(m,cid,quiet){
+ if(m?.type!=='poll')return __mkForwardTo(m,cid,quiet);
+ const pv=pollView(m);if(pv.options.length<2||!pv.correct)return toast('Bu testni uzatib bo‘lmaydi');
+ const src=active,poll={question:pv.question.slice(0,300),options:pv.options.map((o,i)=>({id:'o'+(i+1),text:o.text.slice(0,100)})),multi:false,correct:'o'+(pv.options.findIndex(o=>o.id===pv.correct)+1),explanation:pv.explanation||'',closed:false};
+ pushMsg(cid,{type:'poll',body:poll.question,poll,pollVotes:{},fwd:m.fwd||(src?.type==='channel'?src.title:(user(m.senderId)?.displayName||'Noma’lum'))}).then(()=>toast(quiet?'Saqlangan xabarlarga qo‘shildi':'Uzatildi'),()=>{})
 };
 
 /* poll + history click */
@@ -3537,6 +3697,13 @@ msgsEl.addEventListener('click',e=>{
  const po=e.target.closest('[data-poll-opt]');if(po){e.stopPropagation();votePoll(po.dataset.mid,po.dataset.pollOpt);return}
  const ps=e.target.closest('[data-poll-send]');if(ps){e.stopPropagation();const mid=ps.dataset.pollSend,set=pollPicks.get(mid);if(!set||!set.size)return toast('Kamida bitta javobni tanlang');submitPollVote(mid,[...set]);return}
  const eh=e.target.closest('[data-edit-history]');if(eh){e.stopPropagation();editHistoryModal(findMsg(eh.dataset.editHistory));return}
+},true);
+/* Ma’lumot paneli → "So‘rov" bo‘limi: u yerdagi testga ham javob berish va xabarga o‘tish ishlaydi. */
+$('#infoBody').addEventListener('click',e=>{
+ if(!e.target.closest('#itab'))return;
+ const po=e.target.closest('[data-poll-opt]');if(po){e.stopPropagation();Promise.resolve(votePoll(po.dataset.mid,po.dataset.pollOpt)).finally(()=>{if(infoOpen&&infoTab==='polls')renderInfoTab()});return}
+ const ps=e.target.closest('[data-poll-send]');if(ps){e.stopPropagation();const mid=ps.dataset.pollSend,set=pollPicks.get(mid);if(!set||!set.size)return toast('Kamida bitta javobni tanlang');submitPollVote(mid,[...set]).finally(()=>{if(infoOpen&&infoTab==='polls')renderInfoTab()});return}
+ const j=e.target.closest('[data-jump]');if(j&&infoTab==='polls'){e.stopPropagation();jumpTo(j.dataset.jump);if(innerWidth<=760){infoOpen=false;$('#info').classList.add('hidden')}}
 },true);
 
 /* ---------- Disappearing messages + slow mode ---------- */
@@ -3549,38 +3716,90 @@ function autoDeleteModal(){
  <label class="lb">Timer qachon boshlansin?</label><select class="field" id="ttlMode"><option value="send" ${c.autoDeleteMode!=='read'?'selected':''}>Yuborilganda</option><option value="read" ${c.autoDeleteMode==='read'?'selected':''}>Qabul qiluvchi o‘qiganda</option></select>
  <p class="note">Yangi xabarlarga qo‘llanadi. Muddati tugagan xabar Makktub’da avtomatik yashiriladi va muallif tomonda serverdan ham o‘chirishga urinish qilinadi.</p>
  <div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="ttlSave">Saqlash</button></div>`);
- $('#ttlSave').onclick=()=>{updateDoc(chatRef(c.id),{autoDeleteSec:Number($('#ttlSec').value)||0,autoDeleteMode:$('#ttlMode').value}).then(()=>{closeModal();toast('Auto-delete saqlandi')}).catch(fail)}
+ $('#ttlSave').onclick=()=>{if(c.virtual)return toast('Avval shu chatga bitta xabar yozing');mkSafe(()=>updateDoc(chatRef(c.id),{autoDeleteSec:Number($('#ttlSec').value)||0,autoDeleteMode:$('#ttlMode').value==='read'?'read':'send'})).then(()=>{closeModal();toast('Auto-delete saqlandi')}).catch(fail)}
 }
 function slowModeModal(){
- if(!active||!isGroup(active)||!adminCan(active,'editInfo'))return toast('Faqat ruxsatli admin');
+ if(!active||!isGroup(active)||!isAdmin(active)||!adminCan(active,'editInfo'))return toast('Faqat ruxsatli admin');
  const c=active,opts=[[0,'O‘chiq'],[10,'10 soniya'],[30,'30 soniya'],[60,'1 daqiqa'],[300,'5 daqiqa'],[900,'15 daqiqa'],[3600,'1 soat']];
  modal(`<h3>🐢 Slow mode</h3><select class="field" id="slowSec">${opts.map(([v,l])=>`<option value="${v}" ${Number(c.slowModeSec||0)===v?'selected':''}>${l}</option>`).join('')}</select><p class="note">Oddiy a’zo xabar yuborgach belgilangan vaqt tugamaguncha yana yubora olmaydi. Adminlar bundan ozod.</p><div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="slowSave">Saqlash</button></div>`);
- $('#slowSave').onclick=()=>updateDoc(chatRef(c.id),{slowModeSec:Number($('#slowSec').value)||0}).then(()=>{closeModal();toast('Slow mode saqlandi')}).catch(fail)
+ $('#slowSave').onclick=()=>mkSafe(()=>updateDoc(chatRef(c.id),{slowModeSec:Number($('#slowSec').value)||0})).then(()=>{closeModal();toast('Slow mode saqlandi')}).catch(fail)
 }
 
 /* ---------- Scheduled messages ---------- */
 function scheduledList(){return Array.isArray(prefs?.scheduledMessages)?prefs.scheduledMessages:[]}
-function saveScheduled(a){prefs.scheduledMessages=a.slice(-100);savePrefs()}
+const SCH_MAX=50;
+function saveScheduled(a){prefs.scheduledMessages=a.slice(-SCH_MAX);savePrefs()}
+/* Navbatni o‘zgartirish SERVERdagi ro‘yxat ustida tranzaksiya bilan bajariladi: boshqa qurilma allaqachon
+   yuborgan (navbatdan olgan) xabar eski mahalliy nusxadan qaytib tushib, ikkinchi marta ketmasligi uchun. */
+async function mutateScheduled(fn){
+ if(!live){saveScheduled(fn([...scheduledList()]));return scheduledList()}
+ let out=[];
+ await runTransaction(db,async tx=>{
+  const ref=prefsRef(),sn=await tx.get(ref),cur=sn.exists&&Array.isArray(sn.data().scheduledMessages)?sn.data().scheduledMessages:[];
+  out=fn([...cur]).slice(-SCH_MAX);tx.set(ref,{scheduledMessages:out},{mergeFields:['scheduledMessages']})
+ });
+ syncPrefsKey('scheduledMessages',out);return out
+}
 function scheduleModal(prefill=''){
  if(!active)return toast('Avval chatni oching');
+ if(!prefsReadyOrToast())return;
  const d=new Date(Date.now()+10*60*1000),pad=n=>String(n).padStart(2,'0'),local=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
  modal(`<h3>⏰ Rejalashtirilgan xabar</h3><label class="lb">Xabar</label><textarea class="field" id="schText" rows="4" maxlength="4000">${esc(prefill||'')}</textarea><label class="lb">Sana va vaqt</label><input class="field" id="schAt" type="datetime-local" value="${local}"><p class="note">Xabar Firebase’dagi shaxsiy navbatga saqlanadi. Makktub sizning qurilmalaringizdan kamida bittasida ochiq bo‘lsa belgilangan vaqtda yuboriladi; barcha qurilmalar o‘chiq bo‘lsa, keyingi ochilishda yuboriladi.</p><div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="schSave">Rejalashtirish</button></div>`);
+ const cid=active.id,topic=active.type==='supergroup'?activeTopic:'',key=draftKey();
  $('#schSave').onclick=()=>{const body=$('#schText').value.trim(),at=new Date($('#schAt').value).getTime();if(!body)return toast('Xabar yozing');if(!at||at<=Date.now()+5000)return toast('Kelajakdagi vaqtni tanlang');
-  const a=scheduledList();a.push({id:rid('sch'),cid:active.id,topicId:active.type==='supergroup'?activeTopic:'',at,createdAt:srvNow(),payload:{type:'text',body}});saveScheduled(a);closeModal();ta.value='';autosize();updSendBtn();clearDraftSync();toast('⏰ Xabar rejalashtirildi')}
+  if(!prefsReadyOrToast())return;
+  if(scheduledList().length>=SCH_MAX)return toast(`Navbatda eng ko‘pi ${SCH_MAX} ta xabar bo‘lishi mumkin`);
+  if(prefsTooBig())return toast('Sozlamalar hajmi to‘lib qolgan — eski collection yoki navbatdagi xabarlarni o‘chiring');
+  const item={id:rid('sch'),cid,topicId:topic,at,createdAt:srvNow(),payload:{type:'text',body}},btn=$('#schSave');btn.disabled=true;
+  mutateScheduled(a=>[...a,item]).then(()=>{closeModal();
+   if(active?.id===cid&&ta.value.trim()===body){ta.value='';autosize();updSendBtn();clearDraftSync(key)}
+   toast('⏰ Xabar rejalashtirildi')}).catch(e=>{btn.disabled=false;fail(e)})}
 }
 function scheduledModal(){
- const a=scheduledList().sort((x,y)=>x.at-y.at);
+ const a=[...scheduledList()].sort((x,y)=>x.at-y.at);
  modal(`<h3>⏰ Rejalashtirilganlar</h3><div class="schedule-list">${a.length?a.map(x=>`<div class="schedule-item" data-sch="${esc(x.id)}"><div class="top"><b>${esc(conv(x.cid)?.title||'Chat')}</b><button class="btn flat sm red" data-schdel="${esc(x.id)}">O‘chirish</button></div><div>${esc(x.payload?.body||'')}</div><small class="muted">${new Date(x.at).toLocaleString('uz-UZ')}</small></div>`).join(''):'<div class="empty-list">Rejalashtirilgan xabar yo‘q</div>'}</div><div class="mact"><button class="btn flat" data-close>Yopish</button></div>`);
- $('#modalCard').onclick=e=>{const b=e.target.closest('[data-schdel]');if(!b)return;saveScheduled(scheduledList().filter(x=>x.id!==b.dataset.schdel));scheduledModal()}
+ $('#modalCard').onclick=e=>{const b=e.target.closest('[data-schdel]');if(!b)return;if(!prefsReadyOrToast())return;const id=b.dataset.schdel;b.disabled=true;mutateScheduled(a=>a.filter(x=>x.id!==id)).then(()=>scheduledModal()).catch(err=>{b.disabled=false;fail(err)})}
 }
 let __mkSchBusy=false;
+/* Bir nechta qurilma ochiq bo‘lsa, xabar IKKI marta ketmasligi uchun: yuborishdan oldin navbatdan
+   tranzaksiya bilan "olib qo‘yiladi". Qaysi qurilma birinchi olsa — faqat o‘sha yuboradi. */
+async function claimScheduled(id){
+ if(!live)return true; // REST rejimida tranzaksiya yo‘q — mahalliy navbat bilan ishlaymiz
+ let ok=false,out=null;
+ await runTransaction(db,async tx=>{
+  ok=false;out=null;const ref=prefsRef(),sn=await tx.get(ref);if(!sn.exists)return;
+  const list=Array.isArray(sn.data().scheduledMessages)?sn.data().scheduledMessages:[];
+  out=list.filter(x=>x.id!==id);if(out.length===list.length)return;
+  tx.update(ref,{scheduledMessages:out});ok=true
+ });
+ if(out)syncPrefsKey('scheduledMessages',out);
+ return ok
+}
 async function processScheduled(){
- if(__mkSchBusy||!me||!prefs)return;const due=scheduledList().filter(x=>x.at<=srvNow());if(!due.length)return;__mkSchBusy=true;
+ if(__mkSchBusy||!prefsReady())return;
+ if(!live&&!restSendReady())return; // internet yo‘q — navbat saqlanib turadi, keyin yuboriladi
+ const due=scheduledList().filter(x=>x.at<=srvNow());if(!due.length)return;__mkSchBusy=true;
  try{
-  let a=scheduledList();
   for(const x of due){
-   try{const c=conv(x.cid);if(!c)continue;const payload={...(x.payload||{})};if(c.type==='supergroup'&&x.topicId)payload.topicId=x.topicId;await pushMsg(x.cid,payload);a=a.filter(z=>z.id!==x.id);saveScheduled(a)}
-   catch(e){console.warn('scheduled send',e)}
+   const c=conv(x.cid);
+   if(!c||!canPost(c)){ // chat hali yuklanmagan bo‘lishi mumkin; bir haftadan beri yuborib bo‘lmayotgan bo‘lsa — navbatdan chiqariladi
+    if(x.at<srvNow()-7*86400000){mutateScheduled(a=>a.filter(z=>z.id!==x.id)).catch(()=>{});toast('Rejalashtirilgan xabar yuborilmadi: chat topilmadi',6000)}
+    continue
+   }
+   if(slowLeft(c)>0)continue;
+   let claimed=false;
+   try{claimed=await claimScheduled(x.id)}catch(e){console.warn('scheduled claim',e);continue}
+   if(!claimed)continue; // boshqa qurilma allaqachon yubordi
+   if(!live)saveScheduled(scheduledList().filter(z=>z.id!==x.id));
+   const payload={...(x.payload||{})};if(c.type==='supergroup'&&x.topicId)payload.topicId=x.topicId;
+   try{await pushMsg(x.cid,payload)}
+   catch(e){
+    console.warn('scheduled send',e);
+    // Tarmoq xatosida qayta navbatga qaytariladi; ruxsat yo‘q bo‘lsa — 3 urinishdan keyin to‘xtatiladi.
+    const tries=(x.tries||0)+(isPermErr(e)?1:0);
+    if(tries<3)mutateScheduled(a=>a.some(z=>z.id===x.id)?a:[...a,{...x,tries}]).catch(err=>console.warn('scheduled requeue',err));
+    else toast(`Rejalashtirilgan xabar yuborilmadi: ${c.title||'chat'}`,6000)
+   }
   }
  }finally{__mkSchBusy=false}
 }
@@ -3598,10 +3817,11 @@ function cachedMessages(){
  if(active)for(const m of M){const k=active.id+'|'+m.id;if(!seen.has(k)){seen.add(k);all.push({cid:active.id,m})}}
  return all
 }
+// Qidiruvda faqat menga ko‘rinadigan xabarlar chiqadi (o‘zimda o‘chirilgan / menga yopiq fayl-xabarlar emas).
 function proSearchModal(){
  modal(`<h3>🔎 Makktub Search 2.0</h3><input class="field" id="proSq" placeholder="Xabar, fayl yoki link qidiring..." autocomplete="off"><div class="pro-tabs" id="proSf">${[['all','Hammasi'],['text','Matn'],['media','Media'],['files','Fayl'],['links','Link'],['voice','Voice'],['poll','Poll']].map(([k,l])=>`<button data-sf="${k}" class="${k==='all'?'on':''}">${l}</button>`).join('')}</div><div id="proSr" class="search-pro-results"></div><div class="mact"><button class="btn flat" data-close>Yopish</button></div>`);
- let f='all';const draw=()=>{const q=$('#proSq').value.trim().toLowerCase();let rows=cachedMessages().filter(({m})=>!proIsExpired(m));rows=rows.filter(({m})=>{if(f==='text')return m.type==='text';if(f==='media')return['image','video'].includes(m.type);if(f==='files')return['file','audio'].includes(m.type);if(f==='voice')return m.type==='voice';if(f==='poll')return m.type==='poll';if(f==='links')return /https?:\/\//i.test(m.body||'');return true});if(q)rows=rows.filter(({m})=>((m.body||'')+' '+(m.fileName||'')+' '+(m.poll?.question||'')).toLowerCase().includes(q));rows.sort((a,b)=>(b.m.createdAt||0)-(a.m.createdAt||0));$('#proSr').innerHTML=rows.slice(0,200).map(({cid,m})=>`<button class="search-pro-row" data-srcid="${esc(cid)}" data-srmid="${esc(m.id)}"><b>${esc(conv(cid)?.title||cid)} · ${esc(msgText(m)||m.poll?.question||'Xabar')}</b><small>${dayLabel(m.createdAt)}, ${hm(m.createdAt)} · ${esc(m.type)}</small></button>`).join('')||'<div class="empty-list">Topilmadi</div>'};
- $('#proSq').oninput=draw;$('#proSf').onclick=e=>{const b=e.target.closest('[data-sf]');if(!b)return;f=b.dataset.sf;$$('#proSf button').forEach(x=>x.classList.toggle('on',x===b));draw()};$('#proSr').onclick=e=>{const r=e.target.closest('[data-srcid]');if(!r)return;closeModal();openChat(r.dataset.srcid);setTimeout(()=>jumpTo(r.dataset.srmid),250)};draw();$('#proSq').focus()
+ let f='all';const draw=()=>{const q=$('#proSq').value.trim().toLowerCase();let rows=cachedMessages().filter(({cid,m})=>m&&m.type!=='service'&&!proIsExpired(m)&&vis(m,cid)&&msgVisibleToMe(m));rows=rows.filter(({m})=>{if(f==='text')return m.type==='text';if(f==='media')return['image','video'].includes(m.type);if(f==='files')return['file','audio'].includes(m.type);if(f==='voice')return m.type==='voice';if(f==='poll')return m.type==='poll';if(f==='links')return /https?:\/\//i.test(m.body||'');return true});if(q)rows=rows.filter(({m})=>((m.body||'')+' '+(m.fileName||'')+' '+(m.type==='poll'?pollView(m).question:'')).toLowerCase().includes(q));rows.sort((a,b)=>(b.m.createdAt||0)-(a.m.createdAt||0));$('#proSr').innerHTML=rows.slice(0,200).map(({cid,m})=>`<button class="search-pro-row" data-srcid="${esc(cid)}" data-srmid="${esc(m.id)}"><b>${esc(conv(cid)?.title||cid)} · ${esc(m.type==='poll'?'📊 '+pollView(m).question:(msgText(m)||'Xabar'))}</b><small>${dayLabel(m.createdAt)}, ${hm(m.createdAt)} · ${esc(m.type)}</small></button>`).join('')||'<div class="empty-list">Topilmadi</div>'};
+ $('#proSq').oninput=draw;$('#proSf').onclick=e=>{const b=e.target.closest('[data-sf]');if(!b)return;f=b.dataset.sf;$$('#proSf button').forEach(x=>x.classList.toggle('on',x===b));draw()};$('#proSr').onclick=e=>{const r=e.target.closest('[data-srcid]');if(!r)return;if(!conv(r.dataset.srcid))return toast('Bu chat topilmadi');closeModal();openChat(r.dataset.srcid);jumpWhenReady(r.dataset.srmid)};draw();$('#proSq').focus()
 }
 
 /* ---------- Media Center extensions ---------- */
@@ -3631,18 +3851,22 @@ renderInfo=function(){
  },0);return r
 };
 
+/* Profili hali yuklanmagan foydalanuvchi uchun vaqtinchalik ko‘rinish (userAv(undefined) xato otardi). */
+const userOr=id=>user(id)||{id,username:'',displayName:'…',photo:''};
+
 /* ---------- Granular admin permissions ---------- */
 const ADMIN_PERMS=[['post','Kanalda post yuborish'],['delete','Boshqalarning xabarini o‘chirish'],['pin','Xabar qadash'],['members','A’zolarni boshqarish'],['topics','Topic boshqarish'],['editInfo','Guruh sozlamalari'],['poll','Poll boshqarish']];
 function adminPermissionsModal(){
  if(!active||!isGroup(active)||active.ownerId!==me.id)return toast('Faqat guruh egasi');
  const admins=(active.admins||[]).filter(id=>id!==active.ownerId);
- modal(`<h3>👑 Admin huquqlari</h3><div class="plist">${admins.length?admins.map(id=>{const u=user(id),p=active.adminPerms?.[id]||{};return`<button class="row" data-admp="${esc(id)}">${userAv(u,'s')}<div class="rmain"><b>${esc(uname(u))}</b><div class="sub">@${esc(u?.username||'')}</div></div>${ic('chev')}</button>`}).join(''):'<div class="empty-list">Admin yo‘q</div>'}</div><div class="mact"><button class="btn flat" data-close>Yopish</button></div>`);
+ const now=Date.now(),miss=admins.filter(id=>!U.has(id)&&!(now-(memberFetchTried.get(id)||0)<60000));if(miss.length&&live){miss.forEach(id=>memberFetchTried.set(id,now));ensureUsers(miss).then(()=>{if($('#modalCard [data-admp]')&&miss.some(id=>U.has(id)))adminPermissionsModal()}).catch(()=>{})}
+ modal(`<h3>👑 Admin huquqlari</h3><div class="plist">${admins.length?admins.map(id=>{const u=userOr(id);return`<button class="row" data-admp="${esc(id)}">${userAv(u,'s')}<div class="rmain"><b>${esc(uname(u))}</b><div class="sub">@${esc(u?.username||'')}</div></div>${ic('chev')}</button>`}).join(''):'<div class="empty-list">Admin yo‘q</div>'}</div><div class="mact"><button class="btn flat" data-close>Yopish</button></div>`);
  $('#modalCard').onclick=e=>{const b=e.target.closest('[data-admp]');if(!b)return;adminPermissionEdit(b.dataset.admp)}
 }
 function adminPermissionEdit(uid){
- const u=user(uid),p=active.adminPerms?.[uid]||{};
+ if(!active||active.ownerId!==me.id)return;const u=userOr(uid),p=active.adminPerms?.[uid]||{};
  modal(`<h3>👑 ${esc(uname(u))}</h3><div class="permission-grid">${ADMIN_PERMS.map(([k,l])=>`<label><span>${l}</span><input type="checkbox" data-p="${k}" ${p[k]!==false?'checked':''}></label>`).join('')}</div><div class="mact"><button class="btn flat" id="admBack">Ortga</button><button class="btn" id="admSave">Saqlash</button></div>`);
- $('#admBack').onclick=adminPermissionsModal;$('#admSave').onclick=()=>{const np={};$$('[data-p]').forEach(x=>np[x.dataset.p]=x.checked);updateDoc(chatRef(active.id),{[`adminPerms.${uid}`]:np}).then(()=>{toast('Huquqlar saqlandi');adminPermissionsModal()}).catch(fail)}
+ $('#admBack').onclick=adminPermissionsModal;$('#admSave').onclick=()=>{const np={};$$('[data-p]').forEach(x=>np[x.dataset.p]=x.checked);mkSafe(()=>updateDoc(chatRef(active.id),{[`adminPerms.${uid}`]:np})).then(()=>{toast('Huquqlar saqlandi');adminPermissionsModal()}).catch(fail)}
 }
 document.addEventListener('click',e=>{
  if(e.target.closest('#forumAdd')&&active&&isGroup(active)&&!adminCan(active,'topics')){e.preventDefault();e.stopImmediatePropagation();toast('Topic yaratish huquqi yo‘q')}
@@ -3651,9 +3875,13 @@ document.addEventListener('click',e=>{
 /* ---------- Saved Collections ---------- */
 function collections(){return prefs?.savedCollections||{Muhim:[]}}
 function saveCollections(x){prefs.savedCollections=x;savePrefs()}
+const COL_MAX=20,COL_ITEMS=100;
 function addToCollectionModal(m){
- const c=collections(),names=Object.keys(c);modal(`<h3>⭐ Collectionga saqlash</h3><div class="collection-list">${names.map(n=>`<button class="collection-item" data-col="${esc(n)}"><b>${esc(n)}</b><small class="muted">${(c[n]||[]).length} ta</small></button>`).join('')}</div><div style="display:flex;gap:7px"><input class="field" id="newCol" placeholder="Yangi collection"><button class="btn" id="newColBtn">+</button></div><div class="mact"><button class="btn flat" data-close>Bekor</button></div>`);
- const add=n=>{n=(n||'').trim();if(!n)return;const x=collections(),a=Array.isArray(x[n])?x[n]:[];if(!a.some(z=>z.cid===active.id&&z.mid===m.id))a.push({cid:active.id,mid:m.id,text:msgText(m),at:m.createdAt});x[n]=a.slice(-500);saveCollections(x);closeModal();toast(`⭐ ${n} ga saqlandi`)};
+ if(!active||!m)return;if(!prefsReadyOrToast())return;
+ const cid=active.id,c=collections(),names=Object.keys(c);modal(`<h3>⭐ Collectionga saqlash</h3><div class="collection-list">${names.map(n=>`<button class="collection-item" data-col="${esc(n)}"><b>${esc(n)}</b><small class="muted">${(c[n]||[]).length} ta</small></button>`).join('')}</div><div style="display:flex;gap:7px"><input class="field" id="newCol" placeholder="Yangi collection"><button class="btn" id="newColBtn">+</button></div><div class="mact"><button class="btn flat" data-close>Bekor</button></div>`);
+ const add=n=>{n=(n||'').trim().slice(0,40);if(!n)return;if(!prefsReadyOrToast())return;const x={...collections()};if(!x[n]&&Object.keys(x).length>=COL_MAX)return toast(`Eng ko‘pi ${COL_MAX} ta collection`);if(prefsTooBig())return toast('Sozlamalar hajmi to‘lib qolgan — eski saqlanganlarni o‘chiring');const a=Array.isArray(x[n])?[...x[n]]:[];
+  // Matn qisqartiriladi: sozlamalar hujjati Firestore’ning 1 MB chegarasidan oshib ketmasin.
+  if(!a.some(z=>z.cid===cid&&z.mid===m.id))a.push({cid,mid:m.id,text:(m.type==='poll'?'📊 '+pollView(m).question:msgText(m)).slice(0,160),at:m.createdAt});x[n]=a.slice(-COL_ITEMS);saveCollections(x);closeModal();toast(`⭐ ${n} ga saqlandi`)};
  $('#modalCard').onclick=e=>{const b=e.target.closest('[data-col]');if(b)add(b.dataset.col)};$('#newColBtn').onclick=()=>add($('#newCol').value)
 }
 function collectionsModal(){
@@ -3662,51 +3890,121 @@ function collectionsModal(){
 }
 function collectionItemsModal(name){
  const a=collections()[name]||[];modal(`<h3>⭐ ${esc(name)}</h3><div class="schedule-list">${[...a].reverse().map((x,i)=>`<button class="search-pro-row" data-colcid="${esc(x.cid)}" data-colmid="${esc(x.mid)}"><b>${esc(x.text||'Xabar')}</b><small>${new Date(x.at||0).toLocaleString('uz-UZ')}</small></button>`).join('')||'<div class="empty-list">Bo‘sh</div>'}</div><div class="mact"><button class="btn flat" id="colBack">Ortga</button></div>`);
- $('#colBack').onclick=collectionsModal;$('#modalCard').onclick=e=>{const b=e.target.closest('[data-colcid]');if(!b)return;closeModal();openChat(b.dataset.colcid);setTimeout(()=>jumpTo(b.dataset.colmid),220)}
+ $('#colBack').onclick=collectionsModal;$('#modalCard').onclick=e=>{const b=e.target.closest('[data-colcid]');if(!b)return;if(!conv(b.dataset.colcid))return toast('Bu chat topilmadi yoki siz undan chiqqansiz');closeModal();openChat(b.dataset.colcid);jumpWhenReady(b.dataset.colmid)}
 }
 
 /* ---------- Cross-device draft sync ---------- */
 function draftKey(){if(!active)return'';return active.id+'|'+(active.type==='supergroup'?activeTopic:'_')}
 let __mkDraftT=null;
-function writeDraftSync(){
- if(!prefs||!active)return;const k=draftKey(),v=ta.value||'';prefs.proDrafts={...(prefs.proDrafts||{})};
- if(!v&&!draft){delete prefs.proDrafts[k]}else prefs.proDrafts[k]={text:v,mode:draft?.mode||'',replyTo:draft?.mode==='reply'?draft.id:'',at:srvNow()};
- savePrefs()
+const __mkLocalDrafts=new Map(); // chat|topic -> qoralama (sozlamalar yuklanmagan paytda ham yo‘qolmasin)
+// Hozirgi chat uchun — yozuv maydonidan, boshqa chat uchun — mahalliy xotiradan. Tahrirlash rejimi qoralama emas.
+function draftStateFor(k){
+ if(active&&k===draftKey()){
+  if(draft?.mode==='edit')return undefined;
+  const v=(ta.value||'').slice(0,2000),rep=draft?.mode==='reply';
+  return(v.trim()||rep)?{text:v,mode:rep?'reply':'',replyTo:rep?draft.id:''}:null
+ }
+ const l=__mkLocalDrafts.get(k);return l?{text:l.text,mode:l.mode||'',replyTo:l.replyTo||''}:null
 }
-function clearDraftSync(k=draftKey()){if(!prefs?.proDrafts||!k)return;delete prefs.proDrafts[k];savePrefs()}
+function writeDraftSync(k=draftKey()){
+ if(!k)return;const want=draftStateFor(k);if(want===undefined)return;
+ if(want)__mkLocalDrafts.set(k,{...want,at:srvNow()});else __mkLocalDrafts.delete(k);
+ if(!prefsReady()||prefsTooBig())return;
+ const cur=prefs.proDrafts?.[k];
+ if(!want&&!cur)return; // o‘zgarish yo‘q — Firestore’ga behuda yozilmaydi
+ if(want&&cur&&cur.text===want.text&&(cur.mode||'')===want.mode&&(cur.replyTo||'')===want.replyTo)return;
+ const ent={[k]:want?{...want,at:srvNow()}:null};
+ // eng ko‘pi 30 ta chat qoralamasi: eng eskilari o‘chiriladi
+ const rest=Object.entries(prefs.proDrafts||{}).filter(([kk])=>kk!==k).sort((a,b)=>(b[1]?.at||0)-(a[1]?.at||0));
+ for(const[kk]of rest.slice(want?29:30))ent[kk]=null;
+ writePrefsEntries('proDrafts',ent)
+}
+function clearDraftSync(k=draftKey()){
+ if(!k)return;__mkLocalDrafts.delete(k);
+ if(!prefsReady()||!prefs.proDrafts?.[k])return; // har xabar yuborilganda butun sozlamalar qayta yozilmasin
+ writePrefsEntries('proDrafts',{[k]:null})
+}
 function restoreDraftSync(){
- if(!active||!prefs)return;const x=prefs.proDrafts?.[draftKey()];if(!x||draft?.mode==='edit')return;if(!ta.value&&x.text){ta.value=x.text;autosize();updSendBtn()}if(x.replyTo&&!draft){const m=findMsg(x.replyTo);if(m)setDraft('reply',m)}
+ if(!active||!prefs||draft?.mode==='edit')return;const k=draftKey(),x=__mkLocalDrafts.get(k)||prefs.proDrafts?.[k];if(!x)return;
+ if(!ta.value&&x.text){ta.value=x.text;autosize();updSendBtn()}
+ if(x.replyTo&&!draft){const m=findMsg(x.replyTo);if(m)setDraft('reply',m)}
 }
-ta.addEventListener('input',()=>{clearTimeout(__mkDraftT);__mkDraftT=setTimeout(writeDraftSync,850)});
+let __mkDraftPendingKey='';
+function cancelPendingDraft(){clearTimeout(__mkDraftT);__mkDraftT=null;__mkDraftPendingKey=''}
+function flushDraft(){const pk=__mkDraftPendingKey;cancelPendingDraft();if(pk)writeDraftSync(pk);const k=draftKey();if(k&&k!==pk)writeDraftSync(k)}
+// Kalit yozish paytida olinadi: 850 ms ichida boshqa chatga o‘tilsa, matn noto‘g‘ri chatga yozilib qolmaydi.
+ta.addEventListener('input',()=>{const k=draftKey();clearTimeout(__mkDraftT);__mkDraftPendingKey=k;__mkDraftT=setTimeout(()=>{__mkDraftT=null;__mkDraftPendingKey='';writeDraftSync(k)},850)});
 const __mkOpenChat=openChat;
-openChat=function(id){const r=__mkOpenChat(id);setTimeout(()=>{restoreDraftSync();proSetHashForChat();renderStories()},100);return r};
+openChat=function(id){
+ const switching=!!(active&&active.id!==id&&conv(id));
+ if(switching)flushDraft(); // eski chat qoralamasi saqlanadi
+ const r=__mkOpenChat(id);
+ if(switching&&active?.id===id){ta.value='';autosize();updSendBtn()} // A chatda yozilgan matn B chatga o‘tib qolmasin
+ setTimeout(()=>{restoreDraftSync();proSetHashForChat();renderStories()},100);return r
+};
 const __mkOpenTopic=openTopic;
-openTopic=function(tid){const r=__mkOpenTopic(tid);setTimeout(()=>{restoreDraftSync();proSetHashForChat()},80);return r};
+openTopic=function(tid){
+ const switching=!!(active&&active.type==='supergroup'&&(forumHome||activeTopic!==tid));
+ if(switching)flushDraft();
+ const r=__mkOpenTopic(tid);
+ if(switching&&draft?.mode==='reply'){draft=null;renderDraft()} // T1 dagi "javob" T2 ga o‘tib ketmasin
+ if(switching&&draft?.mode!=='edit'){ta.value='';autosize();updSendBtn()}
+ setTimeout(()=>{restoreDraftSync();proSetHashForChat()},80);return r
+};
 const __mkCancelDraft=cancelDraft;
-cancelDraft=function(){const r=__mkCancelDraft();clearDraftSync();return r};
+cancelDraft=function(){const r=__mkCancelDraft();cancelPendingDraft();writeDraftSync();return r};
+$('#draftX').onclick=()=>cancelDraft(); // avval asl funksiyaga bog‘langan edi — qoralama sinxronlanmay qolardi
+$('#forumAdd').onclick=()=>newTopicModal(); // ruxsat tekshiruvi bilan
 
 /* ---------- Deep links ---------- */
 let __mkHashLock=false,__mkLastDeepHash='';
 function proSetHashForChat(){
  if(__mkHashLock||!active)return;let h=`#c/${encodeURIComponent(active.id)}`;if(active.type==='supergroup'&&!forumHome)h=`#topic/${encodeURIComponent(active.id)}/${encodeURIComponent(activeTopic)}`;history.replaceState(null,'',h);__mkLastDeepHash=location.hash
 }
-async function processDeepLink(force=false){
- if(!me)return;const raw=location.hash,h=raw.replace(/^#/,'');if(!h)return;if(!force&&raw===__mkLastDeepHash)return;__mkLastDeepHash=raw;
- const p=h.split('/').map(decodeURIComponent);__mkHashLock=true;
+/* Xabarga o‘tish: chat endigina ochilgan bo‘lsa xabarlar hali yuklanmagan bo‘lishi mumkin — biroz kutib qayta urinamiz. */
+function jumpWhenReady(mid,tries=0){
+ if(!mid||!active)return;
+ if(findMsg(mid))return jumpTo(mid);
+ if(tries<12)return setTimeout(()=>jumpWhenReady(mid,tries+1),400);
+ toast('Xabar topilmadi (o‘chirilgan yoki juda eski bo‘lishi mumkin)')
+}
+const safeDecode=x=>{try{return decodeURIComponent(x)}catch{return null}};
+let __mkDeepT=null;
+async function processDeepLink(force=false,tries=0){
+ if(!me)return;const raw=location.hash,h=raw.replace(/^#/,'');if(!h)return;if(!force&&!tries&&raw===__mkLastDeepHash)return;__mkLastDeepHash=raw;
+ const p=h.split('/').map(safeDecode);
+ if(p.some(x=>x===null))return toast('Havola noto‘g‘ri yoki buzilgan'); // "%E0..." kabi buzuq havola endi xato otmaydi
+ const kind=p[0];
+ // Ilova endigina ochilganda chatlar ro‘yxati hali kelmagan bo‘lishi mumkin — 15 soniyagacha kutamiz.
+ if(['c','topic','msg'].includes(kind)&&p[1]&&!conv(p[1])){
+  clearTimeout(__mkDeepT);
+  if(tries<15){__mkDeepT=setTimeout(()=>{if(location.hash===raw)processDeepLink(true,tries+1)},1000);return}
+  return toast('Chat topilmadi yoki siz unga a’zo emassiz')
+ }
+ __mkHashLock=true;
  try{
-  if(p[0]==='c'&&p[1])openChat(p[1]);
-  else if(p[0]==='topic'&&p[1]&&p[2]){openChat(p[1]);setTimeout(()=>openTopic(p[2]),250)}
-  else if(p[0]==='msg'&&p[1]&&p[2]){openChat(p[1]);setTimeout(()=>jumpTo(p[2]),350)}
-  else if(p[0]==='u'&&p[1]){const n=norm(p[1]);let u=[...U.values()].find(x=>x.username===n);if(!u)try{u=await exactNicknameSearch(n)}catch{}if(u)openChat(dId(me.id,u.id));else toast('Foydalanuvchi topilmadi')}
+  if(kind==='c'&&p[1])openChat(p[1]);
+  else if(kind==='topic'&&p[1]&&p[2]){openChat(p[1]);setTimeout(()=>{if(active?.id===p[1])openTopic(p[2])},250)}
+  else if(kind==='msg'&&p[1]&&p[2]){openChat(p[1]);setTimeout(()=>{if(active?.id===p[1])jumpWhenReady(p[2])},350)}
+  else if(kind==='u'&&p[1]){
+   const n=norm(p[1]);
+   if(n&&n===me.username){openChat(sId(me.id));return} // o‘z profilim → Saqlangan xabarlar
+   let u=[...U.values()].find(x=>x.username===n);
+   if(!u)try{u=await fetchUserByNickname(n)}catch{} // avval mavjud bo‘lmagan funksiya chaqirilardi — har doim "topilmadi" chiqardi
+   if(u&&u.id!==me.id)openChat(dId(me.id,u.id));else toast('Foydalanuvchi topilmadi')
+  }
  }finally{setTimeout(()=>__mkHashLock=false,350)}
 }
+/* Chat yopilganda manzil satridagi #c/... ham tozalanadi (aks holda sahifa yangilanganda yopilgan chat qayta ochilardi). */
+const __mkCloseChat=closeChat;
+closeChat=function(){flushDraft();const r=__mkCloseChat();ta.value='';autosize();updSendBtn();try{if(location.hash&&location.hash===__mkLastDeepHash){history.replaceState(null,'',location.pathname+location.search);__mkLastDeepHash=''}}catch{}return r};
 window.addEventListener('hashchange',()=>processDeepLink(true));
 
 /* ---------- QR ---------- */
 let __mkQrP=null;
 function loadQr(){
  if(window.QRCode)return Promise.resolve();if(__mkQrP)return __mkQrP;
- __mkQrP=new Promise((ok,bad)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';s.onload=ok;s.onerror=bad;document.head.appendChild(s)});return __mkQrP
+ __mkQrP=new Promise((ok,bad)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';s.onload=ok;s.onerror=()=>{s.remove();bad(new Error('qr-load'))};document.head.appendChild(s)}).catch(e=>{__mkQrP=null;throw e});return __mkQrP // xatodan keyin qayta urinish mumkin
 }
 function qrForCurrent(){
  let url=location.href.split('#')[0],label='Makktub';
@@ -3717,20 +4015,31 @@ function qrForCurrent(){
 }
 
 /* ---------- Devices & sessions ---------- */
-const MK_DEVICE_ID=(()=>{let x=LS.getItem('mk_device_id');if(!x){x=rid('dev');LS.setItem('mk_device_id',x)}return x})();
+let MK_DEVICE_ID=(()=>{let x=LS.getItem('mk_device_id');if(!x){x=rid('dev');LS.setItem('mk_device_id',x)}return x})();
 function deviceLabel(){const ua=navigator.userAgent||'';let os=/Windows/i.test(ua)?'Windows':/Android/i.test(ua)?'Android':/iPhone|iPad/i.test(ua)?'iPhone/iPad':/Mac/i.test(ua)?'macOS':'Qurilma';let br=/Edg\//.test(ua)?'Edge':/Chrome\//.test(ua)?'Chrome':/Firefox\//.test(ua)?'Firefox':/Safari\//.test(ua)?'Safari':'Brauzer';return`${os} · ${br}`}
 let __mkDevAt=0;
 function registerDeviceSession(force=false){
- if(!me||!prefs)return;if(!force&&srvNow()-__mkDevAt<60000)return;__mkDevAt=srvNow();
- const all={...(prefs.deviceSessions||{})},old=all[MK_DEVICE_ID]||{};if(old.revoked){toast('Bu qurilma sessiyasi tugatilgan');return logout()}
- all[MK_DEVICE_ID]={...old,id:MK_DEVICE_ID,label:deviceLabel(),lastSeen:srvNow(),createdAt:old.createdAt||srvNow(),revoked:false,current:true};for(const[k,v]of Object.entries(all))if(k!==MK_DEVICE_ID&&v?.current)all[k]={...v,current:false};
- prefs.deviceSessions=all;savePrefs()
+ if(!prefsReady())return; // sozlamalar serverdan kelmaguncha yozilmaydi (aks holda ular o‘chib ketardi)
+ if(!force&&srvNow()-__mkDevAt<5*60000)return;__mkDevAt=srvNow();
+ const all={...(prefs.deviceSessions||{})},old=all[MK_DEVICE_ID]||{};
+ if(old.revoked){
+  // Boshqa qurilmadan tugatilgan: yozuvni o‘chiramiz va yangi qurilma ID olamiz — aks holda bu qurilmada
+  // qayta parol bilan kirilganda ham darhol yana chiqarib yuborilardi (abadiy).
+  writePrefsEntries('deviceSessions',{[MK_DEVICE_ID]:null});
+  MK_DEVICE_ID=rid('dev');try{LS.setItem('mk_device_id',MK_DEVICE_ID)}catch{}
+  __mkDevAt=0;toast('Bu qurilmadagi sessiya boshqa qurilmadan tugatildi',6000);return logout()
+ }
+  // Faqat O‘Z yozuvimiz yangilanadi — boshqa qurilmadan berilgan "tugatish" buyrug‘i ustidan yozilmaydi.
+ const ent={[MK_DEVICE_ID]:{id:MK_DEVICE_ID,label:deviceLabel(),lastSeen:srvNow(),createdAt:old.createdAt||srvNow(),revoked:false}};
+ // Eng so‘nggi 30 ta qurilma saqlanadi (sozlamalar hujjati cheksiz o‘smasin).
+ for(const[k]of Object.entries(all).filter(([k])=>k!==MK_DEVICE_ID).sort((a,b)=>(b[1]?.lastSeen||0)-(a[1]?.lastSeen||0)).slice(29))ent[k]=null;
+ writePrefsEntries('deviceSessions',ent)
 }
 function devicesModal(){
  const all=prefs?.deviceSessions||{};const rows=Object.entries(all).sort((a,b)=>(b[1].lastSeen||0)-(a[1].lastSeen||0));
  modal(`<h3>🛡️ Qurilmalar</h3><div class="device-list">${rows.map(([id,d])=>`<div class="device-item"><div class="top"><b>${esc(d.label||'Qurilma')}${id===MK_DEVICE_ID?' · Bu qurilma':''}</b>${id!==MK_DEVICE_ID&&!d.revoked?`<button class="btn flat sm red" data-devout="${esc(id)}">Tugatish</button>`:''}</div><small class="muted">${d.revoked?'Sessiya tugatilgan':'Oxirgi faollik: '+new Date(d.lastSeen||0).toLocaleString('uz-UZ')}</small></div>`).join('')||'<div class="empty-list">Sessiya topilmadi</div>'}</div><div class="mact"><button class="btn flat red" id="devAll">Boshqa barcha sessiyalarni tugatish</button><button class="btn flat" data-close>Yopish</button></div>`);
- $('#modalCard').onclick=e=>{const b=e.target.closest('[data-devout]');if(!b)return;const a={...(prefs.deviceSessions||{})};if(a[b.dataset.devout])a[b.dataset.devout]={...a[b.dataset.devout],revoked:true};prefs.deviceSessions=a;savePrefs();devicesModal()};
- $('#devAll').onclick=()=>{const a={...(prefs.deviceSessions||{})};for(const k of Object.keys(a))if(k!==MK_DEVICE_ID)a[k]={...a[k],revoked:true};prefs.deviceSessions=a;savePrefs();devicesModal();toast('Boshqa sessiyalar tugatildi')}
+ $('#modalCard').onclick=e=>{const b=e.target.closest('[data-devout]');if(!b)return;if(!prefsReadyOrToast())return;const id=b.dataset.devout,d=prefs.deviceSessions?.[id];if(d)writePrefsEntries('deviceSessions',{[id]:{...d,revoked:true}});devicesModal()}
+ $('#devAll').onclick=()=>{if(!prefsReadyOrToast())return;const ent={};for(const[k,d]of Object.entries(prefs.deviceSessions||{}))if(k!==MK_DEVICE_ID&&!d?.revoked)ent[k]={...d,revoked:true};if(Object.keys(ent).length)writePrefsEntries('deviceSessions',ent);devicesModal();toast('Boshqa sessiyalar tugatildi')}
 }
 
 /* ---------- Stories ---------- */
@@ -3739,36 +4048,39 @@ function storiesOf(u){return(Array.isArray(u?.stories)?u.stories:[]).filter(s=>(
 function storySeen(uid,sid){try{return JSON.parse(LS.getItem('mk_story_seen')||'{}')?.[uid]?.includes(sid)}catch{return false}}
 function markStorySeenLocal(uid,sid){let x={};try{x=JSON.parse(LS.getItem('mk_story_seen')||'{}')||{}}catch{};x[uid]=[...new Set([...(x[uid]||[]),sid])].slice(-200);LS.setItem('mk_story_seen',JSON.stringify(x))}
 function renderStories(){
- const bar=$('#storyBar');if(!bar||!me)return;const people=[me,...[...U.values()].filter(u=>u.id!==me.id&&storiesOf(u).length)].filter((u,i,a)=>a.findIndex(x=>x.id===u.id)===i);
- bar.innerHTML=`<button class="story-one" data-story-add><span class="story-ring add">${userAv(me,'s')}<i class="story-plus">+</i></span><small>Siz</small></button>`+people.filter(u=>u.id!==me.id||storiesOf(u).length).slice(0,40).map(u=>{const a=storiesOf(u),unseen=a.some(s=>!storySeen(u.id,s.id));return`<button class="story-one" data-story-user="${esc(u.id)}"><span class="story-ring ${unseen?'':'seen'}">${userAv(u,'s')}</span><small>${esc(u.id===me.id?'Storyingiz':uname(u).split(' ')[0])}</small></button>`}).join('')
+ const bar=$('#storyBar');if(!bar)return;if(!me){if(bar.innerHTML){bar.innerHTML='';bar.__html=''}return}const people=[me,...[...U.values()].filter(u=>u.id!==me.id&&storiesOf(u).length)].filter((u,i,a)=>a.findIndex(x=>x.id===u.id)===i);
+ const html=`<button class="story-one" data-story-add><span class="story-ring add">${userAv(me,'s')}<i class="story-plus">+</i></span><small>Siz</small></button>`+people.filter(u=>u.id!==me.id||storiesOf(u).length).slice(0,40).map(u=>{const a=storiesOf(u),unseen=a.some(s=>!storySeen(u.id,s.id));return`<button class="story-one" data-story-user="${esc(u.id)}"><span class="story-ring ${unseen?'':'seen'}">${userAv(u,'s')}</span><small>${esc(u.id===me.id?'Storyingiz':uname(u).split(' ')[0])}</small></button>`}).join('');
+ // Har 5 soniyada qayta chizilganda bosilayotgan tugma almashib ketmasin — o‘zgarmagan bo‘lsa DOM’ga tegmaymiz.
+ if(bar.__html!==html){bar.__html=html;bar.innerHTML=html;hydrate(bar)}
 }
 function storyCreateModal(){
  modal(`<h3>🔥 Story qo‘shish</h3><label class="lb">Matn</label><textarea class="field" id="storyText" rows="3" maxlength="600" placeholder="Story matni..."></textarea><label class="lb">Rasm yoki video (ixtiyoriy)</label><input class="field" id="storyFile" type="file" accept="image/*,video/*"><p class="note">Hozirgi versiyada story Makktubga kirgan foydalanuvchilar uchun ochiq. “Faqat kontaktlar” maxfiyligi alohida server arxitekturasi bilan keyin yoqiladi.</p><div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="storySave">Joylash</button></div>`);
  $('#storySave').onclick=async e=>{const btn=e.currentTarget,body=$('#storyText').value.trim(),f=$('#storyFile').files[0];if(!body&&!f)return toast('Matn yoki media qo‘shing');busy(btn,true);try{
    let type='text',fileId='',thumb='';if(f){if(f.size>MAXFILE)return toast('Story media 25 MB dan oshmasin');type=f.type.startsWith('video/')?'video':'image';let blob=f;if(type==='image')blob=await hqImageBlob(f);fileId=await uploadFile(blob,f.name||'story');if(type==='image')thumb=await shrink(f,180,.72)}
    const s={id:rid('story'),type,body,fileId,thumb,privacy:'all',createdAt:srvNow(),expiresAt:srvNow()+STORY_TTL};
-   const a=[...storiesOf(me),s].slice(-STORY_LIMIT);await updateDoc(doc(db,'users',me.id),{stories:a});me.stories=a;U.set(me.id,me);closeModal();renderStories();toast('🔥 Story joylandi')
+   const a=[...storiesOf(me),s].slice(-STORY_LIMIT);await mkSafe(()=>updateDoc(doc(db,'users',me.id),{stories:a}));me.stories=a;U.set(me.id,me);closeModal();renderStories();toast('🔥 Story joylandi')
   }catch(er){toast(errText(er),5000)}finally{busy(btn,false)}}
 }
 let __mkStoryUid='',__mkStoryIx=0,__mkStoryTimer=null;
-function storyLayer(){let l=$('#storyLayer');if(l)return l;l=document.createElement('div');l.id='storyLayer';l.className='story-layer hidden';l.innerHTML='<div class="story-progress" id="storyProgress"></div><div class="story-top"><div id="storyWho" class="grow"></div><button class="story-close" id="storyX">×</button></div><div class="story-stage" id="storyStage"><div class="story-nav"><button data-story-prev></button><button data-story-next></button></div></div><div class="story-bottom"><span id="storyCaption" class="grow"></span><button class="btn flat hidden" id="storyViewers">Ko‘rganlar</button><button class="btn flat" id="storyShare">Uzatish</button><button class="btn flat red hidden" id="storyDelete">O‘chirish</button></div>';document.body.appendChild(l);$('#storyX').onclick=closeStory;$('#storyStage').onclick=e=>{if(e.target.closest('[data-story-prev]'))showStory(__mkStoryUid,__mkStoryIx-1);else if(e.target.closest('[data-story-next]'))showStory(__mkStoryUid,__mkStoryIx+1)};return l}
+function storyLayer(){let l=$('#storyLayer');if(l)return l;l=document.createElement('div');l.id='storyLayer';l.className='story-layer hidden';l.innerHTML='<div class="story-progress" id="storyProgress"></div><div class="story-top"><div id="storyWho" class="grow"></div><button class="story-close" id="storyX">×</button></div><div class="story-stage" id="storyStage"><div class="story-nav"><button data-story-prev></button><button data-story-next></button></div></div><div class="story-bottom"><span id="storyCaption" class="grow"></span><button class="btn flat hidden" id="storyViewers">Ko‘rganlar</button><button class="btn flat" id="storyShare">Uzatish</button><button class="btn flat red hidden" id="storyDelete">O‘chirish</button></div>';document.body.appendChild(l);$('#storyX').onclick=closeStory;$('#storyStage').onclick=e=>{if(e.target.closest('[data-story-prev]'))showStory(__mkStoryUid,Math.max(0,__mkStoryIx-1));else if(e.target.closest('[data-story-next]'))showStory(__mkStoryUid,__mkStoryIx+1)};return l}
 function closeStory(){clearTimeout(__mkStoryTimer);$('#storyLayer')?.classList.add('hidden');$('#storyStage')&&($('#storyStage').innerHTML='<div class="story-nav"><button data-story-prev></button><button data-story-next></button></div>')}
 async function showStory(uid,ix=0){
- const u=user(uid)||U.get(uid);if(!u)return;const a=storiesOf(u);if(!a.length)return;if(ix<0)ix=a.length-1;if(ix>=a.length)ix=0;const s=a[ix];__mkStoryUid=uid;__mkStoryIx=ix;const l=storyLayer();l.classList.remove('hidden');
+ const u=user(uid)||U.get(uid);if(!u)return closeStory();const a=storiesOf(u);if(!a.length)return closeStory();if(ix<0)ix=0;if(ix>=a.length)return closeStory(); // oxirgisidan keyin yopiladi (avval cheksiz aylanardi)
+ const s=a[ix];__mkStoryUid=uid;__mkStoryIx=ix;const l=storyLayer();l.classList.remove('hidden');
  $('#storyProgress').innerHTML=a.map((_,i)=>`<i class="${i<=ix?'on':''}"></i>`).join('');$('#storyWho').innerHTML=`<b>${esc(uname(u))}</b><small>${new Date(s.createdAt).toLocaleString('uz-UZ')}</small>`;$('#storyCaption').textContent=s.body||'';$('#storyDelete').classList.toggle('hidden',uid!==me.id);$('#storyViewers').classList.toggle('hidden',uid!==me.id);
  const stage=$('#storyStage');const nav='<div class="story-nav"><button data-story-prev></button><button data-story-next></button></div>';if(s.type==='text')stage.innerHTML=`<div class="story-text">${esc(s.body||'')}</div>${nav}`;else if(s.type==='video')stage.innerHTML=`<video autoplay playsinline controls ${fsrc(s.fileId)}></video>${nav}`;else stage.innerHTML=`<img ${fsrc(s.fileId)} alt="">${nav}`;hydrate(stage);markStorySeenLocal(uid,s.id);renderStories();
- $('#storyDelete').onclick=()=>{if(uid!==me.id)return;const na=storiesOf(me).filter(x=>x.id!==s.id);updateDoc(doc(db,'users',me.id),{stories:na}).then(()=>{me.stories=na;closeStory();renderStories()}).catch(fail)};
- $('#storyViewers').onclick=async()=>{if(uid!==me.id)return;try{const sn=await getDoc(doc(db,'storyViews',uid+'_'+s.id)),v=sn.exists()?(sn.data().viewers||{}):{},rows=Object.entries(v).sort((a,b)=>b[1]-a[1]);modal(`<h3>👁 Storyni ko‘rganlar · ${rows.length}</h3><div class="plist">${rows.length?rows.map(([id,at])=>{const x=user(id);return`<div class="row">${userAv(x,'s')}<div class="rmain"><b>${esc(uname(x)||id)}</b><div class="sub">${new Date(at||0).toLocaleString('uz-UZ')}</div></div></div>`}).join(''):'<div class="empty-list">Hali hech kim ko‘rmagan</div>'}</div><div class="mact"><button class="btn flat" data-close>Yopish</button></div>`)}catch(e){toast('Ko‘rganlar ro‘yxatini olib bo‘lmadi')}}; 
+ $('#storyDelete').onclick=()=>{if(uid!==me.id)return;const na=storiesOf(me).filter(x=>x.id!==s.id);mkSafe(()=>updateDoc(doc(db,'users',me.id),{stories:na})).then(()=>{me.stories=na;closeStory();renderStories()}).catch(fail)};
+ $('#storyViewers').onclick=async()=>{if(uid!==me.id)return;if(!live)return toast(errText({code:'not-ready'}));try{const sn=await getDoc(doc(db,'storyViews',uid+'_'+s.id)),v=sn.exists?(sn.data().viewers||{}):{},rows=Object.entries(v).sort((a,b)=>b[1]-a[1]);modal(`<h3>👁 Storyni ko‘rganlar · ${rows.length}</h3><div class="plist">${rows.length?rows.map(([id,at])=>{const x=userOr(id);return`<div class="row">${userAv(x,'s')}<div class="rmain"><b>${esc(uname(x))}</b><div class="sub">${new Date(at||0).toLocaleString('uz-UZ')}</div></div></div>`}).join(''):'<div class="empty-list">Hali hech kim ko‘rmagan</div>'}</div><div class="mact"><button class="btn flat" data-close>Yopish</button></div>`)}catch(e){toast('Ko‘rganlar ro‘yxatini olib bo‘lmadi')}}; 
  $('#storyShare').onclick=()=>{copyText(location.href.split('#')[0]+'#u/'+encodeURIComponent(u.username||''));toast('Profil linki nusxalandi')};
  // View receipt best-effort: alohida hujjatga yoziladi. Rules ruxsat bermasa UI ishlashda davom etadi.
- if(uid!==me.id&&live){const vr=doc(db,'storyViews',uid+'_'+s.id);setDoc(vr,{ownerId:uid,storyId:s.id,viewers:{[me.id]:srvNow()}},{merge:true}).catch(()=>{})}
- clearTimeout(__mkStoryTimer);__mkStoryTimer=setTimeout(()=>showStory(uid,ix+1),s.type==='video'?15000:7000)
+ if(uid!==me.id&&live)mkSafe(()=>setDoc(doc(db,'storyViews',uid+'_'+s.id),{ownerId:uid,storyId:s.id,viewers:{[me.id]:srvNow()}},{merge:true})).catch(()=>{})
+ clearTimeout(__mkStoryTimer);__mkStoryTimer=setTimeout(()=>{if(!$('#storyLayer')?.classList.contains('hidden')&&__mkStoryUid===uid&&__mkStoryIx===ix)showStory(uid,ix+1)},s.type==='video'?15000:7000)
 }
 $('#storyBar').onclick=e=>{if(e.target.closest('[data-story-add]'))return storyCreateModal();const b=e.target.closest('[data-story-user]');if(b)showStory(b.dataset.storyUser,0)};
 
 /* ---------- Story cleanup ---------- */
 async function cleanupOwnStories(){
- if(!me)return;const raw=Array.isArray(me.stories)?me.stories:[],a=storiesOf(me);if(raw.length!==a.length){me.stories=a;updateDoc(doc(db,'users',me.id),{stories:a}).catch(()=>{})}
+ if(!me||!live)return;const raw=Array.isArray(me.stories)?me.stories:[],a=storiesOf(me);if(raw.length!==a.length){me.stories=a;mkSafe(()=>updateDoc(doc(db,'users',me.id),{stories:a})).catch(()=>{})}
 }
 
 /* ---------- QR / story / pro hub ---------- */
@@ -3827,9 +4139,9 @@ document.addEventListener('click',e=>{
 
 /* ---------- Expired cleanup ---------- */
 async function cleanupExpired(){
- if(!me)return;let changed=false;
- for(const [cid,a] of Object.entries(snapMsgs||{})){for(const m of a||[]){if(!proIsExpired(m)||m.senderId!==me.id||m._expDel)continue;m._expDel=1;deleteDoc(msgRef(cid,m.id)).catch(()=>{});changed=true}}
- if(active){for(const m of M){if(proIsExpired(m)&&m.senderId===me.id&&!m._expDel){m._expDel=1;deleteDoc(msgRef(active.id,m.id)).catch(()=>{});changed=true}}}
+ if(!me||!live)return;let changed=false;
+ for(const [cid,a] of Object.entries(snapMsgs||{})){for(const m of a||[]){if(!proIsExpired(m)||m.senderId!==me.id||m._expDel)continue;m._expDel=1;mkSafe(()=>deleteDoc(msgRef(cid,m.id))).catch(()=>{});changed=true}}
+ if(active){for(const m of M){if(proIsExpired(m)&&m.senderId===me.id&&!m._expDel){m._expDel=1;mkSafe(()=>deleteDoc(msgRef(active.id,m.id))).catch(()=>{});changed=true}}}
  if(changed){lastSig='';renderMessages()}
 }
 
@@ -3853,7 +4165,13 @@ const __v2RenderForumList=renderForumList;
 renderForumList=function(){const r=__v2RenderForumList();if(active?.type==='supergroup')$('#forumAdd').classList.toggle('hidden',!adminCan(active,'topics'));return r};
 
 /* ---------- Pro timers / bootstrap ---------- */
-setInterval(()=>{if(me){processScheduled();registerDeviceSession();cleanupExpired();cleanupOwnStories();renderStories()}},5000);
+const __mkTick=fn=>{try{const r=fn();if(r&&r.catch)r.catch(e=>console.warn('pro tick',e))}catch(e){console.warn('pro tick',e)}}; // biri xato bersa qolganlari to‘xtamaydi
+setInterval(()=>{if(!me)return;
+ __mkTick(ensurePrefsRest);__mkTick(processScheduled);__mkTick(registerDeviceSession);__mkTick(cleanupExpired);__mkTick(cleanupOwnStories);__mkTick(renderStories);
+ __mkTick(()=>processDeepLink()); // tizimga kirgandan keyin ham ochilgan havola ishlaydi
+ // Muddati tugagan xabar ochiq chatdan darhol yo‘qolsin (renderMessages faqat o‘zgarish bo‘lsa qayta chizadi).
+ if(active&&M.some(m=>ttlOf(m)))__mkTick(()=>renderMessages())
+},5000);
 /* Deep link hashchange orqali ishlaydi; har 3 soniyada chat qayta ochilmaydi. */
 setTimeout(()=>{renderStories();processDeepLink();registerDeviceSession(true);processScheduled()},1200);
 
@@ -3863,6 +4181,20 @@ renderList=function(){const r=__mkRenderList();setTimeout(renderStories,0);retur
 
 /* Deep link for a specific message: context shortcut with Shift+right click */
 msgsEl.addEventListener('contextmenu',e=>{if(!e.shiftKey)return;const m=e.target.closest('[data-mid]');if(!m||!active)return;e.preventDefault();e.stopImmediatePropagation();const u=location.href.split('#')[0]+`#msg/${encodeURIComponent(active.id)}/${encodeURIComponent(m.dataset.mid)}`;copyText(u);toast('Xabar linki nusxalandi')},true);
+
+/* Yopishqoq sana yorliqlari ("Bugun", "18-oktabr") tepada ustma-ust chiqib qolmasin: faqat oxirgisi ko‘rinadi. */
+(()=>{
+ const box=$('#msgs'),inner=$('#msgsIn');if(!box||!inner)return;
+ document.head.insertAdjacentHTML('beforeend','<style>.day.under{visibility:hidden}</style>');
+ let raf=0;
+ const fix=()=>{raf=0;const days=[...inner.querySelectorAll('.day')];if(!days.length)return;
+  const top=box.getBoundingClientRect().top+(parseFloat(getComputedStyle(box).paddingTop)||0)+8,tops=days.map(d=>d.getBoundingClientRect().top);let last=-1;
+  tops.forEach((t,i)=>{if(t<=top)last=i});
+  days.forEach((d,i)=>d.classList.toggle('under',i<last&&tops[i]<=top))};
+ const queue=()=>{if(!raf)raf=requestAnimationFrame(fix)};
+ box.addEventListener('scroll',queue,{passive:true});
+ new MutationObserver(queue).observe(inner,{childList:true});
+})();
 
 /* Ensure new icons/buttons are usable after startup. */
 renderStories();
