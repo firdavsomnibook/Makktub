@@ -352,9 +352,6 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .check-row{display:flex;align-items:center;gap:12px;padding:7px 6px;border-radius:10px;cursor:pointer}
 .check-row:hover{background:var(--hover)}
 .check-row input{width:18px;height:18px;accent-color:var(--accent);flex:none}
-.po-row{display:flex;align-items:center;gap:12px;padding:7px 6px;border-radius:10px}
-.po-row input[type="radio"]{width:18px;height:18px;accent-color:var(--accent);flex:none;cursor:pointer}
-.po-row input.field{flex:1}
 .fprevs{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto}
 .fprev{display:flex;align-items:center;gap:12px}
 .fprev img{width:56px;height:56px;object-fit:cover;border-radius:8px;flex:none}
@@ -498,17 +495,124 @@ body{min-height:var(--app-vh)}
 .pro-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
 .pro-card{border:1px solid var(--line);background:var(--panel2);border-radius:14px;padding:12px;text-align:left;color:var(--text);cursor:pointer;min-height:74px}
 .pro-card b{display:block;font-size:14px;margin-bottom:4px}.pro-card small{color:var(--muted);font-size:11px;line-height:1.3}
-.poll-box{min-width:250px;max-width:360px}.poll-q{font-weight:800;font-size:15px;margin-bottom:9px}
-.poll-opt{display:block;width:100%;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:11px;margin:6px 0;padding:9px 10px;text-align:left;position:relative;overflow:hidden;cursor:pointer}
-.poll-opt>i{position:absolute;inset:0 auto 0 0;background:color-mix(in srgb,var(--accent) 20%,transparent);pointer-events:none}
-.poll-opt>span{position:relative;display:flex;justify-content:space-between;gap:10px;z-index:1}.poll-opt.mine{border-color:var(--accent)}
+/* ---------- Test 3.0 ---------- */
+.poll-box{min-width:250px;max-width:360px}
+.poll-q{font-weight:800;font-size:15px;margin-bottom:9px;white-space:pre-wrap;word-break:break-word}
+.poll-opt{display:block;width:100%;border:1px solid color-mix(in srgb,currentColor 20%,transparent);background:color-mix(in srgb,currentColor 5%,transparent);color:inherit;border-radius:11px;margin:6px 0;padding:9px 11px;text-align:left;position:relative;overflow:hidden;cursor:pointer;transition:border-color .15s,background-color .15s,transform .1s}
+.poll-opt:not(:disabled):hover{background:color-mix(in srgb,currentColor 11%,transparent)}
+.poll-opt:not(:disabled):active{transform:scale(.985)}
 .poll-opt:disabled{cursor:default}
-.poll-opt.correct{border-color:var(--online)}.poll-opt.correct>i{background:rgba(34,197,94,.22)}
-.poll-opt.wrong{border-color:var(--danger)}.poll-opt.wrong>i{background:rgba(229,57,53,.18)}
-.poll-voters{font-size:11px;color:var(--muted);margin:-3px 0 7px 3px;word-break:break-word}
+.poll-opt>i{position:absolute;inset:0 auto 0 0;background:color-mix(in srgb,var(--accent) 22%,transparent);pointer-events:none;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.poll-opt>span{position:relative;display:flex;justify-content:space-between;align-items:center;gap:10px;z-index:1}
+.poll-opt b{font-weight:600;word-break:break-word}
+.poll-opt em{font-style:normal;font-size:12px;opacity:.85;white-space:nowrap;font-variant-numeric:tabular-nums}
+.poll-opt.mine{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.poll-opt.correct{border-color:#22c55e}.poll-opt.correct>i{background:rgba(34,197,94,.24)}
+.poll-opt.wrong{border-color:var(--danger)}.poll-opt.wrong>i{background:rgba(229,57,53,.2)}
+div.poll-opt.correct{background:rgba(34,197,94,.14)}div.poll-opt.wrong{background:rgba(229,57,53,.12)}
+.out .poll-opt>i{background:rgba(255,255,255,.2)}
+.out .poll-opt.correct{border-color:#86efac}.out .poll-opt.correct>i{background:rgba(34,197,94,.5)}
+.out .poll-opt.wrong{border-color:#fca5a5}.out .poll-opt.wrong>i{background:rgba(229,57,53,.45)}
+.poll-voters{font-size:11px;opacity:.75;margin:-3px 0 7px 3px;word-break:break-word}
 .poll-correct-note{display:flex;align-items:center;gap:5px;font-weight:700;font-size:12.5px;margin-top:6px}
-.poll-correct-note.ok{color:var(--online)}.poll-correct-note.bad{color:var(--danger)}
-.poll-foot{display:flex;gap:8px;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:7px}
+.poll-correct-note.ok{color:#22c55e}.poll-correct-note.bad{color:var(--danger)}.poll-correct-note.dim{font-weight:500;opacity:.8}
+.out .poll-correct-note.ok{color:#bbf7d0}.out .poll-correct-note.bad{color:#fecaca}
+.poll-expl{display:block;margin-top:6px;font-size:12.5px;line-height:1.4;border-left:3px solid #22c55e;padding:2px 0 2px 8px;white-space:pre-wrap;word-break:break-word;opacity:.9}
+.poll-foot{display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap;font-size:11.5px;margin-top:8px}
+.poll-foot>span{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap;opacity:.78}
+.poll-foot>span:last-child{opacity:1}
+.poll-tag{opacity:.78}
+.poll-timer{font-variant-numeric:tabular-nums;font-weight:700;color:#f59e0b;white-space:nowrap}.out .poll-timer{color:#fde68a}
+.poll-link{color:inherit;font-weight:700;font-size:11.5px;text-decoration:underline;text-underline-offset:2px}
+.poll-img{display:block;width:100%;max-height:240px;border-radius:10px;overflow:hidden;margin:0 0 9px;padding:0;border:0;background:color-mix(in srgb,currentColor 8%,transparent);cursor:zoom-in}
+.poll-img img{display:block;width:100%;height:100%;max-height:240px;object-fit:cover}
+.pq-head{display:flex;gap:10px;align-items:center;margin-bottom:10px}.pq-head .poll-q{margin:0}.pq-head small{opacity:.75;font-size:12px}
+.pq-ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:21px;background:color-mix(in srgb,currentColor 10%,transparent);flex:none}
+.poll-start{width:100%;margin-top:2px}
+.out .poll-start{background:#fff;color:#0047e0;box-shadow:none}
+.poll-act{padding-left:0}.out .poll-act{color:#fff}
+.pq-prog{height:6px;border-radius:9px;background:color-mix(in srgb,currentColor 14%,transparent);overflow:hidden;margin:2px 0 9px}.pq-prog i{display:block;height:100%;background:#22c55e;border-radius:inherit}
+.pq-state{font-size:13px;opacity:.85;margin:2px 0 6px}
+.pq-score{display:flex;align-items:center;gap:12px;margin:2px 0 4px}.pq-score small{display:block;opacity:.8;font-size:12px;margin-top:2px}
+.pq-ring{--c:#22c55e;position:relative;width:58px;height:58px;border-radius:50%;flex:none;display:grid;place-items:center}
+.pq-ring::before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),color-mix(in srgb,currentColor 15%,transparent) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px))}
+.pq-ring b{position:relative;font-size:14px;font-variant-numeric:tabular-nums}
+.mid>.pq-ring,.pq-score.mid .pq-ring{--c:#f59e0b}.bad>.pq-ring,.pq-score.bad .pq-ring{--c:var(--danger)}
+.out .pq-score.ok .pq-ring{--c:#86efac}
+/* yechish oynasi */
+.pq-top{display:flex;align-items:center;gap:10px;margin:-4px 0 10px}
+.pq-top b{flex:1;min-width:0;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pq-count-row{display:flex;justify-content:space-between;gap:10px}
+.pq-count{font-weight:700;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.pq-bar{height:6px;border-radius:9px;background:var(--bg2);overflow:hidden;margin:6px 0 14px}.pq-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#22c55e);border-radius:inherit;transition:width .4s}
+.pq-run .poll-q{font-size:17px;margin:2px 0 12px}
+.pq-run .poll-opt{padding:12px 14px;font-size:15px;margin:8px 0}
+.pq-run .poll-img,.pq-run .poll-img img{max-height:300px}.pq-run .poll-img img{object-fit:contain}
+.pq-hint{color:var(--muted);font-size:12.5px;margin:10px 0 0;text-align:center}
+.pq-final{text-align:center;padding:6px 0}
+.pq-final .pq-ring{width:116px;height:116px;margin:4px auto 10px}.pq-final .pq-ring::before{-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 11px),#000 calc(100% - 10px));mask:radial-gradient(farthest-side,transparent calc(100% - 11px),#000 calc(100% - 10px))}
+.pq-final .pq-ring b{font-size:26px}
+.pq-final h4{margin:2px 0 4px;font-size:20px}.pq-final p{margin:0 0 6px}
+.pq-dots{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:10px 0 2px}
+.pq-dots i{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-style:normal;font-weight:700;color:#fff;background:var(--danger)}.pq-dots i.ok{background:#22c55e}.pq-dots i.no{background:var(--muted)}
+.pq-acts{flex-wrap:wrap}
+.pq-rev{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0}
+.pq-rev .poll-q{font-size:14.5px;margin:4px 0 6px}.pq-rev .poll-opt{padding:7px 10px;font-size:13.5px;margin:5px 0;cursor:default}
+/* natijalar va reyting */
+.pr-title{font-weight:800;font-size:16px;margin:-4px 0 3px;word-break:break-word}
+.pr-sub{color:var(--muted);font-size:12.5px;margin-bottom:10px}
+.pr-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:6px 0 12px}
+.pr-tiles div{border:1px solid var(--line);border-radius:12px;padding:9px 4px;text-align:center;background:var(--bg2);min-width:0}
+.pr-tiles b{display:block;font-size:18px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pr-tiles small{color:var(--muted);font-size:11px}
+.pr-tiles .ok b{color:#22c55e}.pr-tiles .bad b{color:var(--danger)}
+.pr-sec{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:16px 0 6px}
+.pr-bar{margin:8px 0}.pr-bar .t{display:flex;justify-content:space-between;gap:10px;font-size:13.5px}.pr-bar .t b{font-weight:600;word-break:break-word}.pr-bar .t span{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.pr-bar .b{height:8px;border-radius:9px;background:var(--bg2);overflow:hidden;margin:4px 0 2px}.pr-bar .b i{display:block;height:100%;background:var(--accent);border-radius:inherit}.pr-bar.ok .b i{background:#22c55e}
+.pr-bar small{font-size:12px}
+.pr-list{max-height:min(44vh,420px);overflow:auto;margin:0 -4px}
+.pr-row{display:flex;align-items:center;gap:10px;padding:7px 6px;border-radius:10px}
+.pr-row.me{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.pr-rank{width:26px;text-align:center;font-weight:800;color:var(--muted);flex:none;font-variant-numeric:tabular-nums}
+.pr-row .grow b{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-row .grow small{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-pts{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pr-hint{color:var(--muted);font-size:12.5px;margin:10px 0 0;line-height:1.45}
+.poll-board-row{display:flex;justify-content:flex-end;padding:6px 10px 0}
+#itab>.fitem[data-jump]{padding:12px 14px}#itab .poll-box{max-width:none;min-width:0}
+/* yaratish oynasi */
+.pc-note{display:flex;align-items:center;gap:8px;justify-content:space-between;background:var(--bg2);border-radius:10px;padding:6px 6px 6px 12px;font-size:13px;margin-bottom:10px}
+.pc-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 2px}
+.pc-tabs:empty{display:none}
+.pc-tabs button{min-width:36px;height:32px;padding:0 11px;border-radius:16px;border:1px solid var(--line);font-weight:700;font-size:13px;color:var(--muted);position:relative}
+.pc-tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.pc-tabs button.done::after{content:"";position:absolute;right:1px;top:1px;width:8px;height:8px;border-radius:50%;background:#22c55e;border:2px solid var(--bg)}
+.pc-tabs button.bad{border-color:var(--danger);color:var(--danger)}.pc-tabs button.on.bad{background:var(--danger);color:#fff}
+.pc-tabs button.add{border-style:dashed;color:var(--accent)}
+.pc textarea#pq{resize:vertical;min-height:50px;line-height:1.4}
+.pc-img{margin-top:6px}
+.pc-img-prev{position:relative;border-radius:12px;overflow:hidden;background:var(--bg2)}
+.pc-img-prev img{display:block;width:100%;max-height:190px;object-fit:contain}
+.pc-img-x{position:absolute;top:6px;right:6px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.62);color:#fff;font-size:14px;display:grid;place-items:center}
+.po-row{display:flex;align-items:center;gap:8px;margin:6px 0}
+.po-row input[type=radio]{width:22px;height:22px;margin:0;accent-color:#22c55e;flex:none;cursor:pointer}
+.po-in{position:relative;flex:1;min-width:0}
+.po-in .po{width:100%}
+.po-row.on .po{border-color:#22c55e;box-shadow:0 0 0 1px #22c55e;padding-right:84px}
+.po-ok{display:none;position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:700;color:#22c55e;pointer-events:none;white-space:nowrap}
+.po-row.on .po-ok{display:block}
+.po-del{width:30px;height:30px;border-radius:50%;flex:none;color:var(--muted);display:grid;place-items:center;font-size:13px}
+.po-del:hover{background:var(--hover);color:var(--danger)}
+.pc-qdel{margin-top:10px}
+.pc-set{border:1px solid var(--line);border-radius:12px;padding:0 12px;margin-top:16px}
+.pc-set>summary{cursor:pointer;padding:11px 0;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px}
+.pc-set>summary::-webkit-details-marker{display:none}
+.pc-set>summary small{color:var(--muted);font-weight:400;margin-left:auto;font-size:12px;text-align:right}
+.pc-set[open]{padding-bottom:12px}
+.pc-set .check-row{padding:7px 0}
+.pc-set .check-row span b{display:block;font-weight:600;font-size:14px}.pc-set .check-row span small{display:block;color:var(--muted);font-size:12px}
+.poll-confetti{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:10050}
+@media(max-width:420px){.pr-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.pq-run .poll-q{font-size:16px}}
+@media(prefers-reduced-motion:reduce){.poll-opt>i,.pq-bar i{transition:none}}
 .edit-history-btn{border:0;background:none;color:inherit;font:inherit;font-style:italic;padding:0;cursor:pointer}
 .pro-badge{display:inline-flex;align-items:center;gap:4px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px 7px;font-size:10px;color:var(--muted);margin-right:4px}
 .schedule-list,.device-list,.collection-list{display:grid;gap:8px;margin:10px 0}
@@ -1353,7 +1457,7 @@ const vis=(m,cid)=>!(m.deletedFor||[]).includes(me.id)&&(m.createdAt||0)>cleared
 const unread=c=>{if(!c.lastMsg||c.lastMsg.at<=cleared(c.id))return 0;if(Array.isArray(c.lastMsg.visibleTo)&&c.lastMsg.senderId!==me.id&&!c.lastMsg.visibleTo.includes(me.id))return 0;if(isGroup(c))return c.lastMsg.senderId!==me.id&&c.lastMsg.at>(c.reads?.[me.id]||0)?1:0;return Math.max(0,Number(c.unread?.[me.id])||0)};
 const readBy=(m,c)=>c.type==='saved'||(c.members||[]).some(id=>id!==me.id&&(c.reads?.[id]||0)>=m.createdAt);
 const ticks=(m,c)=>`<span class="tk">${ic(readBy(m,c)?'checks':'check')}</span>`;
-const kindLabel=m=>({image:'Rasm',video:'Video',audio:m.fileName||'Audio',voice:'Ovozli xabar',file:m.fileName||'Fayl',sticker:'Stiker',poll:'So‘rovnoma'}[m.type]||'');
+const kindLabel=m=>({image:'Rasm',video:'Video',audio:m.fileName||'Audio',voice:'Ovozli xabar',file:m.fileName||'Fayl',sticker:'Stiker',poll:'📊 Test'}[m.type]||'');
 const msgText=m=>m.type==='text'||m.type==='service'?(m.body||''):kindLabel(m)+(m.body?' · '+m.body:'');
 const senderTitle=(m,c)=>c?.type==='channel'?c.title:uname(user(m.senderId));
 const findMsg=id=>M.find(m=>m.id===id);
@@ -2580,7 +2684,7 @@ function msgHtml(m,c,q){if(m.type==='service')return`<div class="svc">${esc(m.bo
 function renderMessages(toBottom=false){if(!active)return;const c=active,box=$('#msgs');if(c.type==='supergroup'&&forumHome){renderForumList();return}
  let arr=M.filter(m=>vis(m,c.id)&&msgVisibleToMe(m)&&(c.type!=='supergroup'||(m.topicId||'general')===activeTopic));
  const q=chatQuery.trim();if(q){const lq=q.toLowerCase();arr=arr.filter(m=>m.type!=='service'&&((m.body||'')+' '+(m.fileName||'')).toLowerCase().includes(lq))}
- const sig=[c.id,activeTopic,q,JSON.stringify(prefs.aliases),arr.map(m=>user(m.senderId)?.displayName||'').join(),arr.map(m=>m.id+(m.edited||'')+JSON.stringify(m.reactions||{})+(m.senderId===me.id?readBy(m,c):'')+(m.body||'')+(m.type==='poll'?JSON.stringify(m.pollVotes||m.votes||{})+(m.poll?.closed||''):'')).join()].join('|');
+ const sig=[c.id,activeTopic,q,JSON.stringify(prefs.aliases),arr.map(m=>user(m.senderId)?.displayName||'').join(),arr.map(m=>m.id+(m.edited||'')+JSON.stringify(m.reactions||{})+(m.senderId===me.id?readBy(m,c):'')+(m.body||'')+(m.type==='poll'?JSON.stringify(m.pollVotes||m.votes||{})+JSON.stringify(m.pollAnswers||{})+(m.poll?.closed||'')+(m.poll?.closeAt&&srvNow()>=m.poll.closeAt?'E':''):'')).join()].join('|');
  if(sig===lastSig&&!toBottom)return;lastSig=sig;
  const prevTop=box.scrollTop;let h='',prev=null;
  for(const m of arr){if(!prev||!sameDay(prev.createdAt,m.createdAt))h+=`<div class="day">${dayLabel(m.createdAt)}</div>`;h+=msgHtml(m,c,q);prev=m}
@@ -3456,81 +3560,211 @@ markRead=function(){
  }
 };
 
-/* ---------- Poll / Quiz (har doim quiz: aynan 1 ta to‘g‘ri javob; ovoz bir marta, qulflangan; anonim emas) ---------- */
-const pollPicks=new Map(); // mid -> Set(optId) — faqat eski "bir nechta javob" testlarida, yuborilgunga qadar vaqtinchalik tanlov
-/* Ikkala ma’lumot modeli bitta ko‘rinishga keltiriladi:
-   2-model (shu fayl): poll:{question,options:[{id,text}],correct,multi,closed,explanation}, pollVotes:{uid:[optId]}
-   1-model (eski work.html): question, options:[matn], correctIndex, multi, votes:{uid:[indeks]} */
+/* =========================================================
+   TEST 3.0 (Poll / Quiz)
+   Har doim test: har bir savolda aynan 1 ta to‘g‘ri javob, javob bir marta beriladi va qulflanadi.
+   Imkoniyatlar: ko‘p savolli test (2–20 savol), vaqt chegarasi, anonim test, variantlarni aralashtirish,
+   rasmli savol, natijalar + chat reytingi, qayta / tahrirlab yuborish, to‘g‘ri-xato animatsiyasi.
+   Ma’lumot modeli (eski testlar bilan to‘liq mos):
+    poll:{question,options:[{id,text}],correct,multi:false,closed,explanation,
+          image?:{fid,w,h}, anon?, shuffle?, closeAt?, dur?,
+          questions?:[{question,options,correct,explanation,image?}]}   ← faqat ko‘p savolli testda
+    pollVotes:{uid:[optId]}           — bitta savolli test
+    pollAnswers:{uid:[optId,...]}     — ko‘p savolli test: javoblar savollar tartibida bittadan qo‘shiladi
+   ========================================================= */
+const POLL_MAX_Q=20,POLL_MAX_OPT=10;
+const pollPicks=new Map(); // eski "bir nechta javob" testlarida yuborilgunga qadar vaqtinchalik tanlov
+P.chart=P.chart||'<path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-3"/>';
+P.repeat=P.repeat||'<path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>';
+P.trophy=P.trophy||'<path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3a3 3 0 0 1-3 4"/><path d="M7 5H4a3 3 0 0 0 3 4"/>';
+
+function pollNormQ(q,i){
+ const options=(Array.isArray(q?.options)?q.options:[]).map(o=>({id:String(o?.id??''),text:String(o?.text??'')})).filter(o=>o.id!=='');
+ const im=q?.image,image=im&&typeof im==='object'&&im.fid?{fid:String(im.fid),w:Number(im.w)||0,h:Number(im.h)||0}:null;
+ return{id:'q'+(i+1),question:String(q?.question??''),options,correct:String(q?.correct??''),explanation:String(q?.explanation??''),image}
+}
+/* Barcha modellar bitta ko‘rinishga keltiriladi (1-model: eski work.html, 2-model: shu fayl). */
 function pollView(m){
- if(m?.poll&&Array.isArray(m.poll.options)){const p=m.poll;
-  return{v:2,question:p.question||m.body||'Test',options:p.options.map(o=>({id:String(o?.id??''),text:String(o?.text??'')})),correct:String(p.correct??''),multi:!!p.multi,closed:!!p.closed,explanation:p.explanation||'',votes:m.pollVotes||{}}}
+ if(m?.poll&&Array.isArray(m.poll.options)){
+  const p=m.poll,closeAt=Number(p.closeAt)||0,expired=!!(closeAt&&srvNow()>=closeAt);
+  const qs=Array.isArray(p.questions)&&p.questions.length>=2?p.questions.slice(0,POLL_MAX_Q).map(pollNormQ):null;
+  const b=pollNormQ(p,0),answers={};
+  if(qs)for(const[u,v]of Object.entries(m.pollAnswers||{}))if(Array.isArray(v))answers[u]=v.slice(0,qs.length).map(String);
+  return{v:2,question:b.question||m.body||'Test',options:b.options,correct:b.correct,explanation:b.explanation,image:qs?null:b.image,
+   multi:!qs&&!!p.multi,closed:!!p.closed||expired,manualClosed:!!p.closed,expired,closeAt,dur:Number(p.dur)||0,
+   anon:!!p.anon,shuffle:!!p.shuffle,questions:qs,title:qs?String(p.question||m.body||'Test'):'',votes:m.pollVotes||{},answers}
+ }
  const opts=Array.isArray(m?.options)?m.options:[],votes={};
  for(const[u,v]of Object.entries(m?.votes||{}))votes[u]=(Array.isArray(v)?v:[v]).map(String);
- return{v:1,question:m?.question||m?.body||'Test',options:opts.map((t,i)=>({id:String(i),text:typeof t==='string'?t:String(t?.text??'')})),correct:Number.isInteger(m?.correctIndex)?String(m.correctIndex):'',multi:!!m?.multi,closed:!!m?.closed,explanation:'',votes}
+ return{v:1,question:m?.question||m?.body||'Test',options:opts.map((t,i)=>({id:String(i),text:typeof t==='string'?t:String(t?.text??'')})),
+  correct:Number.isInteger(m?.correctIndex)?String(m.correctIndex):'',explanation:'',image:null,multi:!!m?.multi,closed:!!m?.closed,manualClosed:!!m?.closed,
+  expired:false,closeAt:0,dur:0,anon:false,shuffle:false,questions:null,title:'',votes,answers:{}}
 }
-function pollMine(pv){const r=pv.votes?.[me.id];return Array.isArray(r)?r.map(String):(r!=null&&r!==''?[String(r)]:[])}
-// Test: aynan 1 ta to‘g‘ri javob bor — faqat shu bitta variant tanlangan bo‘lsagina "to‘g‘ri" (hammasini belgilab aldab bo‘lmaydi).
+const pollVoteOf=(pv,uid)=>{const r=pv.votes?.[uid];return Array.isArray(r)?r.map(String):(r!=null&&r!==''?[String(r)]:[])};
+function pollMine(pv){return pollVoteOf(pv,me.id)}
+// Aynan 1 ta to‘g‘ri javob — faqat shu bitta variant tanlangan bo‘lsagina "to‘g‘ri" (hammasini belgilab aldab bo‘lmaydi).
 const pollIsCorrect=(pv,mine)=>mine.length===1&&mine[0]===pv.correct;
-function pollCounts(m){
- const pv=pollView(m),counts=Object.fromEntries(pv.options.map(o=>[o.id,0]));
+const pollAnsOf=(pv,uid)=>pv.answers?.[uid]||[];
+const pollMyAns=pv=>pollAnsOf(pv,me.id);
+const pollScore=(pv,ans)=>(pv.questions||[]).reduce((s,q,i)=>s+(ans[i]!=null&&ans[i]===q.correct?1:0),0);
+function pollParticipants(pv){return pv.questions?Object.keys(pv.answers).filter(u=>pv.answers[u].length):Object.keys(pv.votes).filter(u=>pollVoteOf(pv,u).length)}
+function pollResultOf(pv,uid){
+ if(pv.questions){const a=pollAnsOf(pv,uid);return{answered:a.length,total:pv.questions.length,score:pollScore(pv,a),done:a.length>=pv.questions.length}}
+ const v=pollVoteOf(pv,uid);return{answered:v.length?1:0,total:1,score:pollIsCorrect(pv,v)?1:0,done:v.length>0}
+}
+const pollCanManage=(m,c=active)=>!!(c&&m&&(m.senderId===me.id||(isAdmin(c)&&adminCan(c,'poll'))));
+// Natijani (boshqalarning javoblarini) faqat javob bergan, test yopilgan yoki muallif/ruxsatli admin ko‘radi.
+function pollCanSeeResults(m,pv=pollView(m)){return pv.closed||pollResultOf(pv,me.id).done||pollCanManage(m)}
+// Testni nusxalash (uzatish, qayta yuborish) to‘g‘ri javoblarni ochib beradi — shuning uchun faqat javobdan keyin.
+function pollCanCopy(m,pv=pollView(m)){return pollCanManage(m)||pv.closed||pollResultOf(pv,me.id).done}
+function pollCounts(m,pv=pollView(m)){
+ const counts=Object.fromEntries(pv.options.map(o=>[o.id,0]));
  for(const v of Object.values(pv.votes)){for(const id of new Set((Array.isArray(v)?v:[v]).map(String)))if(id in counts)counts[id]++}
  return{counts,total:Object.keys(pv.votes).length}
 }
+/* Variantlarni aralashtirish: har bir foydalanuvchi uchun o‘zgarmas (qayta chizilganda sakramaydi), lekin har kimda boshqacha. */
+function pollHash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function pollOrder(pv,mid,qi,opts){
+ if(!pv.shuffle||opts.length<2)return opts;
+ let x=pollHash(me.id+'|'+mid+'|'+qi)||1;
+ const rnd=()=>{x^=x<<13;x>>>=0;x^=x>>>17;x^=x<<5;x>>>=0;return x/4294967296};
+ const a=opts.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a
+}
+function pollLeftText(ms){
+ const s=Math.max(0,Math.ceil(ms/1000));
+ if(s>=86400){const d=Math.floor(s/86400),h=Math.floor(s%86400/3600);return`${d} kun${h?` ${h} soat`:''}`}
+ if(s>=3600){const h=Math.floor(s/3600),mm=Math.floor(s%3600/60);return`${h} soat${mm?` ${mm} daq`:''}`}
+ return`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`
+}
+const pollTimerHtml=(pv,mid)=>pv.closeAt&&!pv.closed?`<span class="poll-timer" data-poll-left="${pv.closeAt}" data-mid="${esc(mid)}" title="Test avtomatik yopilishiga qolgan vaqt">⏱ ${pollLeftText(pv.closeAt-srvNow())}</span>`:'';
+const pollGrade=pc=>pc>=90?'A’lo natija! 🔥':pc>=70?'Juda yaxshi! 👏':pc>=50?'Yaxshi 👍':'Yana mashq qiling 💪';
+const pollImgHtml=img=>img?.fid?`<button type="button" class="poll-img" data-poll-img="${esc(img.fid)}" title="Rasmni kattalashtirish"${img.w&&img.h?` style="aspect-ratio:${img.w}/${img.h}"`:''}><img ${fsrc(img.fid)} alt="Savol rasmi"></button>`:'';
+function pollImageView(fid){
+ if(!fid)return;
+ $('#vFwd').classList.add('hidden');$('#vDl').classList.add('hidden');
+ $('#vInfo').innerHTML='<b>Test rasmi</b>';
+ $('#vBody').innerHTML=`<img ${fsrc(fid)} alt="">`;hydrate($('#vBody'));$('#viewer').classList.remove('hidden')
+}
+
+/* Ismlar: guruhda hali yuklanmagan a’zolar "…" bo‘lib turadi, profil bir marta yuklanadi (o‘chirilgan akkaunt — cheksiz so‘rov yo‘q). */
 const __mkVoterFetch=new Set();
+function pollEnsureNames(ids,after){
+ const miss=live?[...new Set(ids)].filter(id=>id&&id!==me.id&&!U.has(id)&&!__mkVoterFetch.has(id)):[];
+ if(!miss.length)return;
+ miss.forEach(id=>__mkVoterFetch.add(id));
+ Promise.resolve(ensureUsers(miss)).then(after).catch(()=>{})
+}
+const pollUserName=uid=>uid===me.id||U.has(uid)?uname(user(uid)||me):(__mkVoterFetch.has(uid)&&!userFetchPending.has(uid)?'O‘chirilgan akkaunt':'…');
 function pollVoterNames(m,optId){
  const pv=pollView(m);
  const ids=Object.entries(pv.votes).filter(([,v])=>(Array.isArray(v)?v:[v]).map(String).includes(String(optId))).map(([uid])=>uid);
- // Guruhda hali yuklanmagan a’zolar "O‘chirilgan akkaunt" bo‘lib ko‘rinmasin — profilini bir marta yuklab, qayta chizamiz.
- const miss=live?ids.filter(id=>id!==me.id&&!U.has(id)&&!__mkVoterFetch.has(id)):[];
- if(miss.length){miss.forEach(id=>__mkVoterFetch.add(id));ensureUsers(miss).then(()=>{lastSig='';renderMessages();if(infoOpen&&infoTab==='polls')renderInfoTab()}).catch(()=>{})}
- return ids.map(uid=>uid===me.id||U.has(uid)?uname(user(uid)):(__mkVoterFetch.has(uid)&&!userFetchPending.has(uid)?'O‘chirilgan akkaunt':'…'))
+ pollEnsureNames(ids,()=>{lastSig='';renderMessages();if(infoOpen&&infoTab==='polls')renderInfoTab()});
+ return ids.map(pollUserName)
 }
+
+/* ---------- Chatdagi ko‘rinish ---------- */
+function pollFootHtml(m,pv,status){
+ const res=pollCanSeeResults(m,pv)?`<button type="button" class="poll-link" data-poll-results="${esc(m.id)}">Natijalar</button>`:'';
+ return`<div class="poll-foot"><span>${status}</span><span>${pollTimerHtml(pv,m.id)}<span class="poll-tag">${pv.anon?'Anonim test':'Test'}</span>${res}</span></div>`
+}
+const pollClosedWord=pv=>pv.expired&&!pv.manualClosed?'vaqt tugadi':'yopilgan';
 function pollHtml(m){
- const pv=pollView(m),opts=pv.options,{counts,total}=pollCounts(m);
- const mine=pollMine(pv),voted=mine.length>0,reveal=voted||pv.closed; // yopilgan testda natija hammaga ko‘rinadi
- const picked=pollPicks.get(m.id)||new Set();
- const rows=opts.map(o=>{
+ const pv=pollView(m);if(pv.questions)return pollMultiHtml(m,pv);
+ const{counts,total}=pollCounts(m,pv),mine=pollMine(pv),voted=mine.length>0,reveal=voted||pv.closed; // yopilgan testda natija hammaga ko‘rinadi
+ const picked=pollPicks.get(m.id)||new Set(),mid=esc(m.id);
+ const rows=pollOrder(pv,m.id,0,pv.options).map(o=>{
   const n=counts[o.id]||0,pc=reveal&&total?Math.round(n/total*100):0;
   const isMine=voted&&mine.includes(o.id),isCorrect=o.id===pv.correct;
   const stCls=reveal?(isCorrect?' correct':(isMine?' wrong':'')):(picked.has(o.id)?' mine':'');
-  const names=reveal?pollVoterNames(m,o.id):[];
-  return`<button type="button" class="poll-opt${stCls}" data-poll-opt="${esc(o.id)}" data-mid="${esc(m.id)}" ${reveal?'disabled':''}><i style="width:${reveal?pc:0}%"></i><span><b>${reveal?(isCorrect?'✅ ':(isMine?'❌ ':'')):''}${esc(o.text)}</b>${reveal?`<em>${n} · ${pc}%</em>`:''}</span></button>${reveal&&names.length?`<div class="poll-voters">${esc(names.join(', '))}</div>`:''}`
+  const names=reveal&&!pv.anon?pollVoterNames(m,o.id):[];
+  return`<button type="button" class="poll-opt${stCls}" data-poll-opt="${esc(o.id)}" data-mid="${mid}" ${reveal?'disabled':''}><i style="width:${reveal?pc+'%':'0'}"></i><span><b>${reveal?(isCorrect?'✅ ':(isMine?'❌ ':'')):''}${esc(o.text)}</b>${reveal?`<em>${n} · ${pc}%</em>`:''}</span></button>${names.length?`<div class="poll-voters">${esc(names.join(', '))}</div>`:''}`
  }).join('');
- const sendBtn=(!reveal&&pv.multi)?`<button type="button" class="btn flat sm" style="margin-top:2px" data-poll-send="${esc(m.id)}">Javobni yuborish</button>`:'';
+ const sendBtn=(!reveal&&pv.multi)?`<button type="button" class="btn flat sm" style="margin-top:2px" data-poll-send="${mid}">Javobni yuborish</button>`:'';
  const ok=pollIsCorrect(pv,mine);
  const note=voted?`<div class="poll-correct-note ${ok?'ok':'bad'}">${ok?'✅ To‘g‘ri javob!':'❌ Noto‘g‘ri javob — to‘g‘risi yashil bilan belgilangan'}</div>`
-  :(pv.closed?`<div class="poll-correct-note" style="color:var(--muted)">Test yopilgan — siz javob bermagansiz. To‘g‘ri javob yashil bilan belgilangan</div>`:'');
- const expl=reveal&&pv.explanation?`<small class="muted">${esc(pv.explanation)}</small>`:'';
- return`<div class="poll-box"><div class="poll-q">${esc(pv.question)}</div>
- ${rows}${sendBtn}
- <div class="poll-foot"><span>${reveal?`${total} ta ovoz berdi${pv.closed?' · yopilgan':''}`:(pv.multi?'Bir nechtasini tanlang':'Birini tanlang')}</span><span>Test</span></div>
- ${note}${expl}</div>`
+  :(pv.closed?`<div class="poll-correct-note dim">${pv.expired&&!pv.manualClosed?'⏱ Vaqt tugadi':'Test yopilgan'} — siz javob bermagansiz. To‘g‘ri javob yashil bilan belgilangan</div>`:'');
+ const expl=reveal&&pv.explanation?`<small class="poll-expl">💡 ${esc(pv.explanation)}</small>`:'';
+ const status=reveal?`${total} ta ovoz berdi${pv.closed?' · '+pollClosedWord(pv):''}`:(pv.multi?'Bir nechtasini tanlang':'Birini tanlang');
+ return`<div class="poll-box" data-pbox="${mid}">${pollImgHtml(pv.image)}<div class="poll-q">${esc(pv.question)}</div>
+ ${rows}${sendBtn}${note}${expl}${pollFootHtml(m,pv,status)}</div>`
 }
+function pollMultiHtml(m,pv){
+ const N=pv.questions.length,my=pollResultOf(pv,me.id),parts=pollParticipants(pv).length,mid=esc(m.id);
+ let body;
+ if(my.done){const pc=Math.round(my.score/N*100);
+  body=`<div class="pq-score ${pc>=70?'ok':pc>=40?'mid':'bad'}"><div class="pq-ring" style="--p:${pc}"><b>${my.score}/${N}</b></div><div><b>${pollGrade(pc)}</b><small>${N} ta savoldan ${my.score} tasi to‘g‘ri</small></div></div>
+  <button type="button" class="btn flat sm poll-act" data-poll-start="${mid}">Javoblarni ko‘rish</button>`}
+ else if(pv.closed)body=`<div class="pq-state">${my.answered?`Test ${pollClosedWord(pv)} — siz ${my.answered}/${N} savolga javob berdingiz, ${my.score} tasi to‘g‘ri`:`Test ${pollClosedWord(pv)} — siz qatnashmadingiz`}</div>
+  <button type="button" class="btn flat sm poll-act" data-poll-start="${mid}">To‘g‘ri javoblarni ko‘rish</button>`;
+ else if(my.answered)body=`<div class="pq-prog"><i style="width:${Math.round(my.answered/N*100)}%"></i></div><button type="button" class="btn poll-start" data-poll-start="${mid}">Davom ettirish · ${my.answered}/${N}</button>`;
+ else body=`<button type="button" class="btn poll-start" data-poll-start="${mid}">▶ Testni boshlash</button>`;
+ const tags=[`${N} ta savol`,pv.anon&&'anonim',pv.shuffle&&'aralash tartib'].filter(Boolean).join(' · ');
+ const status=`${parts} kishi qatnashdi${pv.closed?' · '+pollClosedWord(pv):''}`;
+ return`<div class="poll-box pq-multi" data-pbox="${mid}"><div class="pq-head"><span class="pq-ico">📝</span><div class="grow"><div class="poll-q">${esc(pv.title)}</div><small>${tags}</small></div></div>
+ ${body}${pollFootHtml(m,pv,status)}</div>`
+}
+
+/* ---------- To‘g‘ri / xato animatsiyasi ---------- */
+function pollConfetti(r){
+ try{
+  const cv=document.createElement('canvas'),dpr=Math.min(2,devicePixelRatio||1),W=innerWidth,H=innerHeight;
+  cv.className='poll-confetti';cv.width=W*dpr;cv.height=H*dpr;document.body.append(cv);
+  const cx=cv.getContext('2d');cx.scale(dpr,dpr);
+  const cols=['#22c55e','#3b82ff','#f59e0b','#ec4899','#a855f7','#facc15'],ox=r.left+r.width/2,oy=r.top+r.height/2;
+  const ps=Array.from({length:90},()=>({x:ox,y:oy,vx:(Math.random()-.5)*10,vy:-Math.random()*9-3,s:Math.random()*6+4,a:Math.random()*6,va:(Math.random()-.5)*.35,c:cols[Math.random()*cols.length|0]}));
+  const t0=performance.now();
+  const step=t=>{const dt=t-t0;cx.clearRect(0,0,W,H);cx.globalAlpha=Math.max(0,1-dt/1600);
+   for(const p of ps){p.vy+=.3;p.vx*=.99;p.x+=p.vx;p.y+=p.vy;p.a+=p.va;cx.save();cx.translate(p.x,p.y);cx.rotate(p.a);cx.fillStyle=p.c;cx.fillRect(-p.s/2,-p.s/3,p.s,p.s*.6);cx.restore()}
+   if(dt<1600)requestAnimationFrame(step);else cv.remove()};
+  requestAnimationFrame(step);setTimeout(()=>cv.remove(),2500)
+ }catch{}
+}
+function pollFx(el,ok){
+ if(!el)return;
+ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ if(!ok){if(!reduce)el.animate?.([{transform:'translateX(0)'},{transform:'translateX(-8px)'},{transform:'translateX(7px)'},{transform:'translateX(-5px)'},{transform:'translateX(3px)'},{transform:'translateX(0)'}],{duration:420,easing:'ease-out'});try{navigator.vibrate?.(60)}catch{}return}
+ if(reduce)return;
+ el.animate?.([{transform:'scale(1)'},{transform:'scale(1.04)'},{transform:'scale(1)'}],{duration:360,easing:'ease-out'});
+ pollConfetti(el.getBoundingClientRect())
+}
+
+/* ---------- Javob berish ---------- */
 async function submitPollVote(mid,optIds){
  const c=active;if(!c)return;
  pollPicks.delete(mid);
  if(!live){lastSig='';renderMessages();return toast(errText({code:'not-ready'}))}
+ let res='',ids=[];
  try{
-  const ref=msgRef(c.id,mid);let res='';
+  const ref=msgRef(c.id,mid);
   await runTransaction(db,async tx=>{
-   res='';
+   res='';ids=[];
    const sn=await tx.get(ref);if(!sn.exists){res='gone';return}
-   const d=sn.data(),pv=pollView(d);
-   if(pollMine(pv).length){res='locked';return} // allaqachon ovoz bergan — qulflangan, o‘zgartirib bo‘lmaydi
-   if(pv.closed){res='closed';return}
-   const valid=new Set(pv.options.map(o=>o.id)),ids=[...new Set((optIds||[]).map(String))].filter(id=>valid.has(id));
+   const pv=pollView(sn.data());
+   if(pv.questions){res='bad';return}
+   if(pollMine(pv).length){res='locked';return} // allaqachon javob bergan — qulflangan, o‘zgartirib bo‘lmaydi
+   if(pv.closed){res='closed';return}            // yopilgan yoki vaqti tugagan
+   const valid=new Set(pv.options.map(o=>o.id));ids=[...new Set((optIds||[]).map(String))].filter(id=>valid.has(id));
    if(!ids.length||(!pv.multi&&ids.length!==1)){res='bad';return}
    if(pv.v===2)tx.update(ref,{[`pollVotes.${me.id}`]:ids});
    else tx.update(ref,{[`votes.${me.id}`]:ids.map(Number)}); // eski model: indekslar raqam ko‘rinishida
+   res='ok'
   });
-  if(res==='closed')toast('Test yopilgan — endi javob berib bo‘lmaydi');
-  else if(res==='gone')toast('Bu test o‘chirilgan');
-  lastSig='';renderMessages()
- }catch(e){lastSig='';renderMessages();fail(e)}
+ }catch(e){lastSig='';renderMessages();
+  const pv=findMsg(mid)&&pollView(findMsg(mid));
+  if(isPermErr(e)&&pv&&(pv.closed||(pv.closeAt&&pv.closeAt-srvNow()<15000)))return toast('⏱ Vaqt tugadi — javob qabul qilinmadi');
+  return fail(e)}
+ const m=findMsg(mid);
+ // Server tasdiqladi — natija darhol ko‘rinsin (snapshot kelishini kutmasdan).
+ if(res==='ok'&&m){if(m.poll)m.pollVotes={...(m.pollVotes||{}),[me.id]:ids};else m.votes={...(m.votes||{}),[me.id]:ids.map(Number)}}
+ if(res==='closed')toast('Test yopilgan — endi javob berib bo‘lmaydi');
+ else if(res==='gone')toast('Bu test o‘chirilgan');
+ lastSig='';renderMessages();if(infoOpen&&infoTab==='polls')renderInfoTab();
+ if(res==='ok'&&m){const pv=pollView(m);if(!pv.multi){const q=`[data-poll-opt="${cssq(ids[0])}"][data-mid="${cssq(mid)}"]`;pollFx(document.querySelector('#msgsIn '+q)||document.querySelector(q),pollIsCorrect(pv,ids))}}
 }
 async function votePoll(mid,opt){
  const c=active,m=findMsg(mid);if(!c||!m||m.type!=='poll')return;
- const pv=pollView(m);if(pv.closed||pollMine(pv).length)return; // yopilgan yoki qulflangan
+ const pv=pollView(m);if(pv.questions)return pollRunner(mid);
+ if(pv.closed||pollMine(pv).length)return; // yopilgan yoki qulflangan
  if(pv.multi){
   const set=pollPicks.get(mid)||new Set();
   set.has(opt)?set.delete(opt):set.add(opt);
@@ -3539,35 +3773,394 @@ async function votePoll(mid,opt){
  }
  await submitPollVote(mid,[opt])
 }
-function pollModal(){
- if(!active||!canPost(active))return toast(‘Avval chatni oching’);
- const cid=active.id,topic=active.type===’supergroup’?activeTopic:’’;
- const initialRows=[0,1,2].map(i=>`<div class="po-row"><input type="radio" name="pcor" value="${i}" ${i===0?’checked’:’’}><input class="field po" placeholder="${i+1}-variant" maxlength="100"></div>`).join(‘’);
- modal(`<h3>📊 Test</h3><label class="lb">Savol</label><input class="field" id="pq" maxlength="180" placeholder="Savol yozing"><div id="popts">${initialRows}</div><button class="btn flat sm" id="poadd">+ Variant</button>
- <label class="lb">Izoh (ixtiyoriy)</label><input class="field" id="pexplain" maxlength="180" placeholder="Nega shu javob to’g’ri?">
- <div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="psendpoll">Yuborish</button></div>`);
- $(‘#poadd’).onclick=()=>{const rows=$$(‘#popts .po-row’);const n=rows.length;if(n>=10)return toast(‘Maksimum 10 ta variant’);const row=document.createElement(‘div’);row.className=’po-row’;const radio=document.createElement(‘input’);radio.type=’radio’;radio.name=’pcor’;radio.value=String(n);const input=document.createElement(‘input’);input.className=’field po’;input.maxLength=100;input.placeholder=(n+1)+’-variant’;row.append(radio,input);$(‘#popts’).append(row);input.focus()};
- $(‘#psendpoll’).onclick=async e=>{
-  const btn=e.currentTarget;if(btn.disabled)return;
-  const q=$(‘#pq’).value.trim(),raw=$$(‘#popts .po’).map(x=>x.value.trim()),vals=raw.filter(Boolean);
-  if(!q)return toast(‘Savol yozing’);if(vals.length<2)return toast(‘Kamida 2 ta variant kerak’);
-  const low=vals.map(v=>v.toLowerCase());if(new Set(low).size!==low.length)return toast(‘Variantlar bir-biridan farq qilsin’);
-  const selectedRadio=document.querySelector(‘input[name="pcor"]:checked’);
-  if(!selectedRadio)return toast(‘To’g’ri javobni belgilang’);
-  const correctRawIdx=Number(selectedRadio.value);
-  if(!raw[correctRawIdx])return toast(‘Belgilangan variant bo’sh. To’g’ri javob sifatida matni bor variantni tanlang’);
-  const options=[];let correct=’’;
-  raw.forEach((t,i)=>{if(!t)return;const id=’o’+(options.length+1);options.push({id,text:t});if(i===correctRawIdx)correct=id});
-  const poll={question:q,options,multi:false,correct,explanation:$(‘#pexplain’).value.trim(),closed:false};
-  btn.disabled=true;closeModal();
-  await pushMsg(cid,{type:’poll’,body:q,poll,pollVotes:{},...(topic?{topicId:topic}:{})}).catch(()=>{})
+/* Ko‘p savolli test: har bir javob darhol serverga yoziladi va qulflanadi (sahifani yangilab qayta yechib bo‘lmaydi). */
+async function submitPollAnswer(mid,qi,optId){
+ const c=active;if(!c)return'err';
+ if(!live){toast(errText({code:'not-ready'}));return'err'}
+ const ref=msgRef(c.id,mid);let res='',next=null;
+ try{
+  await runTransaction(db,async tx=>{
+   res='';next=null;
+   const sn=await tx.get(ref);if(!sn.exists){res='gone';return}
+   const pv=pollView(sn.data());if(!pv.questions){res='bad';return}
+   const cur=pollAnsOf(pv,me.id);
+   if(cur.length!==qi){res='sync';next=cur;return} // boshqa qurilmada allaqachon javob berilgan
+   if(pv.closed){res='closed';return}
+   const q=pv.questions[qi];if(!q||!q.options.some(o=>o.id===optId)){res='bad';return}
+   next=[...cur,String(optId)];
+   tx.update(ref,{[`pollAnswers.${me.id}`]:next});
+   res='ok'
+  });
+ }catch(e){
+  if(isPermErr(e)){const pv=findMsg(mid)&&pollView(findMsg(mid));
+   if(pv&&(pv.closed||(pv.closeAt&&pv.closeAt-srvNow()<15000)))toast('⏱ Vaqt tugadi — javob qabul qilinmadi');
+   else toast('Javob saqlanmadi: Firebase’dagi Firestore qoidalarini yangilang (O‘QING.txt ga qarang)',7000)}
+  else fail(e);
+  return'err'
  }
+ const m=findMsg(mid);
+ if((res==='ok'||res==='sync')&&m&&next)m.pollAnswers={...(m.pollAnswers||{}),[me.id]:next};
+ if(res==='closed')toast('Test yopilgan — endi javob berib bo‘lmaydi');
+ else if(res==='gone')toast('Bu test o‘chirilgan');
+ else if(res==='bad')toast('Javobni saqlab bo‘lmadi');
+ lastSig='';renderMessages();if(infoOpen&&infoTab==='polls')renderInfoTab();
+ return res
 }
-const canClosePoll=(m,c=active)=>!!(m?.type==='poll'&&m.poll&&!m.poll.closed&&c&&(m.senderId===me.id||(isAdmin(c)&&adminCan(c,'poll'))));
+
+/* ---------- Ko‘p savolli testni yechish oynasi ---------- */
+let __pollRun=null;
+function pollRunner(mid,view){
+ const m=findMsg(mid);if(!m||m.type!=='poll'||!active)return;
+ const pv=pollView(m);if(!pv.questions)return;
+ const my=pollResultOf(pv,me.id);
+ __pollRun={mid,cid:active.id,qi:Math.min(my.answered,pv.questions.length),busy:false,fx:null,view:view||(my.done?'final':(pv.closed?(my.answered?'final':'review'):'q'))};
+ pollRunDraw()
+}
+function pollRunDraw(){
+ const r=__pollRun;if(!r)return;
+ const m=findMsg(r.mid);
+ if(!m||active?.id!==r.cid){__pollRun=null;if($('#modalCard .pq-run'))closeModal();return}
+ const pv=pollView(m),N=pv.questions.length,ans=pollMyAns(pv),mid=esc(m.id);
+ if(r.view==='q'){
+  if(r.qi>=N)r.view='final';
+  else if(pv.closed&&ans[r.qi]==null)r.view=ans.length?'final':'review';
+ }
+ if(r.view==='review'&&!(ans.length>=N||pv.closed))r.view='q'; // tugatmasdan javoblarni ko‘rib bo‘lmaydi
+ const resBtn=pollCanSeeResults(m,pv)?`<button type="button" class="btn flat" data-poll-results="${mid}">📊 Natijalar</button>`:'';
+ let body='';
+ if(r.view==='q'){
+  const k=r.qi,q=pv.questions[k],picked=ans[k],rev=picked!=null;
+  const opts=pollOrder(pv,m.id,k,q.options).map(o=>{
+   const mark=rev?(o.id===q.correct?'✅ ':(o.id===picked?'❌ ':'')):'';
+   const cls=rev?(o.id===q.correct?' correct':(o.id===picked?' wrong':'')):'';
+   return`<button type="button" class="poll-opt${cls}" data-run-opt="${esc(o.id)}" ${rev||r.busy?'disabled':''}><span><b>${mark}${esc(o.text)}</b></span></button>`}).join('');
+  const ok=rev&&picked===q.correct;
+  const after=rev?`<div class="poll-correct-note ${ok?'ok':'bad'}">${ok?'✅ To‘g‘ri!':'❌ Noto‘g‘ri — to‘g‘ri javob yashil bilan belgilangan'}</div>${q.explanation?`<small class="poll-expl">💡 ${esc(q.explanation)}</small>`:''}
+   <div class="mact"><button type="button" class="btn" data-run-next>${k+1<N?'Keyingi savol →':'Natijani ko‘rish'}</button></div>`
+   :`<p class="pq-hint">Javobni tanlang — keyin uni o‘zgartirib bo‘lmaydi</p>`;
+  body=`<div class="pq-count-row"><span class="pq-count">Savol ${k+1} / ${N}</span><span class="pq-count">✅ ${pollScore(pv,ans)} to‘g‘ri</span></div>
+  <div class="pq-bar"><i style="width:${Math.round((k+(rev?1:0))/N*100)}%"></i></div>${pollImgHtml(q.image)}<div class="poll-q">${esc(q.question)}</div><div class="pq-opts">${opts}</div>${after}`
+ }else if(r.view==='final'){
+  const sc=pollScore(pv,ans),pc=Math.round(sc/N*100),done=ans.length>=N;
+  const dots=pv.questions.map((q,i)=>`<i class="${ans[i]==null?'no':(ans[i]===q.correct?'ok':'')}" title="${i+1}-savol">${i+1}</i>`).join('');
+  body=`<div class="pq-final ${pc>=70?'ok':pc>=40?'mid':'bad'}"><div class="pq-ring" style="--p:${pc}"><b>${sc}/${N}</b></div><h4>${done?pollGrade(pc):'Test '+pollClosedWord(pv)}</h4>
+  <p class="muted">${done?`${N} ta savoldan ${sc} tasiga to‘g‘ri javob berdingiz (${pc}%)`:`Siz ${ans.length}/${N} savolga javob berdingiz, ${sc} tasi to‘g‘ri`}</p><div class="pq-dots">${dots}</div></div>
+  <div class="mact pq-acts"><button type="button" class="btn flat" data-run-review>Javoblarni ko‘rish</button>${resBtn}<button type="button" class="btn" data-close>Yopish</button></div>`
+ }else{
+  const list=pv.questions.map((q,i)=>{const p=ans[i];
+   const opts=q.options.map(o=>{const cls=o.id===q.correct?' correct':(o.id===p?' wrong':'');return`<div class="poll-opt${cls}"><span><b>${o.id===q.correct?'✅ ':(o.id===p?'❌ ':'')}${esc(o.text)}</b></span></div>`}).join('');
+   return`<div class="pq-rev"><div class="pq-count">${i+1}-savol${p==null?' · javob berilmagan':''}</div>${pollImgHtml(q.image)}<div class="poll-q">${esc(q.question)}</div>${opts}${q.explanation?`<small class="poll-expl">💡 ${esc(q.explanation)}</small>`:''}</div>`}).join('');
+  body=`<p class="muted" style="margin:0 0 4px">${ans.length?`Sizning natijangiz: ${pollScore(pv,ans)}/${N}`:'Siz bu testda qatnashmadingiz — to‘g‘ri javoblar yashil bilan belgilangan'}</p>${list}
+  <div class="mact">${resBtn}<button type="button" class="btn" data-close>Yopish</button></div>`
+ }
+ const head=`<div class="pq-top"><b>${esc(pv.title)}</b>${pollTimerHtml(pv,m.id)}<button type="button" class="btn-i" data-close title="Yopish">${ic('x')}</button></div>`;
+ modal(`<div class="pq-run" data-run="${mid}">${head}${body}</div>`);
+ $('#modalCard').onclick=pollRunClick;
+ if(r.fx){const{opt,ok}=r.fx;r.fx=null;const el=$(`#modalCard [data-run-opt="${cssq(opt)}"]`);requestAnimationFrame(()=>pollFx(el,ok))}
+}
+async function pollRunClick(e){
+ const r=__pollRun;if(!r)return;
+ const pr=e.target.closest('[data-poll-results]');if(pr){pollResultsModal(pr.dataset.pollResults);return}
+ const im=e.target.closest('[data-poll-img]');if(im){pollImageView(im.dataset.pollImg);return}
+ // "Keyingi savol"ni ikki marta tez bosish yangi savolga tasodifiy javob bo‘lib qolmasin
+ if(e.target.closest('[data-run-next]')){r.qi++;r.view='q';pollRunDraw();r.readyAt=performance.now()+350;return}
+ if(e.target.closest('[data-run-review]')){r.view='review';pollRunDraw();return}
+ const b=e.target.closest('[data-run-opt]');if(!b||b.disabled||r.busy||r.view!=='q'||performance.now()<(r.readyAt||0))return;
+ const m=findMsg(r.mid);if(!m)return;
+ const k=r.qi,opt=b.dataset.runOpt;if(pollMyAns(pollView(m))[k]!=null)return;
+ r.busy=true;$$('#modalCard [data-run-opt]').forEach(x=>x.disabled=true);b.classList.add('mine');
+ const res=await submitPollAnswer(r.mid,k,opt);
+ r.busy=false;
+ if(__pollRun!==r||!$('#modalCard .pq-run'))return; // oyna yopilgan
+ const m2=findMsg(r.mid),pv2=m2&&pollView(m2),mine=pv2?pollMyAns(pv2):[];
+ if(res==='ok'&&mine[k]!=null)r.fx={opt,ok:mine[k]===pv2.questions[k].correct};
+ if(mine.length<k)r.qi=mine.length;
+ pollRunDraw();
+ requestAnimationFrame(()=>$('#modalCard [data-run-next]')?.scrollIntoView({block:'nearest',behavior:'smooth'}))
+}
+
+/* ---------- Natijalar ---------- */
+function pollPersonRow(uid,m,sub,right,i){
+ const rank=i==null?'':`<span class="pr-rank">${i<3?['🥇','🥈','🥉'][i]:i+1}</span>`;
+ const u=uid===me.id?(user(uid)||me):U.get(uid);
+ const av=u?userAv(u,'xs'):avatar({id:uid,name:'?'},'xs');
+ return`<div class="pr-row${uid===me.id?' me':''}">${rank}${av}<div class="grow"><b>${esc(pollUserName(uid))}${uid===me.id?' (siz)':''}${m&&uid===m.senderId?' · muallif':''}</b><small>${sub}</small></div>${right?`<span class="pr-pts">${esc(right)}</span>`:''}</div>`
+}
+function pollResultsModal(mid){
+ const m=findMsg(mid);if(!m||m.type!=='poll'||!active)return;
+ const c=active,pv=pollView(m);
+ if(!pollCanSeeResults(m,pv))return toast(pv.questions?'Natijalarni ko‘rish uchun testni oxirigacha yeching':'Natijani ko‘rish uchun avval javob bering');
+ const parts=pollParticipants(pv),isMulti=!!pv.questions,N=isMulti?pv.questions.length:1;
+ if(!pv.anon)pollEnsureNames(parts,()=>{if($(`#modalCard [data-pr="${cssq(mid)}"]`))pollResultsModal(mid)});
+ const rs=parts.map(uid=>({uid,...pollResultOf(pv,uid)}));
+ const members=isGroup(c)?(c.members||[]).length:0;
+ const sub=[pv.anon?'Anonim test':'Test',isMulti&&`${N} ta savol`,pv.closed?pollClosedWord(pv):'ochiq',members&&`${parts.length}/${members} a’zo qatnashdi`].filter(Boolean).join(' · ');
+ const byName=(a,b)=>pollUserName(a.uid).localeCompare(pollUserName(b.uid));
+ let tiles,secs='';
+ if(!isMulti){
+  const okN=rs.filter(x=>x.score).length,acc=rs.length?Math.round(okN/rs.length*100):0;
+  tiles=[[rs.length,'qatnashdi'],[okN,'to‘g‘ri','ok'],[rs.length-okN,'xato','bad'],[acc+'%','aniqlik']];
+  const{counts,total}=pollCounts(m,pv);
+  secs+=`<div class="pr-sec">Variantlar</div>`+pv.options.map(o=>{const n=counts[o.id]||0,pc=total?Math.round(n/total*100):0,ok=o.id===pv.correct;
+   return`<div class="pr-bar${ok?' ok':''}"><div class="t"><b>${ok?'✅ ':''}${esc(o.text)}</b><span>${n} · ${pc}%</span></div><div class="b"><i style="width:${pc}%"></i></div></div>`}).join('');
+  if(!pv.anon&&rs.length){const txt=id=>pv.options.find(o=>o.id===id)?.text||'—';
+   secs+=`<div class="pr-sec">Qatnashchilar</div><div class="pr-list">${rs.slice().sort((a,b)=>b.score-a.score||byName(a,b)).map(x=>pollPersonRow(x.uid,m,`${x.score?'✅':'❌'} ${esc(pollVoteOf(pv,x.uid).map(txt).join(', '))}`,'')).join('')}</div>`}
+ }else{
+  const fin=rs.filter(x=>x.done).length,avg=rs.length?rs.reduce((s,x)=>s+x.score,0)/rs.length:0,best=rs.reduce((s,x)=>Math.max(s,x.score),0);
+  tiles=[[rs.length,'qatnashdi'],[fin,'tugatdi'],[`${Math.round(avg*10)/10}/${N}`,'o‘rtacha'],[`${best}/${N}`,'eng yuqori','ok']];
+  if(!pv.anon&&rs.length)secs+=`<div class="pr-sec">Reyting</div><div class="pr-list">${rs.slice().sort((a,b)=>b.score-a.score||b.answered-a.answered||byName(a,b)).map((x,i)=>pollPersonRow(x.uid,m,x.done?`${Math.round(x.score/N*100)}% to‘g‘ri`:`${x.answered}/${N} savolga javob berdi`,`${x.score}/${N}`,i)).join('')}</div>`;
+  const qs=pv.questions.map((q,i)=>{let a=0,ok=0;for(const u of parts){const v=pollAnsOf(pv,u)[i];if(v!=null){a++;if(v===q.correct)ok++}}return{i,a,ok,pc:a?Math.round(ok/a*100):0}});
+  const answered=qs.filter(s=>s.a),hard=answered.slice().sort((x,y)=>x.pc-y.pc)[0];
+  secs+=`<div class="pr-sec">Savollar bo‘yicha</div>${hard&&answered.length>1&&pollCanManage(m)?`<p class="pr-hint">Eng qiyin savol: <b>${hard.i+1}-savol</b> — ${hard.pc}% to‘g‘ri topdi</p>`:''}`
+   +qs.map(s=>{const q=pv.questions[s.i],co=q.options.find(o=>o.id===q.correct)?.text||'';
+    return`<div class="pr-bar ok"><div class="t"><b>${s.i+1}. ${esc(q.question)}</b><span>${s.a?s.pc+'%':'—'}</span></div><div class="b"><i style="width:${s.pc}%"></i></div><small class="muted">✅ ${esc(co)}${s.a?` · ${s.ok}/${s.a} to‘g‘ri`:''}</small></div>`}).join('')
+ }
+ if(pv.anon)secs+=`<p class="pr-hint">🔒 Anonim test — kim nimani belgilagani ko‘rsatilmaydi.</p>`;
+ if(!rs.length)secs+=`<div class="empty-list" style="padding:18px">Hali hech kim qatnashmadi</div>`;
+ modal(`<div class="pr-wrap" data-pr="${esc(mid)}"><h3>📊 Natijalar</h3><div class="pr-title">${esc(isMulti?pv.title:pv.question)}</div><div class="pr-sub">${esc(sub)}</div>
+ <div class="pr-tiles">${tiles.map(([v,l,cls])=>`<div class="${cls||''}"><b>${esc(String(v))}</b><small>${l}</small></div>`).join('')}</div>${secs}
+ <div class="mact"><button type="button" class="btn flat" data-poll-board>🏆 Chat reytingi</button><button type="button" class="btn" data-close>Yopish</button></div></div>`);
+ $('#modalCard').onclick=e=>{if(e.target.closest('[data-poll-board]'))pollBoardModal()}
+}
+
+/* ---------- Chat bo‘yicha reyting ---------- */
+const __pollBoardCache=new Map();
+async function pollBoardModal(){
+ const c=active;if(!c)return;const cid=c.id;
+ const open=()=>!!$(`#modalCard [data-board="${cssq(cid)}"]`)&&active?.id===cid;
+ const render=(msgs,loading)=>{
+  const tally=new Map();let counted=0;
+  for(const m of msgs){
+   if(!m||m.type!=='poll'||!vis(m,cid)||!msgVisibleToMe(m)||proIsExpired(m))continue;
+   const pv=pollView(m);if(pv.anon)continue;counted++;
+   for(const uid of pollParticipants(pv)){if(uid===m.senderId)continue; // muallif o‘z testida ball olmaydi
+    const r=pollResultOf(pv,uid),t=tally.get(uid)||{uid,pts:0,ans:0,tests:0};t.pts+=r.score;t.ans+=r.answered;t.tests++;tally.set(uid,t)}
+  }
+  const acc=x=>x.ans?x.pts/x.ans:0;
+  const rows=[...tally.values()].sort((a,b)=>b.pts-a.pts||acc(b)-acc(a)||pollUserName(a.uid).localeCompare(pollUserName(b.uid)));
+  pollEnsureNames(rows.map(x=>x.uid),()=>{if(open())render(msgs,false)});
+  const myIx=rows.findIndex(x=>x.uid===me.id);
+  const list=rows.slice(0,50).map((x,i)=>pollPersonRow(x.uid,null,`${x.tests} ta test · ${Math.round(acc(x)*100)}% aniqlik`,`${x.pts} ball`,i)).join('');
+  modal(`<div class="pr-wrap" data-board="${esc(cid)}"><h3>🏆 Test reytingi</h3><div class="pr-sub">${esc(c.title||'Chat')} · ${counted} ta test${loading?' · yangilanmoqda…':''}</div>
+  ${rows.length?`<div class="pr-list">${list}</div>${myIx>=50?`<p class="pr-hint">Sizning o‘rningiz: <b>${myIx+1}</b> — ${rows[myIx].pts} ball</p>`:''}`
+   :`<div class="empty-list" style="padding:18px">${loading?'Yuklanmoqda…':'Hali reyting yo‘q — testlarga javob berilgach shu yerda chiqadi'}</div>`}
+  <p class="pr-hint">Har bir to‘g‘ri javob — 1 ball. Anonim testlar va muallifning o‘z testiga bergan javobi hisobga olinmaydi.</p>
+  <div class="mact"><button type="button" class="btn" data-close>Yopish</button></div></div>`)
+ };
+ const merge=extra=>{const map=new Map();for(const m of extra||[])map.set(m.id,m);for(const m of M)if(m.type==='poll')map.set(m.id,m);return[...map.values()]};
+ const cached=__pollBoardCache.get(cid),fresh=cached&&Date.now()-cached.at<60000;
+ render(merge(cached?.list),live&&!fresh);
+ if(!live||fresh)return;
+ try{
+  // Faqat yuklangan xabarlar emas — chatdagi barcha testlar (eng ko‘pi 500 ta) olinadi.
+  const sn=await mkSafe(()=>collection(db,'chats',cid,'messages').where('type','==','poll').limit(500).get());
+  const list=[];sn.forEach(d=>list.push({id:d.id,...d.data()}));
+  __pollBoardCache.set(cid,{at:Date.now(),list});
+  if(open())render(merge(list),false)
+ }catch(e){console.warn('poll board',e);if(open())render(merge(cached?.list),false)}
+}
+
+/* ---------- Nusxa: uzatish va qayta yuborish (ovozlar noldan, vaqt chegarasi qaytadan) ---------- */
+function pollCopyData(m,extra={}){
+ const pv=pollView(m);
+ const mapQ=q=>{const options=q.options.slice(0,POLL_MAX_OPT).map((o,i)=>({id:'o'+(i+1),text:String(o.text).slice(0,100)})),ci=q.options.findIndex(o=>o.id===q.correct);
+  const r={question:String(q.question).slice(0,300),options,correct:ci>=0&&ci<POLL_MAX_OPT?'o'+(ci+1):'',explanation:String(q.explanation||'').slice(0,200)};
+  if(q.image?.fid)r.image={fid:q.image.fid,w:q.image.w||0,h:q.image.h||0};return r};
+ const qs=pv.questions?pv.questions.map(mapQ):null,f=qs?qs[0]:mapQ(pv);
+ if((qs||[f]).some(q=>!q.correct||q.options.length<2||!q.question))return null;
+ const poll={question:qs?String(pv.title).slice(0,300):f.question,options:f.options,multi:false,correct:f.correct,explanation:qs?'':f.explanation,closed:false};
+ if(!qs&&f.image)poll.image=f.image;
+ if(qs)poll.questions=qs;
+ if(pv.anon)poll.anon=true;
+ if(pv.shuffle)poll.shuffle=true;
+ if(pv.dur>0){poll.dur=pv.dur;poll.closeAt=Math.round(srvNow()+pv.dur*1000)}
+ return{type:'poll',body:poll.question,poll,pollVotes:{},...(qs?{pollAnswers:{}}:{}),...extra}
+}
+function pollResendModal(mid){
+ const m=findMsg(mid),src=active;if(!m||!src)return;
+ if(!pollCanCopy(m))return toast('Testni javob berganingizdan keyin yuborishingiz mumkin');
+ const tg=fwdTargets().filter(c=>c.id!==src.id),pv=pollView(m);
+ const row=c=>`<div class="row" data-to="${esc(c.id)}">${convAvatar(c,'s')}<div class="rmain"><b>${esc(c.title)}</b><div class="sub">${c.type==='direct'?'@'+esc(c.peer?.username||''):c.type==='saved'?'':typeName(c.type)}</div></div></div>`;
+ modal(`<h3>🔁 Testni qayta yuborish</h3><p class="mp muted">Yangi nusxa yuboriladi: savollar va to‘g‘ri javoblar saqlanadi, ovozlar noldan boshlanadi${pv.dur?', vaqt chegarasi qaytadan hisoblanadi':''}.</p>
+ ${canPost(src)?`<button type="button" class="btn block" data-to="${esc(src.id)}">Shu chatga yuborish</button>`:''}
+ <input class="field" id="fwq" placeholder="Boshqa chatni qidirish…" style="margin-top:10px"><div id="fwl" class="plist"></div><div class="mact"><button class="btn flat" data-close>Bekor</button></div>`);
+ const draw=()=>{const q=$('#fwq').value.toLowerCase();$('#fwl').innerHTML=tg.filter(c=>c.title.toLowerCase().includes(q)).map(row).join('')||'<div class="empty-list">Topilmadi</div>'};
+ $('#fwq').oninput=draw;draw();
+ $('#modalCard').onclick=e=>{const r=e.target.closest('[data-to]');if(!r)return;const cid=r.dataset.to,same=cid===src.id;
+  const data=pollCopyData(m,same&&src.type==='supergroup'?{topicId:activeTopic}:{});if(!data)return toast('Bu testni nusxalab bo‘lmaydi');
+  closeModal();pushMsg(cid,data).then(()=>{toast('Test yuborildi');if(!same)openChat(cid)},()=>{})}
+}
+
+/* ---------- Test yaratish oynasi ---------- */
+const __pollDrafts=new Map(); // chat → yozilayotgan test (oyna tasodifan yopilsa ham yo‘qolmaydi)
+const POLL_DURS=[[0,'Cheklovsiz'],[300,'5 daqiqa'],[900,'15 daqiqa'],[1800,'30 daqiqa'],[3600,'1 soat'],[10800,'3 soat'],[43200,'12 soat'],[86400,'1 kun'],[259200,'3 kun'],[604800,'1 hafta']];
+const pollBlankQ=()=>({q:'',opts:['','',''],correct:-1,expl:'',img:null});
+const pollQFilled=q=>!!(q.q.trim()||q.opts.some(o=>o.trim())||q.img||q.expl.trim());
+function pollStateFrom(m){
+ const pv=pollView(m);
+ const conv1=q=>{const opts=q.options.slice(0,POLL_MAX_OPT).map(o=>o.text);while(opts.length<2)opts.push('');
+  return{q:q.question,opts,correct:q.options.findIndex(o=>o.id===q.correct),expl:q.explanation||'',img:q.image?{...q.image}:null}};
+ const qs=pv.questions?pv.questions.map(conv1):[conv1(pv)];
+ return{qs,cur:0,title:pv.questions?pv.title:'',anon:pv.anon,shuffle:pv.shuffle,dur:POLL_DURS.some(d=>d[0]===pv.dur)?pv.dur:0,bad:new Set()}
+}
+function pollCheckQ(q){
+ const vals=q.opts.map(x=>x.trim()).filter(Boolean);
+ if(!q.q.trim())return'Savol yozing';
+ if(vals.length<2)return'Kamida 2 ta variant kerak';
+ const low=vals.map(v=>v.toLowerCase());if(new Set(low).size!==low.length)return'Variantlar bir-biridan farq qilsin';
+ if(q.correct<0||q.correct>=q.opts.length)return'To‘g‘ri javobni belgilang: variant yonidagi doirachani bosing';
+ if(!q.opts[q.correct].trim())return'Belgilangan variant bo‘sh. Avval uning matnini yozing';
+ return''
+}
+function pollModal(pre){
+ if(pre&&!Array.isArray(pre.qs))pre=null; // hodisa (event) obyekti tasodifan kelib qolsa
+ if(!active||!canPost(active))return toast('Avval chatni oching');
+ const cid=active.id,topic=active.type==='supergroup'?activeTopic:'',dk=cid+'|'+topic;
+ const draft=!pre&&__pollDrafts.get(dk);
+ const st=pre||draft||{qs:[pollBlankQ()],cur:0,title:'',anon:false,shuffle:false,dur:0,bad:new Set()};
+ st.bad=st.bad||new Set();st.cur=Math.min(st.cur||0,st.qs.length-1);
+ if(!pre)__pollDrafts.set(dk,st);
+ const restored=!!draft&&st.qs.some(pollQFilled);
+ modal(`<div class="pc">
+ <h3>📊 ${pre?'Tahrirlab yuborish':'Yangi test'}</h3>
+ ${restored?`<div class="pc-note"><span>📝 Yozib turgan testingiz tiklandi</span><button type="button" class="btn flat sm" data-pc-clear>Tozalash</button></div>`:''}
+ <div class="pc-tabs" id="pcTabs"></div>
+ <div id="pcTitleWrap"><label class="lb">Test nomi</label><input class="field" id="pcTitle" maxlength="120" placeholder="Masalan: Matematika · 5-dars"></div>
+ <div id="pcEd"></div>
+ <details class="pc-set" id="pcSet"><summary>⚙️ Sozlamalar<small id="pcSetSum"></small></summary>
+  <label class="check-row"><input type="checkbox" id="pcAnon"><span><b>Anonim test</b><small>Kim nimani belgilagani hech kimga ko‘rinmaydi</small></span></label>
+  <label class="check-row"><input type="checkbox" id="pcShuf"><span><b>Variantlarni aralashtirish</b><small>Har kimga variantlar boshqa tartibda chiqadi</small></span></label>
+  <label class="lb">⏱ Vaqt chegarasi</label><select class="field" id="pcDur">${POLL_DURS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
+ </details>
+ <input type="file" id="pcImgIn" accept="image/*" hidden>
+ <div class="mact"><button type="button" class="btn flat" data-close>Bekor</button><button type="button" class="btn" id="psendpoll">Yuborish</button></div></div>`);
+ const card=$('#modalCard'),root=card.querySelector('.pc');
+ $('#pcTitle').value=st.title||'';$('#pcAnon').checked=!!st.anon;$('#pcShuf').checked=!!st.shuffle;$('#pcDur').value=String(st.dur||0);
+ if(st.anon||st.shuffle||st.dur)$('#pcSet').open=true;
+ const setSum=()=>{$('#pcSetSum').textContent=[st.anon&&'anonim',st.shuffle&&'aralash',st.dur&&('⏱ '+(POLL_DURS.find(d=>d[0]===st.dur)?.[1]||''))].filter(Boolean).join(' · ')};
+ const row=(t,i,on,n)=>`<div class="po-row${on?' on':''}"><input type="radio" name="pcor" ${on?'checked':''} title="To‘g‘ri javob deb belgilash" aria-label="${i+1}-variant to‘g‘ri javob"><div class="po-in"><input class="field po" value="${esc(t)}" placeholder="${i+1}-variant" maxlength="100"><span class="po-ok">✓ To‘g‘ri</span></div>${n>2?`<button type="button" class="po-del" data-po-del="${i}" title="Variantni o‘chirish" aria-label="${i+1}-variantni o‘chirish">✕</button>`:''}</div>`;
+ const read=()=>{
+  if(!$('#pq'))return;const q=st.qs[st.cur];
+  q.q=$('#pq').value;q.opts=$$('#popts .po').map(x=>x.value);q.correct=$$('#popts .po-row').findIndex(r=>r.querySelector('input[type=radio]').checked);q.expl=$('#pexplain').value;
+  st.title=$('#pcTitle').value;st.anon=$('#pcAnon').checked;st.shuffle=$('#pcShuf').checked;st.dur=Number($('#pcDur').value)||0
+ };
+ const drawTabs=()=>{
+  const n=st.qs.length;$('#pcTitleWrap').classList.toggle('hidden',n<2);
+  $('#pcTabs').innerHTML=st.qs.map((q,i)=>`<button type="button" data-pc-tab="${i}" class="${i===st.cur?'on':''}${st.bad.has(i)?' bad':(!pollCheckQ(q)?' done':'')}" title="${i+1}-savol">${i+1}</button>`).join('')
+   +(n<POLL_MAX_Q?`<button type="button" class="add" data-pc-addq title="Yana savol qo‘shish">+ Savol</button>`:'');
+ };
+ const drawEd=()=>{
+  const q=st.qs[st.cur],n=st.qs.length,img=q.img;
+  const imgH=img?`<div class="pc-img-prev">${img.url?`<img src="${esc(img.url)}" alt="">`:`<img ${fsrc(img.fid)} alt="">`}<button type="button" class="pc-img-x" data-pc-imgx title="Rasmni olib tashlash">✕</button></div>`
+   :`<button type="button" class="btn flat sm" data-pc-img>🖼 Rasm qo‘shish</button>`;
+  $('#pcEd').innerHTML=`<label class="lb">${n>1?`${st.cur+1}-savol`:'Savol'}</label><textarea class="field" id="pq" rows="2" maxlength="300" placeholder="Savol yozing"></textarea>
+  <div class="pc-img">${imgH}</div>
+  <label class="lb">Variantlar <small style="color:var(--muted);font-weight:400">— to‘g‘ri javob yonidagi doirachani bosing</small></label>
+  <div id="popts">${q.opts.map((t,i)=>row(t,i,i===q.correct,q.opts.length)).join('')}</div>
+  ${q.opts.length<POLL_MAX_OPT?'<button type="button" class="btn flat sm" id="poadd">+ Variant</button>':''}
+  <label class="lb">Izoh (ixtiyoriy)</label><input class="field" id="pexplain" maxlength="200" placeholder="Nega shu javob to‘g‘ri? Javobdan keyin ko‘rsatiladi">
+  ${n>1?`<button type="button" class="btn flat sm red pc-qdel" data-pc-qdel>🗑 ${st.cur+1}-savolni o‘chirish</button>`:''}`;
+  $('#pq').value=q.q;$('#pexplain').value=q.expl;hydrate($('#pcEd'))
+ };
+ const draw=()=>{drawTabs();drawEd();setSum()};
+ const go=i=>{read();st.cur=Math.max(0,Math.min(st.qs.length-1,i));draw()};
+ const addOpt=()=>{read();const q=st.qs[st.cur];if(q.opts.length>=POLL_MAX_OPT)return toast('Maksimum 10 ta variant');q.opts.push('');drawEd();drawTabs();$$('#popts .po').at(-1)?.focus()};
+ const delOpt=i=>{read();const q=st.qs[st.cur];if(q.opts.length<=2)return;q.opts.splice(i,1);if(q.correct===i)q.correct=-1;else if(q.correct>i)q.correct--;drawEd();drawTabs()};
+ const addQ=()=>{read();if(st.qs.length>=POLL_MAX_Q)return toast('Maksimum 20 ta savol');st.qs.push(pollBlankQ());st.cur=st.qs.length-1;draw();$('#pq').focus()};
+ const dropImg=q=>{if(q?.img?.url)try{URL.revokeObjectURL(q.img.url)}catch{}};
+ const delQ=btn=>{
+  if(!btn.dataset.armed){btn.dataset.armed='1';btn.textContent='Rostdan o‘chirilsinmi? Yana bosing';setTimeout(()=>{if(btn.isConnected){delete btn.dataset.armed;btn.textContent=`🗑 ${st.cur+1}-savolni o‘chirish`}},3500);return}
+  read();dropImg(st.qs[st.cur]);st.qs.splice(st.cur,1);st.bad=new Set();st.cur=Math.min(st.cur,st.qs.length-1);draw();toast('Savol o‘chirildi')
+ };
+ const pickImg=async f=>{
+  if(!/^image\//.test(f.type||'')||/svg/.test(f.type))return toast('Faqat rasm faylini tanlang');
+  if(f.size>20*1024*1024)return toast('Rasm juda katta (20 MB gacha)');
+  const q=st.qs[st.cur],inf=await imgInfo(f);
+  if(!inf.w)return toast('Bu rasmni ochib bo‘lmadi');
+  dropImg(q);q.img={file:f,url:URL.createObjectURL(f),w:inf.w,h:inf.h};
+  if($('#modalCard .pc')===root){drawEd();drawTabs()}
+ };
+ const clearAll=()=>{st.qs.forEach(dropImg);__pollDrafts.delete(dk);closeModal();pollModal()};
+ const send=async btn=>{
+  if(btn.disabled)return;read();
+  st.bad=new Set(st.qs.map((q,i)=>pollCheckQ(q)?i:-1).filter(i=>i>=0));
+  if(st.bad.size){const i=[...st.bad][0];st.cur=i;draw();return toast((st.qs.length>1?`${i+1}-savol: `:'')+pollCheckQ(st.qs[i]))}
+  if(active?.id!==cid)return toast('Chat almashdi — testni qaytadan oching');
+  const left=slowLeft(active);if(left>0)return toast(`Slow mode: yana ${left} soniya kuting`);
+  if(!live&&!restSendReady())return toast(errText({code:'not-ready'}));
+  if(st.sending)return toast('Rasmlar yuklanmoqda, biroz kuting…');
+  const label=btn.textContent;btn.disabled=true;st.sending=true;
+  try{
+   const pend=st.qs.filter(q=>q.img?.file);let k=0;
+   for(const q of pend){k++;btn.textContent=`Rasm yuklanmoqda ${k}/${pend.length}…`;
+    let blob=q.img.file;
+    if(blob.size>300*1024||!/jpe?g|png|webp/.test(blob.type)){const d=await shrink(blob,1280,.85);if(d){const nb=await dataToBlob(d);if(nb.size&&nb.size<blob.size)blob=nb}}
+    const inf=await imgInfo(blob);
+    const fid=await uploadFile(blob,'test-rasm.'+((blob.type||'image/jpeg').split('/')[1]||'jpg'),(i,n)=>{btn.textContent=`Rasm yuklanmoqda ${k}/${pend.length} — ${Math.round(i/n*100)}%`});
+    q.img={fid,w:inf.w||q.img.w,h:inf.h||q.img.h,url:q.img.url} // keyingi urinishda qayta yuklanmaydi
+   }
+  }catch(e){btn.disabled=false;btn.textContent=label;return toast(e?.code?errText(e):'Rasmni yuklab bo‘lmadi, qayta urinib ko‘ring')}
+  finally{st.sending=false}
+  // Yuklash paytida oyna yopilgan (Bekor) yoki qayta ochilgan bo‘lsa — yubormaymiz, yozilganlar qoralamada qoladi.
+  if($('#modalCard .pc')!==root)return toast('Test yuborilmadi. Qayta ochsangiz, yozganlaringiz joyida');
+  const build=q=>{const options=[];let correct='';
+   q.opts.forEach((t,i)=>{t=t.trim();if(!t)return;const id='o'+(options.length+1);options.push({id,text:t.slice(0,100)});if(i===q.correct)correct=id});
+   const r={question:q.q.trim().slice(0,300),options,correct,explanation:q.expl.trim().slice(0,200)};
+   if(q.img?.fid)r.image={fid:q.img.fid,w:q.img.w||0,h:q.img.h||0};return r};
+  const qs=st.qs.map(build),many=qs.length>1,f=qs[0];
+  const poll={question:many?(st.title.trim()||`Test · ${qs.length} ta savol`).slice(0,300):f.question,options:f.options,multi:false,correct:f.correct,explanation:many?'':f.explanation,closed:false};
+  if(!many&&f.image)poll.image=f.image;
+  if(many)poll.questions=qs;
+  if(st.anon)poll.anon=true;
+  if(st.shuffle)poll.shuffle=true;
+  if(st.dur){poll.dur=st.dur;poll.closeAt=Math.round(srvNow()+st.dur*1000)}
+  closeModal();
+  pushMsg(cid,{type:'poll',body:poll.question,poll,pollVotes:{},...(many?{pollAnswers:{}}:{}),...(topic?{topicId:topic}:{})})
+   .then(()=>{if(!pre){__pollDrafts.delete(dk);st.qs.forEach(dropImg)}},()=>{}) // yuborilmasa — qoralama saqlanib qoladi
+ };
+ root.addEventListener('input',e=>{read();if(st.bad.has(st.cur)&&!pollCheckQ(st.qs[st.cur]))st.bad.delete(st.cur);if(e.target.id!=='pcTitle')drawTabs()});
+ root.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.matches('#popts input[type=radio]')){read();$$('#popts .po-row').forEach(r=>r.classList.toggle('on',r.querySelector('input[type=radio]').checked));drawTabs();return}
+  if(t.matches('#pcAnon,#pcShuf,#pcDur')){read();setSum();return}
+  if(t.id==='pcImgIn'){const f=t.files?.[0];t.value='';if(f)pickImg(f)}
+ });
+ root.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||e.isComposing||!e.target.classList.contains('po'))return;
+  e.preventDefault();const all=$$('#popts .po'),i=all.indexOf(e.target);
+  if(i<all.length-1)all[i+1].focus();else addOpt()
+ });
+ card.onclick=e=>{
+  const t=e.target;
+  const tab=t.closest('[data-pc-tab]');if(tab)return go(+tab.dataset.pcTab);
+  if(t.closest('[data-pc-addq]'))return addQ();
+  if(t.closest('#poadd'))return addOpt();
+  const d=t.closest('[data-po-del]');if(d)return delOpt(+d.dataset.poDel);
+  if(t.closest('[data-pc-img]'))return $('#pcImgIn').click();
+  if(t.closest('[data-pc-imgx]')){const q=st.qs[st.cur];dropImg(q);q.img=null;drawEd();return}
+  const qd=t.closest('[data-pc-qdel]');if(qd)return delQ(qd);
+  if(t.closest('[data-pc-clear]'))return clearAll();
+  const sb=t.closest('#psendpoll');if(sb)return send(sb)
+ };
+ draw()
+}
+const canClosePoll=(m,c=active)=>!!(m?.type==='poll'&&m.poll&&!pollView(m).closed&&pollCanManage(m,c));
 async function closePoll(m){
- if(!canClosePoll(m))return toast(m?.poll?.closed?'Test allaqachon yopilgan':'Testni faqat muallif yoki ruxsatli admin yopa oladi');
+ if(!canClosePoll(m))return toast(m?.poll&&pollView(m).closed?'Test allaqachon yopilgan':'Testni faqat muallif yoki ruxsatli admin yopa oladi');
  mkSafe(()=>updateDoc(msgRef(active.id,m.id),{'poll.closed':true})).then(()=>toast('Test yopildi')).catch(fail)
 }
+/* Vaqt chegarasi: hisoblagich har soniyada yangilanadi, vaqt tugashi bilan test o‘zi yopiladi (qayta chiziladi). */
+setInterval(()=>{
+ if(document.hidden)return;
+ const els=document.querySelectorAll('[data-poll-left]');if(!els.length)return;
+ const now=srvNow();let ended=false,runEnded=false;
+ els.forEach(el=>{const left=Number(el.dataset.pollLeft)-now;
+  if(left>0){el.textContent='⏱ '+pollLeftText(left);return}
+  el.removeAttribute('data-poll-left');el.textContent='⏱ vaqt tugadi'; // har bir hisoblagich faqat bir marta ishga tushadi
+  if(el.closest('#modalCard .pq-run'))runEnded=true;else ended=true});
+ if(ended){lastSig='';renderMessages();if(infoOpen&&infoTab==='polls')renderInfoTab()}
+ if(runEnded&&__pollRun&&!__pollRun.busy)pollRunDraw()
+},1000);
 
 /* custom message HTML for poll + edit/expiry labels */
 const __mkMsgHtml=msgHtml;
@@ -3575,6 +4168,7 @@ msgHtml=function(m,c,q){
  if(m.type==='poll'){
   const out=m.senderId===me.id&&c?.type!=='channel',meta=`<span class="meta">${ttlOf(m)?`<span class="expire-tag">⏳ ${proTtlText(m)}</span>`:''}${hm(m.createdAt)}${out?ticks(m,c):''}</span>`;
   let top='';if(!out&&(c.type==='group'||c.type==='supergroup'))top=`<div class="who" style="color:${color(m.senderId)}">${esc(uname(user(m.senderId)))}</div>`;
+  if(m.fwd)top+=`<div class="fwd">${ic('forward','sm')}Uzatildi: <b>${esc(m.fwd)}</b></div>`;
   return`<div class="m${out?' out':''}" data-mid="${esc(m.id)}"><div class="bub">${top}${pollHtml(m)}<div class="mline">${meta}</div></div></div>`
  }
  let h=__mkMsgHtml(m,c,q);
@@ -3669,6 +4263,10 @@ msgMenu=function(x,y,mid){
  if(m.body)it.push(['copy','Nusxa olish',()=>copyText(m.body)]);
  if(hasF(m))it.push(['download','Yuklab olish',()=>download(m)]);
  if(canClosePoll(m,c))it.push(['check','Testni yopish',()=>closePoll(m)]);
+ if(m.type==='poll'){const pv=pollView(m);
+  if(pollCanSeeResults(m,pv))it.push(['chart','Natijalar',()=>pollResultsModal(m.id)]);
+  if(pollCanCopy(m,pv)&&canPost(c)){it.push(['repeat','Qayta yuborish',()=>pollResendModal(m.id)]);it.push(['edit','Tahrirlab yuborish',()=>pollModal(pollStateFrom(m))])}
+  it.push(['trophy','Test reytingi',()=>pollBoardModal()])}
  if(canPin(c))it.push(['pin',pinIds(c).includes(m.id)?'Qadashni bekor qilish':'Qadash',()=>togglePin(m)]);
  it.push(['forward','Uzatish',()=>forwardModal(m)]);
  it.push(['bookmark','Collectionga saqlash',()=>addToCollectionModal(m)]);
@@ -3685,27 +4283,37 @@ deleteModal=function(m){
  modal(`<h3>Xabarni o‘chirish</h3><p class="mp">${adminForce?'Administrator sifatida bu xabar barcha a’zolardan o‘chiriladi.':'Bu xabarni o‘chirmoqchimisiz?'}</p>${canAll&&!adminForce?`<label class="check-row"><input type="checkbox" id="delAll" checked><span>${c.type==='direct'?esc(uname(c.peer))+' uchun ham o‘chirish':'Hamma uchun o‘chirish'}</span></label>`:''}<div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn flat red" id="delGo">O‘chirish</button></div>`);
  $('#delGo').onclick=()=>{removeMsg(m,c.type==='saved'||adminForce||(canAll&&$('#delAll')?.checked));closeModal()}
 };
-/* Testni uzatish: savol, variantlar va to‘g‘ri javob ko‘chiriladi, ovozlar esa noldan boshlanadi
-   (avval faqat {type:'poll'} ketardi — bo‘sh test chiqardi va server uni rad etardi). */
+/* Testni uzatish: savollar, rasmlar, sozlamalar va to‘g‘ri javoblar ko‘chiriladi, ovozlar esa noldan boshlanadi.
+   Uzatish to‘g‘ri javobni ochib beradi — shu sabab javob bermagan odam testni uzata olmaydi. */
 const __mkForwardTo=forwardTo;
 forwardTo=function(m,cid,quiet){
  if(m?.type!=='poll')return __mkForwardTo(m,cid,quiet);
- const pv=pollView(m);if(pv.options.length<2||!pv.correct)return toast('Bu testni uzatib bo‘lmaydi');
- const src=active,poll={question:pv.question.slice(0,300),options:pv.options.map((o,i)=>({id:'o'+(i+1),text:o.text.slice(0,100)})),multi:false,correct:'o'+(pv.options.findIndex(o=>o.id===pv.correct)+1),explanation:pv.explanation||'',closed:false};
- pushMsg(cid,{type:'poll',body:poll.question,poll,pollVotes:{},fwd:m.fwd||(src?.type==='channel'?src.title:(user(m.senderId)?.displayName||'Noma’lum'))}).then(()=>toast(quiet?'Saqlangan xabarlarga qo‘shildi':'Uzatildi'),()=>{})
+ if(!pollCanCopy(m))return toast('Testni javob berganingizdan keyin uzatishingiz mumkin');
+ const src=active,data=pollCopyData(m,{fwd:m.fwd||(src?.type==='channel'?src.title:(user(m.senderId)?.displayName||'Noma’lum'))});
+ if(!data)return toast('Bu testni uzatib bo‘lmaydi');
+ pushMsg(cid,data).then(()=>toast(quiet?'Saqlangan xabarlarga qo‘shildi':'Uzatildi'),()=>{})
 };
+const __mkForwardModal=forwardModal;
+forwardModal=function(m){if(m?.type==='poll'&&!pollCanCopy(m))return toast('Testni javob berganingizdan keyin uzatishingiz mumkin');return __mkForwardModal(m)};
 
-/* poll + history click */
+/* Test + tahrir tarixi bosishlari (chatda va ma’lumot panelidagi "So‘rov" bo‘limida) */
+function pollClick(e,after){
+ const t=e.target;
+ const po=t.closest('[data-poll-opt]');if(po){e.stopPropagation();Promise.resolve(votePoll(po.dataset.mid,po.dataset.pollOpt)).finally(after);return true}
+ const ps=t.closest('[data-poll-send]');if(ps){e.stopPropagation();const mid=ps.dataset.pollSend,set=pollPicks.get(mid);if(!set||!set.size){toast('Kamida bitta javobni tanlang');return true}Promise.resolve(submitPollVote(mid,[...set])).finally(after);return true}
+ const sb=t.closest('[data-poll-start]');if(sb){e.stopPropagation();pollRunner(sb.dataset.pollStart);return true}
+ const pr=t.closest('[data-poll-results]');if(pr){e.stopPropagation();pollResultsModal(pr.dataset.pollResults);return true}
+ const im=t.closest('[data-poll-img]');if(im){e.stopPropagation();pollImageView(im.dataset.pollImg);return true}
+ const pb=t.closest('[data-poll-board]');if(pb){e.stopPropagation();pollBoardModal();return true}
+ return false
+}
 msgsEl.addEventListener('click',e=>{
- const po=e.target.closest('[data-poll-opt]');if(po){e.stopPropagation();votePoll(po.dataset.mid,po.dataset.pollOpt);return}
- const ps=e.target.closest('[data-poll-send]');if(ps){e.stopPropagation();const mid=ps.dataset.pollSend,set=pollPicks.get(mid);if(!set||!set.size)return toast('Kamida bitta javobni tanlang');submitPollVote(mid,[...set]);return}
+ if(pollClick(e,()=>{}))return;
  const eh=e.target.closest('[data-edit-history]');if(eh){e.stopPropagation();editHistoryModal(findMsg(eh.dataset.editHistory));return}
 },true);
-/* Ma’lumot paneli → "So‘rov" bo‘limi: u yerdagi testga ham javob berish va xabarga o‘tish ishlaydi. */
 $('#infoBody').addEventListener('click',e=>{
  if(!e.target.closest('#itab'))return;
- const po=e.target.closest('[data-poll-opt]');if(po){e.stopPropagation();Promise.resolve(votePoll(po.dataset.mid,po.dataset.pollOpt)).finally(()=>{if(infoOpen&&infoTab==='polls')renderInfoTab()});return}
- const ps=e.target.closest('[data-poll-send]');if(ps){e.stopPropagation();const mid=ps.dataset.pollSend,set=pollPicks.get(mid);if(!set||!set.size)return toast('Kamida bitta javobni tanlang');submitPollVote(mid,[...set]).finally(()=>{if(infoOpen&&infoTab==='polls')renderInfoTab()});return}
+ if(pollClick(e,()=>{if(infoOpen&&infoTab==='polls')renderInfoTab()}))return;
  const j=e.target.closest('[data-jump]');if(j&&infoTab==='polls'){e.stopPropagation();jumpTo(j.dataset.jump);if(innerWidth<=760){infoOpen=false;$('#info').classList.add('hidden')}}
 },true);
 
@@ -3837,7 +4445,8 @@ renderInfoTab=function(){
   const arr=M.filter(m=>vis(m,active.id)&&msgVisibleToMe(m)&&/https?:\/\//i.test(m.body||'')).reverse();
   h=arr.map(m=>{const links=(m.body.match(/https?:\/\/[^\s]+/g)||[]);return links.map(u=>`<a class="fitem" target="_blank" rel="noopener" href="${esc(u)}"><b>${esc(u)}</b><small class="muted">${esc(senderTitle(m,active))} · ${dayLabel(m.createdAt)}</small></a>`).join('')}).join('')
  }else if(infoTab==='polls'){
-  const arr=M.filter(m=>vis(m,active.id)&&msgVisibleToMe(m)&&m.type==='poll').reverse();h=arr.map(m=>`<div class="fitem" data-jump="${esc(m.id)}">${pollHtml(m)}<small class="muted">${dayLabel(m.createdAt)}, ${hm(m.createdAt)}</small></div>`).join('')
+  const arr=M.filter(m=>vis(m,active.id)&&msgVisibleToMe(m)&&m.type==='poll'&&!proIsExpired(m)).reverse();
+  h=arr.length?`<div class="poll-board-row"><button type="button" class="btn flat sm" data-poll-board>🏆 Test reytingi</button></div>`+arr.map(m=>`<div class="fitem" data-jump="${esc(m.id)}">${pollHtml(m)}<small class="muted">${dayLabel(m.createdAt)}, ${hm(m.createdAt)}</small></div>`).join(''):''
  }else if(infoTab==='posts'){
   const arr=photoPostsOf(active);h=arr.length?`<div class="grid">${arr.map((p,i)=>`<div class="cell" data-photo-post="${i}"><img ${fsrc(photoPostFileId(p))} alt=""></div>`).join('')}</div>`:''
  }
@@ -4091,7 +4700,8 @@ function proHub(){
  if(!active)return toast('Avval chatni oching');
  const group=isGroup(active),owner=group&&active.ownerId===me.id;
  modal(`<h3>✦ Makktub Pro</h3><div class="pro-grid">
- <button class="pro-card" data-pro="poll"><b>📊 Poll / Quiz</b><small>Realtime so‘rov va test</small></button>
+ <button class="pro-card" data-pro="poll"><b>📊 Test / Quiz</b><small>Ko‘p savolli, taymerli, rasmli test</small></button>
+ <button class="pro-card" data-pro="board"><b>🏆 Test reytingi</b><small>Kim ko‘p to‘g‘ri topgan</small></button>
  <button class="pro-card" data-pro="schedule"><b>⏰ Rejalashtirish</b><small>Vaqt belgilab yuborish</small></button>
  <button class="pro-card" data-pro="scheduled"><b>🗓 Navbat</b><small>Rejalashtirilgan xabarlar</small></button>
  <button class="pro-card" data-pro="ttl"><b>💣 Auto-delete</b><small>Yo‘qoluvchi xabarlar</small></button>
@@ -4101,7 +4711,7 @@ function proHub(){
  ${group&&adminCan(active,'editInfo')?'<button class="pro-card" data-pro="slow"><b>🐢 Slow mode</b><small>Yozish tezligini boshqarish</small></button>':''}
  ${owner?'<button class="pro-card" data-pro="admins"><b>👑 Admin rights</b><small>Har admin uchun ruxsatlar</small></button>':''}
  </div><div class="mact"><button class="btn flat" data-close>Yopish</button></div>`);
- $('#modalCard').onclick=e=>{const b=e.target.closest('[data-pro]');if(!b)return;({poll:pollModal,schedule:()=>scheduleModal(ta.value.trim()),scheduled:scheduledModal,ttl:autoDeleteModal,search:proSearchModal,qr:qrForCurrent,collections:collectionsModal,slow:slowModeModal,admins:adminPermissionsModal})[b.dataset.pro]?.()}
+ $('#modalCard').onclick=e=>{const b=e.target.closest('[data-pro]');if(!b)return;({poll:()=>pollModal(),board:pollBoardModal,schedule:()=>scheduleModal(ta.value.trim()),scheduled:scheduledModal,ttl:autoDeleteModal,search:proSearchModal,qr:qrForCurrent,collections:collectionsModal,slow:slowModeModal,admins:adminPermissionsModal})[b.dataset.pro]?.()}
 }
 $('#proBtn').onclick=proHub;
 
