@@ -640,6 +640,14 @@ div.poll-opt.correct{background:rgba(34,197,94,.14)}div.poll-opt.wrong{backgroun
 @media(max-width:760px){.story-bar{min-height:72px;padding-left:8px}.story-ring{width:48px;height:48px}.story-ring .av{width:42px;height:42px}.pro-grid{grid-template-columns:1fr 1fr}.story-text{font-size:24px;padding:22px}}
 </style>
 
+<style id="mkOwnerCss">
+.pt-pad{position:relative;width:min(280px,76vw);aspect-ratio:1;margin:10px auto 4px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer;border-radius:18px;background:rgba(127,127,127,.09)}
+.pt-pad svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.pt-pad polyline{fill:none;stroke:var(--accent);stroke-width:7;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.pt-dot{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;background:var(--muted);pointer-events:none;transition:transform .12s,background .12s,box-shadow .12s}
+.pt-dot.on{background:var(--accent);transform:scale(1.35);box-shadow:0 0 0 9px rgba(47,123,255,.22)}
+.pt-pad.bad polyline{stroke:var(--danger)}.pt-pad.bad .pt-dot.on{background:var(--danger);box-shadow:0 0 0 9px rgba(229,57,53,.2)}
+</style>
 </head>
 <body>
 <div id="toast" class="toast hidden"></div>
@@ -945,7 +953,11 @@ const weakPw=p=>String(p||'').length<6;
 // Boshqa foydalanuvchidan kelgan qiymatlar HTML/CSS ichiga xavfsiz qo‘yilishi uchun (XSS himoyasi).
 const safeUrl=u=>/^(https?:|blob:|data:image\/)/i.test(String(u||''))?String(u):'#';
 const safeThumb=t=>/^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(String(t||''))?String(t):'';
-const norm=s=>String(s||'').trim().replace(/^@\s*/,'').replace(/\s+/g,'').toLowerCase();
+const norm=s=>String(s||'').trim().replace(/…/g,'...').replace(/^@\s*/,'').replace(/\s+/g,'').toLowerCase();
+/* NICKNAME QOIDASI: faqat lotin harf, raqam va _ (3–32 ta). Yagona istisno — egasining maxsus @... nickname’i.
+   Boshqa hech qanday belgili nickname yaratib bo‘lmaydi. Telefon "..." ni "…" ga almashtirsa, norm() uni qaytaradi. */
+const OWNER_NICK='...',NICK_RE=/^[a-z0-9_]{3,32}$/;
+const nickOK=n=>NICK_RE.test(n)||n===OWNER_NICK;
 const initials=s=>(String(s||'?').trim().split(/\s+/).slice(0,2).map(x=>[...x][0]||'').join('')||'?').toUpperCase();
 const COLORS=['#e17076','#eda86c','#a695e7','#7bc862','#6ec9cb','#65aadd','#ee7aae'];
 const color=id=>{let h=0;for(const c of String(id))h=(h*31+c.charCodeAt(0))|0;return COLORS[Math.abs(h)%COLORS.length]};
@@ -1499,7 +1511,7 @@ function showSplash(on){$('#splash').classList.toggle('hidden',!on)}
 function showAuth(){window.__booted=true;try{closeModal();closeMenu()}catch{}showSplash(false);$('#bootHelp')?.classList.add('hidden');$('#app').classList.add('hidden');$('#info').classList.add('hidden');$('#auth').classList.remove('hidden');renderAccs();setTab(accs().length?'login':'reg');updateFaceLoginBtn()}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const netish=e=>{const c=String(e?.code||e?.message||'');return c.includes('network')||c.includes('unavailable')||c.includes('timeout')||c.includes('sdk-load')||c.includes('sdk-timeout')};
-const nickEmail=nick=>`${nick}@${EMAIL_DOMAIN}`;
+const nickEmail=nick=>`${nick===OWNER_NICK?'sym-2e2e2e':nick}@${EMAIL_DOMAIN}`; // "...@domen" yaroqsiz email — @... uchun xavfsiz manzil
 async function authRetry(fn,tries=4){let last;for(let i=0;i<tries;i++){try{return await fn()}catch(e){last=e;if(!netish(e)||i===tries-1)throw e;toast('Ulanmoqda…',0);await sleep(500*(i+1))}}throw last}
 async function legacyEmail(nick){const c=accs().find(a=>a.nick===nick)?.email;if(c)return c;try{const s=await getDoc(doc(db,'usernames',nick));return s.exists?s.data().email:null}catch{return null}}
 let nickMapChecked='';
@@ -1556,10 +1568,16 @@ async function restRegister(nick,dn,pw){
  const now=srvNow(),uid=a.localId,token=a.idToken;
  /* MUHIM: foydalanuvchini qidiruvda ko‘rinadigan qilmasdan messengerga kiritmaymiz. */
  // Xavfsizlik: nickname yozuvi va profil bitta atomar so'rovda yoziladi — boshqa birov nickname'ni egallay olmaydi.
- await fsCommitWithToken(token,[
-  {update:{name:`${FS_DOCS}/usernames/${nick}`,fields:{uid:sf(uid),email:sf(email)}}},
+ // Band nickname (jumladan egasining @... yozuvi) boshqa akkaunt tomonidan ustidan yozilmaydi:
+ // cur: obyekt = yozuv bor, null = aniq yo‘q, undefined = tekshirib bo‘lmadi.
+ const nickUid=d=>d?.fields?.uid?.stringValue||'';
+ let cur;try{cur=await restAuthedDoc(`usernames/${encodeURIComponent(nick)}`,token,6500)}catch{cur=undefined}
+ if(cur&&nickUid(cur)&&nickUid(cur)!==uid)throw{code:'nick-taken'};
+ const mustBeNew=cur===null||(cur===undefined&&!wasExisting);
+ try{await fsCommitWithToken(token,[
+  {update:{name:`${FS_DOCS}/usernames/${nick}`,fields:{uid:sf(uid),email:sf(email)}},...(mustBeNew?{currentDocument:{exists:false}}:{})},
   {update:{name:`${FS_DOCS}/users/${uid}`,fields:{username:sf(nick),displayName:sf(dn),bio:sf(''),photo:sf(''),createdAt:inf(now),lastSeen:inf(now)}},...(wasExisting?{updateMask:{fieldPaths:['username','displayName','lastSeen']}}:{})}
- ]);
+ ])}catch(e){let after=null;try{after=await restAuthedDoc(`usernames/${encodeURIComponent(nick)}`,token,6500)}catch{}if(after&&nickUid(after)&&nickUid(after)!==uid)throw{code:'nick-taken'};throw e}
  return{uid,email,token,refreshToken:a.refreshToken||'',wasExisting}
 }
 let pendingReg=null,pendingRegTimer=null,pendingRegSeq=0;
@@ -1986,7 +2004,7 @@ $('#faceLoginBtn').onclick=async()=>{
 };
 $('#lNick').addEventListener('input',updateFaceLoginBtn);
 let nickT;
-$('#rNick').oninput=e=>{const n=norm(e.target.value),st=$('#nickSt');clearTimeout(nickT);if(!n){st.textContent='';return}if(!/^[a-z0-9_]{3,32}$/.test(n)){st.style.color='var(--danger)';st.textContent='— 3–32 ta lotin harf, raqam, _';return}
+$('#rNick').oninput=e=>{const n=norm(e.target.value),st=$('#nickSt');clearTimeout(nickT);if(!n){st.textContent='';return}if(!nickOK(n)){st.style.color='var(--danger)';st.textContent='— 3–32 ta lotin harf, raqam, _';return}
  st.style.color='var(--online)';st.textContent='— mos';
  nickT=setTimeout(async()=>{try{await waitLimit(ensureFirebaseRuntime(),7000,'sdk-timeout');const ss=await waitLimit(getDoc(doc(db,'usernames',n)),7000,'network-timeout');if(norm($('#rNick').value)!==n)return;if(ss.exists){st.style.color='var(--danger)';st.textContent='— band'}}catch{}},350)};
 
@@ -1994,7 +2012,7 @@ $('#rNick').oninput=e=>{const n=norm(e.target.value),st=$('#nickSt');clearTimeou
 $('#regForm').onsubmit=async e=>{
  e.preventDefault();
  const nick=norm($('#rNick').value),dn=$('#rName').value.trim(),pw=$('#rPass').value,btn=$('#regBtn');
- if(!/^[a-z0-9_]{3,32}$/.test(nick))return toast('Nickname: 3–32 ta lotin harf, raqam yoki _');
+ if(!nickOK(nick))return toast('Nickname: 3–32 ta lotin harf, raqam yoki _');
  if(dn.length<2)return toast('Ismingizni kiriting');
  if(weakPw(pw))return toast(PW_RULE);
  if(registering)return;
@@ -2203,7 +2221,7 @@ async function restPrefixUsers(n,excluded=new Set()){
  finally{clearTimeout(tm)}
 }
 async function fetchUserByNickname(n){
- if(!/^[a-z0-9_]{3,32}$/.test(n)||!me)return null;
+ if(!nickOK(n)||!me)return null;
  const miss=remoteNickMiss.get(n);if(miss&&srvNow()-miss<5000)return null;
  if(remoteNickLookups.has(n))return remoteNickLookups.get(n);
  const p=(async()=>{
@@ -2228,7 +2246,7 @@ async function fetchUserByNickname(n){
  remoteNickLookups.set(n,p);return p;
 }
 function requestRemoteNick(n){
- if(!/^[a-z0-9_]{3,32}$/.test(n))return;
+ if(!nickOK(n))return;
  const exact=[...U.values()].some(u=>u.id!==me?.id&&u.username===n);if(exact)return;
  fetchUserByNickname(n).then(u=>{if(u&&norm($('#search').value)===n)renderSearch($('#search').value)});
 }
@@ -2653,7 +2671,7 @@ function renderComposer(){const c=active,box=$('#composer'),ro=$('#cro');if(c?.t
 function renderDraft(){const d=$('#draft');const m=draft&&findMsg(draft.id);if(!m){if(draft&&msgsFor)draft=null;d.classList.add('hidden');return}d.classList.remove('hidden');$('#draftIc').innerHTML=ic(draft.mode==='edit'?'edit':'reply');$('#draftTitle').textContent=draft.mode==='edit'?'Tahrirlash':senderTitle(m,active);$('#draftText').textContent=msgText(m)}
 
 /* ---------- messages ---------- */
-function fmt(t,q){let h=esc(t).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/(^|\s)@([a-zA-Z0-9_]{3,32})/g,(x,s,n)=>`${s}<span class="mention" data-uname="${n.toLowerCase()}">@${n}</span>`);
+function fmt(t,q){let h=esc(t).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/(^|\s)@([a-zA-Z0-9_]{3,32}|\.\.\.(?![.\w]))/g,(x,s,n)=>`${s}<span class="mention" data-uname="${n.toLowerCase()}">@${n}</span>`);
  if(q){/* qidiruvda matn rangini o‘zgartirmaymiz */}return h}
 function fileBox(m){if(!canOpenAttachment(m))return restrictedFileBox(m);const ext=(m.fileName||'').includes('.')?m.fileName.split('.').pop().toUpperCase():'';
  if(m.p2pId){const dir=isP2PFolder(m);return`<button class="file p2pfile" data-p2p="${esc(m.p2pId)}" data-mid="${esc(m.id||'')}" title="${dir?'Papkani tuzilishi bilan ko‘chirish':'Bepul P2P yuklab olish'}"><div class="fic">${ic(dir?'folder':'download')}</div><div class="fi"><span class="fn">${esc(m.fileName||'Fayl')}</span><small>${fsize(m.fileSize)}${dir?` · Papka · ${Number(m.fileCount)||0} fayl`:ext&&ext.length<=5?' · '+esc(ext):''} · P2P (serverda saqlanmaydi)</small></div></button>`}
@@ -3340,9 +3358,9 @@ function profileModal(){let photo,video;
  <div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="psave">Saqlash</button></div>`);
  $('#pphoto').onchange=async e=>{const f=e.target.files[0];if(!f)return;const u=URL.createObjectURL(f);if(f.type.startsWith('video/')){if(f.size>15*1048576)return toast('Video 15 MB dan kichik bo‘lsin');video=f;$('#pprev').innerHTML=`<video src="${u}" autoplay muted loop playsinline></video>`}else{photo=await shrink(f);video=undefined;$('#pprev').innerHTML=`<img src="${u}" alt="">`}};
  $('#prm')&&($('#prm').onclick=()=>{photo='';video=null;$('#pprev').textContent=initials(me.displayName)});
- $('#puser').oninput=e=>{const n=norm(e.target.value),st=$('#pnst');if(n===me.username){st.textContent='';return}st.style.color=/^[a-z0-9_]{3,32}$/.test(n)?'var(--muted)':'var(--danger)';st.textContent=/^[a-z0-9_]{3,32}$/.test(n)?'':'— noto‘g‘ri'};
+ $('#puser').oninput=e=>{const n=norm(e.target.value),st=$('#pnst');if(n===me.username){st.textContent='';return}st.style.color=NICK_RE.test(n)?'var(--muted)':'var(--danger)';st.textContent=NICK_RE.test(n)?'':'— noto‘g‘ri'};
  $('#psave').onclick=async e=>{const btn=e.currentTarget,name=$('#pname').value.trim(),un=norm($('#puser').value),pw=$('#ppass')?.value||'';
-  if(name.length<2)return toast('Ism kamida 2 harf');if(!/^[a-z0-9_]{3,32}$/.test(un))return toast('Nickname: 3–32 ta lotin harf, raqam yoki _');if(pw&&weakPw(pw))return toast(PW_RULE);
+  if(name.length<2)return toast('Ism kamida 2 harf');if(me.username===OWNER_NICK&&un!==OWNER_NICK)return toast('@... nickname’ini almashtirib bo‘lmaydi');if(un!==me.username&&!NICK_RE.test(un))return toast('Nickname: 3–32 ta lotin harf, raqam yoki _');if(pw&&weakPw(pw))return toast(PW_RULE);
   busy(btn,true);
   try{if(un!==me.username){const old=me.username;await runTransaction(db,async tx=>{const r=doc(db,'usernames',un);if((await tx.get(r)).exists)throw{code:'taken'};tx.set(r,{uid:me.id,email:auth.currentUser.email});tx.delete(doc(db,'usernames',old));tx.update(doc(db,'users',me.id),{username:un})})}
    const up={displayName:name,bio:$('#pbio').value.trim()};
@@ -4811,6 +4829,183 @@ msgsEl.addEventListener('contextmenu',e=>{if(!e.shiftKey)return;const m=e.target
 
 /* Ensure new icons/buttons are usable after startup. */
 renderStories();
+</script>
+
+<script id="mkOwnerLock">
+/* =========================================================
+   MAKKTUB — @... (egasi) akkaunti uchun 3 bosqichli himoya
+   1) parol   2) yuz (kamera)   3) 9 nuqtali chizma
+   • Firebase’dagi haqiqiy parol = SHA-256(parol + chizma). Parolni bilgan odam chizmasiz serverga ham kira olmaydi.
+   • Yuz belgisi users/{uid}/private/owner hujjatida saqlanadi (uni faqat egasi o‘qiydi) va har kirishda solishtiriladi.
+   • Parol ham, chizma ham bu faylda YO‘Q — egasi ularni ro‘yxatdan o‘tishda o‘zi kiritadi.
+   ========================================================= */
+const OWNER_MIN_DOTS=4;let ownerBusy=false;
+async function ownerSecret(pw,pattern){
+ if(!window.crypto?.subtle)throw{code:'owner-insecure'};
+ const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`makktub-owner|v1|${pw}|${pattern}`));
+ return'mk1-'+[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('')
+}
+function ownerFail(e){
+ console.warn('owner lock',e);const c=String(e?.code||'');
+ if(c==='owner-cancel'||c==='faceid-cancel')return toast('Bekor qilindi');
+ if(c==='owner-denied')return toast('Kirish rad etildi: parol, yuz yoki chizma mos kelmadi',6000);
+ if(c==='owner-denied2')return toast('Joriy parol yoki chizma noto‘g‘ri',5000);
+ if(c==='owner-insecure')return toast('Bu akkaunt faqat https:// manzilda yoki fayl sifatida ochilganda ishlaydi',6000);
+ if(c==='taken'||c==='nick-taken')return toast(errText({code:'nick-taken'}),5000);
+ toast(errText(e),6000)
+}
+
+/* ---------- 9 nuqtali chizma ---------- */
+// Natija: bosib o‘tilgan nuqtalar tartibi ("0".."8"), masalan "03678". Oyna yopilsa — {code:'owner-cancel'}.
+function patternPad(title,sub){return new Promise((res,rej)=>{
+ const C=[50,150,250];
+ modal(`<h3>🔐 ${esc(title)}</h3><p class="mp">${esc(sub||'')}</p><div class="pt-pad" id="ptPad"><svg viewBox="0 0 300 300"><polyline id="ptLine" points=""/></svg>${Array.from({length:9},(_,i)=>`<span class="pt-dot" data-i="${i}" style="left:${C[i%3]/3}%;top:${C[Math.floor(i/3)]/3}%"></span>`).join('')}</div><div class="cam-st" id="ptSt">Nuqtalarni uzmasdan ulang</div><div class="mact"><button class="btn flat" data-close>Bekor</button></div>`);
+ const pad=$('#ptPad'),line=$('#ptLine'),st=$('#ptSt');let seq=[],down=false,done=false,cur=null;
+ const watch=setInterval(()=>{if(done)return clearInterval(watch);if(!document.body.contains(pad)){done=true;clearInterval(watch);rej({code:'owner-cancel'})}},150);
+ const pos=e=>{const r=pad.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*300,y:(e.clientY-r.top)/r.height*300}};
+ const draw=()=>{line.setAttribute('points',[...seq.map(i=>`${C[i%3]},${C[Math.floor(i/3)]}`),...(down&&cur&&seq.length?[`${cur.x.toFixed(1)},${cur.y.toFixed(1)}`]:[])].join(' '));$$('.pt-dot',pad).forEach(d=>d.classList.toggle('on',seq.includes(+d.dataset.i)))};
+ // Ikki nuqta orasidagi (hali ishlatilmagan) o‘rta nuqta ham avtomatik qo‘shiladi — telefon qulfidagi kabi.
+ const add=i=>{if(seq.includes(i))return;if(seq.length){const a=seq[seq.length-1],sx=a%3+i%3,sy=Math.floor(a/3)+Math.floor(i/3);if(sx%2===0&&sy%2===0){const m=sy/2*3+sx/2;if(!seq.includes(m))seq.push(m)}}seq.push(i)};
+ const hit=p=>{for(let i=0;i<9;i++)if(Math.hypot(p.x-C[i%3],p.y-C[Math.floor(i/3)])<34)add(i)};
+ pad.addEventListener('pointerdown',e=>{if(done)return;e.preventDefault();try{pad.setPointerCapture(e.pointerId)}catch{}down=true;seq=[];pad.classList.remove('bad');st.textContent='Nuqtalarni uzmasdan ulang';cur=pos(e);hit(cur);draw()});
+ pad.addEventListener('pointermove',e=>{if(!down||done)return;e.preventDefault();cur=pos(e);hit(cur);draw()});
+ const up=()=>{if(!down||done)return;down=false;draw();
+  if(seq.length<OWNER_MIN_DOTS){pad.classList.add('bad');st.textContent=`Kamida ${OWNER_MIN_DOTS} ta nuqtani ulang`;setTimeout(()=>{if(!down&&!done){seq=[];pad.classList.remove('bad');draw()}},700);return}
+  done=true;clearInterval(watch);const out=seq.join('');setTimeout(()=>res(out),180)};
+ pad.addEventListener('pointerup',up);pad.addEventListener('pointercancel',up)
+})}
+// Yangi chizma: ikki marta bir xil chizilishi shart.
+async function ownerNewPattern(){
+ for(;;){
+  const a=await patternPad('Chizma o‘rnatish',`Kamida ${OWNER_MIN_DOTS} ta nuqtani ulab, o‘z chizmangizni chizing.`);
+  const b=await patternPad('Chizmani tasdiqlang','Xuddi shu chizmani yana bir marta chizing.');
+  if(a===b){closeModal();return a}
+  toast('Chizmalar mos kelmadi. Qaytadan chizing',3000)
+ }
+}
+
+/* ---------- yuz ---------- */
+// Kirishda: kameradan 3 ta yuz belgisi olinadi (solishtirish parol + chizma tasdiqlangandan keyin bo‘ladi).
+async function ownerFaceCapture(){
+ modal(camModalHtml('Yuzni tekshirish','Kameraga to‘g‘ri qarang.'));
+ const video=$('#camV');camSay('Yuz modeli tayyorlanmoqda…','scan');
+ const [F,my]=await Promise.all([loadFaceLib(),openFaceCam(video)]);if(my!==faceCamRun)throw{code:'faceid-cancel'};
+ const sc=faceScanner(F,video),faces=[],t0=rawNow();let lastAt=0,dark=false;
+ while(faces.length<3){
+  if(my!==faceCamRun)throw{code:'faceid-cancel'};if(rawNow()-t0>25000)throw{code:'face-timeout'};
+  const s=await sc.scan();if(my!==faceCamRun)throw{code:'faceid-cancel'};
+  if(s.n>1){camSay('Kamerada faqat bitta yuz bo‘lsin','bad');continue}
+  if(!s.n||s.score<0.55){camSay(sc.level>=1?'Yoritilmoqda… yuzingizni ekranga yaqinlashtiring':'Yuzingizni doira ichiga keltiring','scan');continue}
+  if(faces.length&&Math.min(...faces.map(x=>faceDist(x,s.desc)))>0.55){faces.length=0;camProg(0);continue} // boshqa odam kirib qoldi — boshidan
+  if(rawNow()-lastAt<150)continue;
+  faces.push(s.desc.map(x=>Math.round(x*1e4)/1e4));dark=dark||!!s.dark;lastAt=rawNow();camProg(faces.length/3);camSay('Yuz o‘qilmoqda…','scan')}
+ camSay('✓ Yuz o‘qildi','ok');stopFaceCam();return{faces,dark}
+}
+function ownerFaceMatch(stored,cap,dark){
+ const lim=dark?FACE_MATCH_DARK:FACE_MATCH;let ok=0;
+ for(const c of cap)if(Math.min(...stored.map(f=>faceDist(f,c)))<=lim)ok++;
+ return ok>=Math.min(2,cap.length)
+}
+const ownerDocPath=uid=>`users/${encodeURIComponent(uid)}/private/owner`;
+async function ownerLoadFaces(uid,token){
+ const d=await restAuthedDoc(ownerDocPath(uid),token,9000);const s=d?.fields?.faces?.stringValue;if(!s)return null;
+ try{const a=JSON.parse(s);return Array.isArray(a)&&a.length&&a.every(f=>Array.isArray(f)&&f.length===128)?a:null}catch{return null}
+}
+// Yuz belgilarining massivi JSON-satr sifatida yoziladi (Firestore massiv ichida massivni qabul qilmaydi).
+async function ownerSaveFaces(uid,token,faces){await restPatchFields(ownerDocPath(uid),{faces:JSON.stringify(faces),at:srvNow()},token,null)}
+
+/* ---------- RO‘YXATDAN O‘TISH: parol → yuzni ro‘yxatga olish → chizma (2 marta) ---------- */
+async function ownerRegisterFlow(){
+ const nick=OWNER_NICK,dn=$('#rName').value.trim(),pw=$('#rPass').value,btn=$('#regBtn');
+ if(dn.length<2)return toast('Ismingizni kiriting');if(weakPw(pw))return toast(PW_RULE);
+ if(registering||ownerBusy)return;ownerBusy=true;busy(btn,true);
+ try{
+  if(!window.crypto?.subtle)throw{code:'owner-insecure'};
+  const rec=await restUsernameRecord(nick).catch(()=>null);if(rec&&rec.uid)throw{code:'nick-taken'};
+  const faces=await faceCamEnroll();closeModal();
+  const pattern=await ownerNewPattern();
+  toast('Akkaunt ochilmoqda…',0);
+  const secret=await ownerSecret(pw,pattern);registering=true;pend={nick,name:dn};
+  let r;
+  try{r=await waitLimit(restRegister(nick,dn,secret),22000,'network-timeout')}
+  catch(e){if(e?.code!=='taken')throw e;
+   // Oldingi (himoyasiz) urinishda aynan shu parol bilan akkaunt ochilib qolgan bo‘lsa — himoyali holatga o‘tkazamiz.
+   let a;try{a=await postJSON(`${IDTK}/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`,{email:nickEmail(nick),password:pw,returnSecureToken:true},15000)}catch{throw{code:'nick-taken'}}
+   await postJSON(`${IDTK}/accounts:update?key=${firebaseConfig.apiKey}`,{idToken:a.idToken,password:secret,returnSecureToken:true},15000);
+   r=await waitLimit(restRegister(nick,dn,secret),22000,'network-timeout')}
+  registering=false;
+  let faceSaved=true;try{await ownerSaveFaces(r.uid,r.token,faces)}catch(e){faceSaved=false;console.warn('owner face save',e)}
+  const seq=++pendingRegSeq;pendingReg={r,nick,dn,pw:secret};$('#rPass').value='';
+  enterCreatedShell(r,nick,dn);
+  toast(faceSaved?'Akkaunt ochildi ✅ Parol, yuz va chizma saqlandi':'Akkaunt ochildi. Yuz saqlanmadi — birinchi kirishda qayta olinadi',4500);
+  connectRegisteredSession(pendingReg,seq)
+ }catch(e){registering=false;try{stopFaceCam()}catch{}closeModal();ownerFail(e)}
+ finally{ownerBusy=false;busy(btn,false);btn.textContent='Akkaunt yaratish'}
+}
+
+/* ---------- KIRISH: parol → yuz → chizma. Qaysi biri xato bo‘lgani aytilmaydi. ---------- */
+async function ownerLoginFlow(){
+ const nick=OWNER_NICK,pw=$('#lPass').value,btn=$('#loginBtn');
+ if(!pw)return toast('Parol kiriting');if(loggingIn||ownerBusy)return;ownerBusy=true;busy(btn,true);
+ let rl=null,secret='';
+ try{
+  if(!window.crypto?.subtle)throw{code:'owner-insecure'};
+  const cap=await ownerFaceCapture();closeModal();
+  const pattern=await patternPad('Chizmani chizing','Akkauntga kirish uchun chizmangizni chizing.');closeModal();
+  toast('Tekshirilmoqda…',0);
+  secret=await ownerSecret(pw,pattern);
+  let got;try{got=await waitLimit(restLoginByNickname(nick,secret),18000,'network-timeout')}
+  catch(e){throw(e?.code==='auth/invalid-credential'||e?.code==='no-nick')?{code:'owner-denied'}:e}
+  // Yuz belgisi serverdan olinmasa (tarmoq xatosi) — kirish to‘xtaydi.
+  const stored=await ownerLoadFaces(got.localId,got.idToken);
+  if(stored){if(!ownerFaceMatch(stored,cap.faces,cap.dark))throw{code:'owner-denied'}}
+  else{try{await ownerSaveFaces(got.localId,got.idToken,cap.faces)}catch(e){console.warn('owner face save',e)}} // yuz hali saqlanmagan — hozirgisi namuna bo‘ladi
+  rl=got
+ }catch(e){try{stopFaceCam()}catch{}closeModal();ownerFail(e)}
+ finally{ownerBusy=false;busy(btn,false);btn.textContent='Kirish';$('#lPass').value=''}
+ if(rl)return doLogin(nick,secret,btn,false,rl)
+}
+
+/* ---------- Sozlamalar: parol / chizma / yuzni almashtirish (joriy parol + joriy chizma bilan) ---------- */
+function ownerSecurityModal(){
+ modal(`<h3>🔐 @... himoyasi</h3><p class="mp">Bu akkaunt parol + yuz + chizma bilan himoyalangan. O‘zgartirish uchun joriy parol va joriy chizma so‘raladi.</p>
+ <label class="lb">Joriy parol</label><input class="field" id="osOld" type="password" autocomplete="current-password">
+ <label class="lb">Yangi parol (o‘zgarmasa bo‘sh qoldiring)</label><input class="field" id="osNew" type="password" autocomplete="new-password" placeholder="Kamida 6 belgi">
+ <label class="check-row" style="margin-top:10px"><input type="checkbox" id="osPat"><span>Chizmani almashtirish</span></label>
+ <label class="check-row"><input type="checkbox" id="osFace"><span>Yuzni qayta ro‘yxatga olish</span></label>
+ <div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="osGo">Davom etish</button></div>`);
+ $('#osGo').onclick=async()=>{
+  const oldPw=$('#osOld').value,newPw=$('#osNew').value,chPat=$('#osPat').checked,chFace=$('#osFace').checked;
+  if(!oldPw)return toast('Joriy parolni kiriting');if(newPw&&weakPw(newPw))return toast(PW_RULE);
+  if(!newPw&&!chPat&&!chFace)return toast('Nimani o‘zgartirishni tanlang');
+  if(ownerBusy)return;ownerBusy=true;
+  try{
+   const curPat=await patternPad('Joriy chizma','Tasdiqlash uchun hozirgi chizmangizni chizing.');closeModal();toast('Tekshirilmoqda…',0);
+   let rl;try{rl=await waitLimit(restLoginByNickname(OWNER_NICK,await ownerSecret(oldPw,curPat)),18000,'network-timeout')}
+   catch(e){throw(e?.code==='auth/invalid-credential'||e?.code==='no-nick')?{code:'owner-denied2'}:e}
+   if(rl.localId!==me?.id)throw{code:'owner-denied2'};
+   toast('Tasdiqlandi',1200);
+   if(chFace){const faces=await faceCamEnroll();closeModal();await ownerSaveFaces(rl.localId,rl.idToken,faces)}
+   const pat=chPat?await ownerNewPattern():curPat;
+   if(newPw||chPat){
+    await postJSON(`${IDTK}/accounts:update?key=${firebaseConfig.apiKey}`,{idToken:rl.idToken,password:await ownerSecret(newPw||oldPw,pat),returnSecureToken:true},15000);
+    toast('✅ Himoya yangilandi. Yangi ma’lumotlar bilan qayta kiring',0);setTimeout(()=>switchAccount(),1800)
+   }else toast('✅ Yuz yangilandi',3500)
+  }catch(e){try{stopFaceCam()}catch{}closeModal();ownerFail(e)}
+  finally{ownerBusy=false}
+ }
+}
+
+/* ---------- ulash ---------- */
+const __olLoginSubmit=$('#loginForm').onsubmit,__olRegSubmit=$('#regForm').onsubmit;
+$('#loginForm').onsubmit=e=>{if(norm($('#lNick').value)===OWNER_NICK){e.preventDefault();ownerLoginFlow();return false}return __olLoginSubmit(e)};
+$('#regForm').onsubmit=e=>{if(norm($('#rNick').value)===OWNER_NICK){e.preventDefault();ownerRegisterFlow();return false}return __olRegSubmit(e)};
+// @... uchun "Face ID bilan tez kirish" yo‘q (u chizmani chetlab o‘tgan bo‘lardi) va oddiy parol almashtirish oynasi o‘rniga himoya oynasi ochiladi.
+const __olPasswordModal=passwordModal;
+passwordModal=function(){return me?.username===OWNER_NICK?ownerSecurityModal():__olPasswordModal()};
+const __olFaceEnable=faceIdEnableModal;
+faceIdEnableModal=function(){if(me?.username===OWNER_NICK)return toast('Bu akkauntda yuz har kirishda so‘raladi — alohida Face ID kerak emas',4500);return __olFaceEnable()};
+$('#faceLoginBtn').addEventListener('click',e=>{if(norm($('#lNick').value)===OWNER_NICK){e.stopImmediatePropagation();e.preventDefault()}},true);
 </script>
 
 </body>
