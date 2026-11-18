@@ -5057,82 +5057,106 @@ removeMsg=function(m,all){
 <script id="mkOvDelBadge">
 /* =========================================================
    MAKKTUB — O'chirilgan xabar belgisi (@... uchun)
-   Oshna o'z xabarini "hamma uchun o'chirsa", @... da xabar qoladi va
-   ustiga korzinka (🗑) belgisi chiqadi. Egasi: rang (qizil=standart/sariq/yashil),
-   burchak (4 ta) va o'lchamni (14–48px) o'zi sozlaydi. Sozlamalar shu qurilmada saqlanadi.
+   3 uslub: A — tepada yorliq, B — burchakda ikonka, C — chap chiziq.
+   Egasi: uslub, rang (qizil=standart/sariq/yashil), o'lcham (14–48px),
+   va B uslubida burchakni (4 ta) o'zi sozlaydi. Sozlama shu qurilmada saqlanadi.
    ========================================================= */
 const OVDEL_COLORS={red:'#e53935',yellow:'#eab308',green:'#22c55e'};
-const OVDEL_LS={color:'mk_ovdel_color',corner:'mk_ovdel_corner',size:'mk_ovdel_size'};
+const OVDEL_LS={color:'mk_ovdel_color',corner:'mk_ovdel_corner',size:'mk_ovdel_size',style:'mk_ovdel_style'};
 function ovDelCfg(){
- let color=LS.getItem(OVDEL_LS.color);if(!OVDEL_COLORS[color])color='red'; // standart — qizil
+ let color=LS.getItem(OVDEL_LS.color);if(!OVDEL_COLORS[color])color='red';
  let corner=LS.getItem(OVDEL_LS.corner);if(!['tl','tr','bl','br'].includes(corner))corner='tr';
  let size=parseInt(LS.getItem(OVDEL_LS.size),10);if(!(size>=14&&size<=48))size=22;
- return{color,corner,size}
+ let style=LS.getItem(OVDEL_LS.style);if(!['A','B','C'].includes(style))style='B';
+ return{color,corner,size,style}
 }
 function applyOvDel(){const c=ovDelCfg(),r=document.documentElement;
- r.dataset.ovdelcorner=c.corner;
+ r.dataset.ovdelcorner=c.corner;r.dataset.ovdelstyle=c.style;
  r.style.setProperty('--ovdel-color',OVDEL_COLORS[c.color]);
  r.style.setProperty('--ovdel-size',c.size+'px');
 }
-// Belgi uchun CSS (bir marta)
 (function(){if(document.getElementById('ovdelCss'))return;
  const s=document.createElement('style');s.id='ovdelCss';
  s.textContent=`
  .bub.ov-del{position:relative;overflow:visible}
- .ovdel-ic{position:absolute;display:flex;align-items:center;justify-content:center;
-   width:var(--ovdel-size,22px);height:var(--ovdel-size,22px);border-radius:50%;
-   background:var(--ovdel-color,#e53935);box-shadow:0 1px 4px rgba(0,0,0,.45);z-index:4;pointer-events:none}
+ /* B — burchakda ikonka */
+ .ovdel-ic{position:absolute;display:flex;align-items:center;justify-content:center;width:var(--ovdel-size,22px);height:var(--ovdel-size,22px);border-radius:50%;background:var(--ovdel-color,#e53935);box-shadow:0 1px 4px rgba(0,0,0,.45);z-index:4;pointer-events:none}
  .ovdel-ic .i{width:62%;height:62%;stroke:#fff}
  [data-ovdelcorner=tr] .ovdel-ic{top:3px;right:3px}
  [data-ovdelcorner=tl] .ovdel-ic{top:3px;left:3px}
  [data-ovdelcorner=br] .ovdel-ic{bottom:3px;right:3px}
  [data-ovdelcorner=bl] .ovdel-ic{bottom:3px;left:3px}
- .ovd-prev{background:var(--bubble,#17223f);border-radius:14px;padding:10px 12px;margin:6px auto 2px;max-width:220px;color:var(--text)}
+ /* A — tepada yorliq */
+ .ovdel-pill{display:inline-flex;align-items:center;gap:5px;background:var(--ovdel-color,#e53935);color:#fff;border-radius:7px;padding:2px 8px;font-weight:800;font-size:calc(var(--ovdel-size,22px)*0.55);margin:0 0 5px}
+ .ovdel-pill .i{width:calc(var(--ovdel-size,22px)*0.64);height:calc(var(--ovdel-size,22px)*0.64);stroke:#fff}
+ /* C — chap chiziq */
+ .bub.ovd-C{border-left:4px solid var(--ovdel-color,#e53935)}
+ .ovdel-line-ic{display:inline-flex;align-items:center;margin:0 5px -3px 0}
+ .ovdel-line-ic .i{width:var(--ovdel-size,22px);height:var(--ovdel-size,22px);stroke:var(--ovdel-color,#e53935)}
+ /* sozlama oynasi */
+ .ovd-prev{background:rgba(127,127,127,.09);border-radius:14px;padding:12px;margin:6px 0 2px;text-align:center}
  .ovd-seg{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 2px}
- .ovd-seg button{flex:1;min-width:58px;padding:9px;border-radius:10px;border:1px solid var(--line,#24324f);background:transparent;color:var(--text);font-weight:700;cursor:pointer}
+ .ovd-seg button{flex:1;min-width:52px;padding:9px;border-radius:10px;border:1px solid var(--line,#24324f);background:transparent;color:var(--text);font-weight:700;cursor:pointer}
  .ovd-seg button.on{border-color:var(--accent);background:rgba(47,123,255,.14)}
  .ovd-sw{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer;flex:0 0 auto}
  .ovd-sw.on{border-color:#fff;box-shadow:0 0 0 2px var(--accent)}
  .ovd-cor{aspect-ratio:1;max-width:52px}`;
  document.head.appendChild(s);
 })();
-
-// Faqat @... da: hiddenForAll (yumshoq o'chirilgan) xabarga korzinka belgisini qo'shamiz.
+// Uslubga qarab belgi markup'i
+function ovDelBadgeFor(style){const trash=ic('trash');
+ if(style==='A')return{cls:'ovd-A',el:`<span class="ovdel-pill">${trash}<span>o‘chirilgan</span></span>`};
+ if(style==='C')return{cls:'ovd-C',el:`<span class="ovdel-line-ic" title="O‘chirilgan">${trash}</span>`};
+ return{cls:'ovd-B',el:`<span class="ovdel-ic" title="O‘chirilgan xabar (faqat siz ko‘rasiz)">${trash}</span>`};
+}
+// Faqat @... da: hiddenForAll (yumshoq o'chirilgan) xabarga tanlangan uslubda belgi qo'shamiz.
 const __ovMsgHtml=msgHtml;
 msgHtml=function(m,c,q){
  let h=__ovMsgHtml(m,c,q);
  if(m&&m.hiddenForAll&&isOwnerUser()){
-  const badge=`<span class="ovdel-ic" title="Bu xabar o‘chirilgan (faqat siz ko‘rasiz)">${ic('trash')}</span>`;
-  h=h.replace('<div class="bub ','<div class="bub ov-del ').replace(/(<div class="bub ov-del [^>]*>)/,'$1'+badge);
+  const b=ovDelBadgeFor(ovDelCfg().style);
+  h=h.replace('<div class="bub ',`<div class="bub ov-del ${b.cls} `).replace(new RegExp('(<div class="bub ov-del '+b.cls+' [^>]*>)'),'$1'+b.el);
  }
  return h
 };
-
+function ovDelPreviewHtml(){const b=ovDelBadgeFor(ovDelCfg().style);
+ return`<div class="bub ov-del ${b.cls}" style="display:inline-block;padding:10px 14px;text-align:left">${b.el}Namuna xabar</div>`}
 // Sozlash oynasi (egasi uchun)
 function ovDelSettings(){
  if(!isOwnerUser())return toast('Bu faqat egasi uchun');
- const c=ovDelCfg();
- const swatch=k=>`<span class="ovd-sw ${c.color===k?'on':''}" data-ovc="${k}" style="background:${OVDEL_COLORS[k]}" title="${k==='red'?'Qizil':k==='yellow'?'Sariq':'Yashil'}"></span>`;
- const corner=(k,t)=>`<button class="ovd-cor ${c.corner===k?'on':''}" data-ovk="${k}">${t}</button>`;
+ const styleBtn=(k,t)=>`<button data-ovstyle="${k}">${t}</button>`;
+ const swatch=k=>`<span class="ovd-sw" data-ovc="${k}" style="background:${OVDEL_COLORS[k]}" title="${k==='red'?'Qizil':k==='yellow'?'Sariq':'Yashil'}"></span>`;
+ const corner=(k,t)=>`<button class="ovd-cor" data-ovk="${k}">${t}</button>`;
  modal(`<h3>🗑 O‘chirilgan belgisi</h3>
  <p class="mp">Oshna o‘z xabarini o‘chirsa, sizda shu belgi chiqadi (faqat siz ko‘rasiz).</p>
- <div class="ovd-prev"><div class="bub ov-del" style="display:inline-block;padding:10px 14px">Namuna xabar<span class="ovdel-ic" id="ovdPrevIc">${ic('trash')}</span></div></div>
- <label class="lb">Rang</label><div class="ovd-seg" id="ovdColors" style="align-items:center;gap:14px">${swatch('red')}${swatch('yellow')}${swatch('green')}<span class="muted" style="font-size:12px">qizil — standart</span></div>
- <label class="lb">Burchak</label>
- <div class="ovd-seg" id="ovdCorners">${corner('tl','↖')}${corner('tr','↗')}</div>
- <div class="ovd-seg" id="ovdCorners2">${corner('bl','↙')}${corner('br','↘')}</div>
- <label class="lb">O‘lcham: <b id="ovdSizeV">${c.size}px</b></label>
- <input type="range" min="14" max="48" value="${c.size}" id="ovdSize" style="width:100%">
+ <div class="ovd-prev" id="ovdPrev"></div>
+ <label class="lb">Ko‘rinish (uslub)</label>
+ <div class="ovd-seg" id="ovdStyles">${styleBtn('A','A · Tepa')}${styleBtn('B','B · Burchak')}${styleBtn('C','C · Chap chiziq')}</div>
+ <label class="lb">Rang</label>
+ <div class="ovd-seg" id="ovdColors" style="align-items:center;gap:14px">${swatch('red')}${swatch('yellow')}${swatch('green')}<span class="muted" style="font-size:12px">qizil — standart</span></div>
+ <div id="ovdCornerWrap">
+  <label class="lb">Burchak (faqat B uslubida)</label>
+  <div class="ovd-seg" id="ovdCorners">${corner('tl','↖')}${corner('tr','↗')}</div>
+  <div class="ovd-seg" id="ovdCorners2">${corner('bl','↙')}${corner('br','↘')}</div>
+ </div>
+ <label class="lb">O‘lcham: <b id="ovdSizeV"></b></label>
+ <input type="range" min="14" max="48" id="ovdSize" style="width:100%">
  <div class="mact"><button class="btn" data-close>Tayyor</button></div>`);
- applyOvDel();
- const refresh=()=>{applyOvDel();
-  $$('#ovdColors .ovd-sw').forEach(b=>b.classList.toggle('on',b.dataset.ovc===ovDelCfg().color));
-  $$('[data-ovk]').forEach(b=>b.classList.toggle('on',b.dataset.ovk===ovDelCfg().corner));
+ const refresh=()=>{applyOvDel();const c=ovDelCfg();
+  const pv=$('#ovdPrev');if(pv)pv.innerHTML=ovDelPreviewHtml();
+  $$('#ovdStyles [data-ovstyle]').forEach(b=>b.classList.toggle('on',b.dataset.ovstyle===c.style));
+  $$('#ovdColors .ovd-sw').forEach(b=>b.classList.toggle('on',b.dataset.ovc===c.color));
+  $$('[data-ovk]').forEach(b=>b.classList.toggle('on',b.dataset.ovk===c.corner));
+  const cw=$('#ovdCornerWrap');if(cw)cw.style.display=c.style==='B'?'':'none';
+  const sv=$('#ovdSizeV');if(sv)sv.textContent=c.size+'px';
+  const sl=$('#ovdSize');if(sl&&sl.value!==String(c.size))sl.value=c.size;
   if(active&&!active.virtual){lastSig='';renderMessages()}};
+ $('#ovdStyles').onclick=e=>{const b=e.target.closest('[data-ovstyle]');if(!b)return;LS.setItem(OVDEL_LS.style,b.dataset.ovstyle);refresh()};
  $('#ovdColors').onclick=e=>{const b=e.target.closest('[data-ovc]');if(!b)return;LS.setItem(OVDEL_LS.color,b.dataset.ovc);refresh()};
  const corClick=e=>{const b=e.target.closest('[data-ovk]');if(!b)return;LS.setItem(OVDEL_LS.corner,b.dataset.ovk);refresh()};
  $('#ovdCorners').onclick=corClick;$('#ovdCorners2').onclick=corClick;
- $('#ovdSize').oninput=e=>{LS.setItem(OVDEL_LS.size,e.target.value);$('#ovdSizeV').textContent=e.target.value+'px';refresh()};
+ $('#ovdSize').oninput=e=>{LS.setItem(OVDEL_LS.size,e.target.value);refresh()};
+ refresh();
 }
 applyOvDel();
 </script>
