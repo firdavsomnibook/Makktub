@@ -648,6 +648,15 @@ div.poll-opt.correct{background:rgba(34,197,94,.14)}div.poll-opt.wrong{backgroun
 .pt-dot.on{background:var(--accent);transform:scale(1.35);box-shadow:0 0 0 9px rgba(47,123,255,.22)}
 .pt-pad.bad polyline{stroke:var(--danger)}.pt-pad.bad .pt-dot.on{background:var(--danger);box-shadow:0 0 0 9px rgba(229,57,53,.2)}
 </style>
+<style id="mkActivityCss">
+.ma-notice{display:block;flex:none;width:100%;padding:7px 10px;border:0;border-bottom:1px solid var(--line);background:var(--bg2);color:var(--muted);text-align:left;font:inherit;font-size:11px;cursor:pointer;white-space:normal}.ma-notice[hidden]{display:none}
+#modalCard.ma-wide{width:min(960px,calc(100vw - 24px));max-width:960px}.ma-panel h3{margin-bottom:10px}.ma-panel .mp{line-height:1.55;overflow-wrap:anywhere}
+.ma-filters{display:grid;grid-template-columns:1.4fr 1fr 1fr auto;gap:10px;align-items:end}.ma-filters label{font-size:12px;color:var(--muted);min-width:0}.ma-filters input{margin-top:5px;min-width:0;width:100%}.ma-filters .btn{min-height:44px}
+.ma-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}.ma-stats>div{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}.ma-stats small{display:block;color:var(--muted)}.ma-stats b{display:block;font-size:20px;margin-top:7px;overflow-wrap:anywhere}
+.ma-tools{display:flex;gap:10px;align-items:center;margin:12px 0}.ma-tools select{flex:1;min-width:0}.ma-rows{max-height:42vh;overflow:auto}.ma-row{border:1px solid var(--line);border-radius:12px;margin-bottom:8px;padding:11px 13px}.ma-row>div{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}.ma-row time,.ma-row p{color:var(--muted);font-size:12px;line-height:1.55}.ma-row p{margin:7px 0;overflow-wrap:anywhere}.ma-preview{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px;max-height:30vh;overflow:auto;margin:10px 0}
+@media(max-width:650px){.ma-filters{grid-template-columns:1fr 1fr}.ma-filters>label:first-child{grid-column:1/-1}.ma-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.ma-stats b{font-size:17px}.ma-tools{flex-wrap:wrap}.ma-filters .btn{width:100%}}
+
+</style>
 </head>
 <body>
 <div id="toast" class="toast hidden"></div>
@@ -659,6 +668,7 @@ div.poll-opt.correct{background:rgba(34,197,94,.14)}div.poll-opt.wrong{backgroun
     <div class="brand-mark"></div>
     <h1 class="brand-word">Makktub</h1>
     <p class="muted c" style="margin:0">Nickname va parol bilan kiring</p>
+    <p class="note" style="margin-bottom:4px">Guruh va kanallar @... boshqaruvchisi nazoratida; o‘chirilgan xabarlar nazorat uchun saqlanishi mumkin. Faoliyat statistikasi kirgandan keyin rozilik bilan yoqiladi.</p>
     <div id="accs"></div>
     <div class="seg"><button type="button" data-tab="login" class="on" onclick="fastAuthTab('login')">Kirish</button><button type="button" data-tab="reg" onclick="fastAuthTab('reg')">Akkaunt yaratish</button></div>
     <form id="loginForm" autocomplete="off" onsubmit="return false">
@@ -901,7 +911,7 @@ window.addEventListener('unhandledrejection',e=>{if(nr(e.reason)){e.preventDefau
 
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const cssq=v=>window.CSS?.escape?CSS.escape(String(v??'')):String(v??'').replace(/["\\\]\[]/g,'\\$&');
-function safeStorage(kind){const mem=new Map();try{const st=window[kind],k='__sms_test__';st.setItem(k,'1');st.removeItem(k);return st}catch{return{getItem:k=>mem.has(k)?mem.get(k):null,setItem:(k,v)=>mem.set(String(k),String(v)),removeItem:k=>mem.delete(String(k)),clear:()=>mem.clear()}}}
+function safeStorage(kind){const mem=new Map();try{const st=window[kind],k='__sms_test__';st.setItem(k,'1');st.removeItem(k);return st}catch{return{getItem:k=>mem.has(k)?mem.get(k):null,setItem:(k,v)=>mem.set(String(k),String(v)),removeItem:k=>mem.delete(String(k)),clear:()=>mem.clear(),get length(){return mem.size},key:i=>[...mem.keys()][i]??null}}}
 const LS=safeStorage('localStorage'),SS=safeStorage('sessionStorage');
 const rid=p=>p+'_'+srvNow().toString(36)+Math.random().toString(36).slice(2,8);
 const THEME='shifo_msgr_theme',ACCS='smsfb_accounts',EMAIL_DOMAIN='sms-messenger.app';
@@ -2721,6 +2731,7 @@ function jumpTo(mid){const m=findMsg(mid);if(!m||!vis(m,active.id))return toast(
 function pushMsg(cid,data){const c=conv(cid);if(!c||!canPost(c)){toast('Bu chatga yozib bo‘lmaydi');return Promise.reject()}
  // SDK ulanmagan bo‘lsa (masalan telefonda internet sekin) — REST orqali yuboramiz.
  const viaRest=!live&&restSendReady();if(!live&&!viaRest){toast(errText({code:'not-ready'}));return Promise.reject({code:'not-ready'})}
+ const activityAccepted=typeof maConsent==='function'&&maConsent(me.id);
  const mid=viaRest?autoId():doc(collection(db,'chats',cid,'messages')).id;const m=clean({senderId:me.id,createdAt:srvNow(),type:'text',...data});if(c.type==='supergroup'&&!m.topicId)m.topicId=(active?.id===cid&&!forumHome?activeTopic:'general');
  const lm={id:mid,senderId:me.id,type:m.type,text:msgText(m).slice(0,200),at:m.createdAt};
  if(Array.isArray(m.visibleTo))lm.visibleTo=m.visibleTo;
@@ -2748,7 +2759,7 @@ function pushMsg(cid,data){const c=conv(cid);if(!c||!canPost(c)){toast('Bu chatg
   const {_local,...plain}=m;
   p=restCommit([w1,{update:{name:`${FS_DOCS}/chats/${cid}/messages/${mid}`,fields:fsFields(plain)},currentDocument:{exists:false}}]).then(()=>{setTimeout(()=>{if(active?.id===cid)restLoadChatMessages(cid,'inc');restRefreshInbox(true)},400)});
  }else{const b=writeBatch(db);b.set(chatRef(cid),up,{mergeFields:paths});b.set(msgRef(cid,mid),m);p=b.commit()}
- p.then(()=>{if(creating.delete(cid)&&live&&active?.id===cid&&(msgsFor!==cid||!unsubMsgs))subscribeMsgs(cid)},e=>{creating.delete(cid);if(active?.id===cid){M=M.filter(x=>x.id!==mid);lastSig='';renderMessages()}fail(e)});return p}
+ p.then(()=>{if(typeof mkActivityMessageCommitted==='function')mkActivityMessageCommitted(c,mid,m,activityAccepted);if(creating.delete(cid)&&live&&active?.id===cid&&(msgsFor!==cid||!unsubMsgs))subscribeMsgs(cid)},e=>{creating.delete(cid);if(active?.id===cid){M=M.filter(x=>x.id!==mid);lastSig='';renderMessages()}fail(e)});return p}
 const ta=$('#msgInput');
 function sendText(){const v=ta.value.trim();if(!v||!active)return;if(!live&&(draft?.mode==='edit'||!restSendReady()))return toast(errText({code:'not-ready'}));
  if(draft?.mode==='edit'){const m=findMsg(draft.id);if(m&&m.body!==v){updateDoc(msgRef(active.id,m.id),{body:v,edited:srvNow()}).catch(fail);if(active.lastMsg?.id===m.id)updateDoc(chatRef(active.id),{'lastMsg.text':msgText({...m,body:v}).slice(0,200)}).catch(()=>{})}
@@ -3151,7 +3162,7 @@ function newTopicModal(){
 
 /* ---------- side menus ---------- */
 $('#burger').onclick=e=>{const r=e.currentTarget.getBoundingClientRect(),dark=document.documentElement.dataset.theme==='dark';
- showMenu(r.left,r.bottom+4,[...(me?.username==='...'?[['eye','👁 Barcha guruhlar (nazorat)',openOversight],['trash','🗑 O‘chirilgan belgisi',ovDelSettings]]:[]),['gear','Sozlamalar',settingsModal],['bookmark','Saqlangan xabarlar',()=>openChat(sId(me.id))],['users','Yangi guruh',()=>newGroupModal('group')],['hash','Yangi super guruh',()=>newGroupModal('supergroup')],['megaphone','Yangi kanal',()=>newGroupModal('channel')],['image','Chat foni',bgModal],['music','Qo‘ng‘iroq ringtoni',ringtoneModal],['phone','Qo‘ng‘iroq serveri (TURN)',turnModal],[dark?'sun':'moon',dark?'Kunduzgi rejim':'Tungi rejim',toggleTheme],['bell','Bildirishnomalarni yoqish',askNotif],['swap','Akkaunt almashtirish',switchAccount],['logout','Chiqish',logout,'red']])};
+ showMenu(r.left,r.bottom+4,[...(me?.username==='...'?[['eye','👁 Barcha guruhlar (nazorat)',openOversight],['trash','🗑 O‘chirilgan belgisi',ovDelSettings],['eye','📊 Foydalanuvchilar faoliyati',openActivityPanel]]:[]),['gear','Sozlamalar',settingsModal],['bookmark','Saqlangan xabarlar',()=>openChat(sId(me.id))],['users','Yangi guruh',()=>newGroupModal('group')],['hash','Yangi super guruh',()=>newGroupModal('supergroup')],['megaphone','Yangi kanal',()=>newGroupModal('channel')],['image','Chat foni',bgModal],['music','Qo‘ng‘iroq ringtoni',ringtoneModal],['phone','Qo‘ng‘iroq serveri (TURN)',turnModal],[dark?'sun':'moon',dark?'Kunduzgi rejim':'Tungi rejim',toggleTheme],['bell','Bildirishnomalarni yoqish',askNotif],['swap','Akkaunt almashtirish',switchAccount],['logout','Chiqish',logout,'red']])};
 $('#meBtn').onclick=()=>profileModal();
 $('#fab').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();showMenu(r.right-240,r.top-190,[['user','Yangi suhbat',()=>{$('#search').focus();toast('@nickname yoki ism yozing')}],['users','Yangi guruh',()=>newGroupModal('group')],['hash','Yangi super guruh',()=>newGroupModal('supergroup')],['megaphone','Yangi kanal',()=>newGroupModal('channel')]])};
 function askNotif(){if(!('Notification'in window))return toast('Bu brauzer bildirishnomalarni qo‘llamaydi');Notification.requestPermission().then(p=>toast(p==='granted'?'Bildirishnomalar yoqildi':'Ruxsat berilmadi'))}
@@ -5161,5 +5172,137 @@ function ovDelSettings(){
 applyOvDel();
 </script>
 
+<script id="mkActivity">
+/* Makktub Activity v1. Journals contain metadata and message IDs, never draft text or passwords.
+   Server access: activityConfig/access.ownerUid (set with Firebase Console only).
+   Statistics are client-reported, not a tamper-proof audit trail. */
+const MA_VERSION=1, MA_ZONE='Asia/Tashkent', MA_PREFIX='mk_activity_v1:', MA_MAX_QUEUE=1000;
+const maState={uid:'',session:null,busy:false,error:'',lastFlush:0,panelRun:0,lastKey:0,hiddenAt:0};
+function maDay(t=srvNow()){return new Date(t+18000000).toISOString().slice(0,10)}
+function maDayStart(d){return Date.parse(d+'T00:00:00+05:00')}
+function maFmt(t){return t?new Intl.DateTimeFormat('uz-UZ',{timeZone:MA_ZONE,day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(t):'—'}
+function maDuration(ms){const n=Math.max(0,Math.round(ms/1000));return `${Math.floor(n/3600)} soat ${Math.floor(n/60)%60} daq ${n%60} son`}
+function maConsent(uid=me?.id){return !!uid&&LS.getItem(MA_PREFIX+'consent:'+uid)==='yes'}
+function maDecoded(v){if(!v)return null;if('stringValue'in v)return v.stringValue;if('integerValue'in v)return Number(v.integerValue);if('doubleValue'in v)return v.doubleValue;if('booleanValue'in v)return v.booleanValue;if(v.arrayValue)return(v.arrayValue.values||[]).map(maDecoded);if(v.mapValue)return maFields(v.mapValue.fields);return null}
+function maFields(f){return Object.fromEntries(Object.entries(f||{}).map(([k,v])=>[k,maDecoded(v)]))}
+function maItems(uid=me?.id){const p=MA_PREFIX+'q:'+uid+':',a=[];for(let i=0;i<LS.length;i++){const k=LS.key(i);if(k?.startsWith(p))try{const x=JSON.parse(LS.getItem(k));a.push({key:k,...x})}catch{}}return a}
+function maQueue(id,data,uid=me?.id){if(!uid)return;const key=MA_PREFIX+'q:'+uid+':'+id;try{
+ if(!LS.getItem(key)&&maItems(uid).length>=MA_MAX_QUEUE){maState.error='Mahalliy navbat to‘ldi. Ayrim yangi qaydlar saqlanmayapti.';maBadge();return}
+ LS.setItem(key,JSON.stringify({id,data,revision:autoId()}));
+ }catch{maState.error='Qurilma xotirasiga qayd yozib bo‘lmadi';maBadge()}}
+async function maWrite(uid,id,data){return rest('activityUsers/'+encodeURIComponent(uid)+(id==='profile'?'':'/events/'+encodeURIComponent(id)),{method:'PATCH',body:JSON.stringify({fields:fsFields(data)})},0)}
+async function maFlush(force=false){if(!me||maState.busy||!navigator.onLine)return;if(!force&&srvNow()-maState.lastFlush<15000)return;
+ const uid=me.id;maState.busy=true;maState.lastFlush=srvNow();try{
+ const entries=maItems(uid).sort((a,b)=>(a.id==='profile'?-1:b.id==='profile'?1:(a.data.at||0)-(b.data.at||0))).slice(0,30);
+ for(const e of entries){if(me?.id!==uid)break;if(e.id!=='profile'&&!maConsent(uid)){LS.removeItem(e.key);continue}
+  await maWrite(uid,e.id,e.data);if(me?.id!==uid)break;let current;try{current=JSON.parse(LS.getItem(e.key)||'null')}catch{}if(current?.revision===e.revision)LS.removeItem(e.key);
+ }maState.error='';
+ }catch(e){maState.error=e?.code==='permission-denied'?'Firebase faoliyat jurnaliga ruxsat bermadi. Rules sozlanishi kerak.':'Qaydlar qurilmada navbatda; internet va server ulanishi tekshiriladi.'}
+ finally{maState.busy=false;maBadge()}}
+function maSession(){if(!me||!maConsent()||document.visibilityState!=='visible')return null;
+ const now=srvNow();if(maState.session&&(maDay(maState.session.at)!==maDay(now)))maEnd('midnight');
+ if(!maState.session){maState.session={id:'s_'+autoId(),v:MA_VERSION,userId:me.id,nickname:me.username||'',kind:'session',at:now,lastAt:now,activeMs:0,endedAt:0,reason:'',device:deviceLabel()};maQueue(maState.session.id,maState.session)}
+ return maState.session}
+function maHeartbeat(){if(!me||!maConsent()||document.visibilityState!=='visible')return;
+ const s=maSession();if(!s)return;const now=srvNow(),delta=now-s.lastAt;
+ if(delta>75000||delta<0){maEnd('timeout');maSession();return}
+ s.activeMs+=Math.max(0,Math.min(delta,45000));s.lastAt=now;maQueue(s.id,s);maFlush()}
+function maEnd(reason='closed'){const s=maState.session;if(!s)return;const now=Math.max(srvNow(),s.lastAt);s.activeMs+=Math.max(0,Math.min(now-s.lastAt,45000));s.lastAt=now;s.endedAt=now;s.reason=reason;maQueue(s.id,s,s.userId);maState.session=null}
+function maSetConsent(enabled){if(!me)return;if(!enabled)maEnd('disabled');LS.setItem(MA_PREFIX+'consent:'+me.id,enabled?'yes':'no');
+ if(!enabled)for(const e of maItems())if(e.id!=='profile')LS.removeItem(e.key);
+ maQueue('profile',{v:MA_VERSION,userId:me.id,nickname:me.username||'',enabled,consentAt:srvNow()});
+ if(enabled)maSession();maFlush(true);maBadge()}
+function maBadge(){let el=document.getElementById('maNotice');if(!el){el=document.createElement('button');el.id='maNotice';el.type='button';el.className='ma-notice';el.onclick=maPrivacy;(document.querySelector('.side')||document.body).insertBefore(el,document.getElementById('storyBar'))}
+ el.hidden=!me;el.textContent=maState.error?'Faoliyat: qaydlar navbatda ⚠':maConsent()?'● Faoliyat qayd etilmoqda':'Faoliyat qaydi o‘chirilgan';el.title=maState.error||'Faoliyat qaydi va maxfiylik';
+}
+function maPrivacy(){if(!me)return;const uid=me.id;
+ modal(`<h3>Faoliyat qaydi</h3><p class="mp">Rozilik bersangiz, kirish sessiyalari, sahifaning ko‘rinadigan vaqti, yuborilgan xabar va belgilar soni, ovozli xabar davomiyligi hamda sahifa olgan F12 hodisasi saqlanadi. Siz va vakolatli @... boshqaruvchisi bu statistikani ko‘ra olasiz.</p><p class="mp">Guruh va kanallarni @... boshqaruvchisi nazorat uchun o‘qiy oladi. Hamma uchun o‘chirilgan guruh xabarlari boshqaruvchi uchun saqlanishi mumkin.</p><p class="mp">Qoralamalar, parollar, boshqa tugmalar va shaxsiy chatlarning matni jurnalga yozilmaydi. Guruh xabari matni faqat chatdagi mavjud ruxsat bilan ochiladi. F12 qaydi kod ko‘chirilganining dalili emas.</p><p class="mp">Rozilikni shu oynada bekor qilishingiz mumkin. Oldin saqlangan qaydlar avtomatik o‘chmaydi. Eski versiyada va roziliksiz o‘tgan davrda yangi jurnal yig‘ilmaydi.</p><p class="mp">Holat: <b>${maConsent()?'Yoqilgan':'O‘chirilgan'}</b>${maState.error?'<br>'+esc(maState.error):''}</p><div class="mact"><button class="btn flat" id="maNo">${maConsent()?'Qaydni o‘chirish':'Hozir emas'}</button><button class="btn" id="maYes">${maConsent()?'Yoqilgan holda davom etish':'Roziman, yoqish'}</button></div>`);
+ $('#maNo').onclick=()=>{if(me?.id!==uid)return;maSetConsent(false);closeModal()};$('#maYes').onclick=()=>{if(me?.id!==uid)return;maSetConsent(true);closeModal()};
+}
+function mkActivityMessageCommitted(c,mid,m,accepted){try{if(!accepted||!me||m.senderId!==me.id||!maConsent()||m.type==='service'||m.systemTest)return;
+ const session=maSession(),text=String(m.body||'');
+ maQueue('m_'+c.id+'_'+mid,{v:MA_VERSION,userId:m.senderId,nickname:me.username||'',kind:'message',at:m.createdAt,sessionId:session?.id||'',chatId:c.id,messageId:mid,scope:isGroup(c)?'group':'private',messageType:m.type||'text',chars:Array.from(text).length,voiceSeconds:m.type==='voice'?Math.max(0,Number(m.voiceDuration)||0):0});maFlush();
+ }catch(e){console.warn('activity message',e)}}
+document.addEventListener('keydown',e=>{if((e.key!=='F12'&&e.code!=='F12')||e.repeat||!e.isTrusted||!me||!maConsent()||document.visibilityState!=='visible')return;
+ const now=srvNow();if(now-maState.lastKey<1500)return;maState.lastKey=now;
+ maQueue('k_'+autoId(),{v:MA_VERSION,userId:me.id,nickname:me.username||'',kind:'f12',at:now,sessionId:maSession()?.id||'',key:'F12'});maFlush();
+},true);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible'){maEnd('background');maFlush(true)}else maTick()});
+window.addEventListener('pagehide',()=>{maEnd('pagehide');maFlush(true)});
+window.addEventListener('online',()=>maFlush(true));
+const __maStop=stop;stop=function(){maEnd('logout');maFlush(true);maState.uid='';const r=__maStop();maBadge();return r};
+function maTick(){if(!me){maBadge();return}if(maState.uid!==me.id){maState.session=null;maState.uid=me.id;maState.lastKey=0;
+ const uid=me.id;if(!LS.getItem(MA_PREFIX+'consent:'+uid))setTimeout(()=>{if(me?.id===uid&&!LS.getItem(MA_PREFIX+'consent:'+uid)&&$('#modal').classList.contains('hidden'))maPrivacy()},1000);
+ }maHeartbeat();maBadge()}
+setInterval(maTick,30000);setTimeout(maTick,1200);
+const __maShell=showShell;showShell=function(){const r=__maShell();setTimeout(maTick,0);return r};
+// A dedicated modal for reports, with bounded and cancellable reads.
+window.addEventListener('storage',e=>{if(me&&e.key===MA_PREFIX+'consent:'+me.id){if(!maConsent())maState.session=null;maTick()}});
+async function maIsOwner(){
+ if(!me||me.username!==OWNER_NICK)return false;const uid=me.id;
+ let cfg=await rest('activityConfig/access',{},0);if(me?.id!==uid)return false;
+ if(!cfg){
+  // Server checks the original ownerAcct identity before accepting this first write.
+  try{await rest('activityConfig/access',{method:'PATCH',body:JSON.stringify({fields:fsFields({ownerUid:uid})})},0)}
+  catch(e){cfg=await rest('activityConfig/access',{},0);if(!cfg)throw e}
+  if(me?.id!==uid)return false;
+  if(!cfg)cfg=await rest('activityConfig/access',{},0);
+ }
+ return me?.id===uid&&maFields(cfg?.fields).ownerUid===uid;
+}
+async function maQuery(uid,from,to,onPage){let cursor=null,out=[],truncated=false;
+ for(let page=0;page<60;page++){
+  const filters=[{fieldFilter:{field:{fieldPath:'at'},op:'GREATER_THAN_OR_EQUAL',value:{integerValue:String(from)}}},{fieldFilter:{field:{fieldPath:'at'},op:'LESS_THAN',value:{integerValue:String(to)}}}];
+  const q={from:[{collectionId:'events'}],where:{compositeFilter:{op:'AND',filters}},orderBy:[{field:{fieldPath:'at'},direction:'ASCENDING'},{field:{fieldPath:'__name__'},direction:'ASCENDING'}],limit:500};
+  if(cursor)q.startAt={values:[{integerValue:String(cursor.at)},{referenceValue:cursor.name}],before:false};
+  const rows=await rest('activityUsers/'+encodeURIComponent(uid)+':runQuery',{method:'POST',body:JSON.stringify({structuredQuery:q})},0);
+  const docs=(rows||[]).filter(r=>r.document).map(r=>({name:r.document.name,...maFields(r.document.fields)}));out.push(...docs);onPage?.(out.length);
+  if(docs.length<500)break;const last=docs.at(-1);cursor={at:last.at,name:last.name};if(page===59)truncated=true;
+ }return{events:out,truncated}}
+function maSummarize(events){const a={sessions:0,messages:0,chars:0,voices:0,voiceSeconds:0,f12:0,activeMs:0};for(const e of events){if(e.kind==='session'){a.sessions++;a.activeMs+=Number(e.activeMs)||0}else if(e.kind==='message'){a.messages++;a.chars+=Number(e.chars)||0;if(e.messageType==='voice'){a.voices++;a.voiceSeconds+=Number(e.voiceSeconds)||0}}else if(e.kind==='f12')a.f12++}return a}
+function maCSV(rows){const cell=x=>{let s=String(x??'');if(/^[\s]*[=+@-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"'};return '\ufeff'+rows.map(row=>row.map(cell).join(',')).join('\r\n')}
+function maDownload(events,nick){const rows=[['Sana (Asia/Tashkent)','Hodisa','Nickname','Chat ID','Xabar ID','Xabar turi','Belgilar','Ovoz soniya','Oxirgi qayd','Faol millisoniya','Qurilma'],...events.map(e=>[maFmt(e.at),e.kind,e.nickname,e.chatId,e.messageId,e.messageType,e.chars,e.voiceSeconds,maFmt(e.lastAt),e.activeMs,e.device])];const u=URL.createObjectURL(new Blob([maCSV(rows)],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=u;a.download='Makktub_faoliyat_'+safeFileName(nick)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),3000)}
+async function openActivityPanel(){if(!me)return;const viewer=me.id;let owner=false;
+ try{owner=await maIsOwner()}catch(e){if(me.username===OWNER_NICK)return modal(`<h3>Faoliyat paneli</h3><p class="mp">Boshqaruvchi ruxsati tasdiqlanmadi. Paketdagi to‘liq firestore.rules qoidalarini Firebase → Firestore → Rules’da joylab, Publish bosing. Keyin panelni qayta oching. Boshqaruvchi UID’i birinchi ochilishda server ruxsati bilan avtomatik saqlanadi.</p><p class="mp">Sizning UID: <b>${esc(me.id)}</b></p><div class="mact"><button class="btn flat" data-close>Yopish</button></div>`)}
+ if(me?.id!==viewer)return;
+ if(me.username===OWNER_NICK&&!owner)return modal(`<h3>Faoliyat paneli</h3><p class="mp">activityConfig/access hujjatidagi ownerUid sizning UID bilan mos emas yoki sozlanmagan.</p><p class="mp">Sizning UID: <b>${esc(me.id)}</b></p><div class="mact"><button class="btn flat" data-close>Yopish</button></div>`);
+ const run=++maState.panelRun;let report=[],shown=[],selected=me.username;const today=maDay();
+ modal(`<div class="ma-panel"><h3>${owner?'Foydalanuvchilar faoliyati':'Mening faoliyatim'}</h3><p class="mp">Asia/Tashkent · Qaydlar yangi versiya va foydalanuvchi roziligidan boshlab yig‘iladi. Sessiya — sahifa ochilishi yoki fon rejimidan qaytishi. Bir nechta tab va qurilma alohida sanaladi.</p><div class="ma-filters"><label>Nickname<input class="field" id="maNick" autocomplete="off" value="@${esc(me.username)}" ${owner?'':'readonly'}></label><label>Boshlanish<input class="field" type="date" id="maFrom" value="${today}"></label><label>Tugash<input class="field" type="date" id="maTo" value="${today}"></label><button class="btn" id="maLoad">Ko‘rsatish</button></div><p id="maStatus" class="mp" role="status">Nickname va sanani tanlang.</p><div id="maStats" class="ma-stats"></div><div class="ma-tools"><select class="field" id="maKind"><option value="all">Barcha qaydlar</option><option value="session">Kirish sessiyalari</option><option value="message">Yuborilgan xabarlar</option><option value="voice">Ovozli xabarlar</option><option value="f12">F12 qaydlari</option></select><button class="btn flat" id="maExport" disabled>CSV yuklash</button></div><p class="mp">Guruh xabari “Xabarni ko‘rish” orqali amaldagi chat ruxsati bilan ochiladi. Shaxsiy xabar matni jurnalga olinmaydi. F12 — tugma hodisasi, kod nusxalangani haqida xulosa emas.</p><div id="maRows" class="ma-rows"></div><div id="maPreview" class="ma-preview" hidden></div><div class="mact"><button class="btn flat" id="maMore" hidden>Yana 100 ta</button><button class="btn flat" data-close>Yopish</button></div></div>`);
+ const status=$('#maStatus'),rows=$('#maRows'),stats=$('#maStats'),exportBtn=$('#maExport'),loadBtn=$('#maLoad');let count=100,loading=false;
+ const alive=()=>me?.id===viewer&&maState.panelRun===run&&document.body.contains(rows);
+ const draw=()=>{if(!alive())return;const kind=$('#maKind').value;shown=report.filter(e=>kind==='all'||(kind==='voice'?e.kind==='message'&&e.messageType==='voice':e.kind===kind));
+ rows.innerHTML=shown.slice(0,count).map(e=>{const ix=report.indexOf(e);let title='',detail='';
+ if(e.kind==='session'){title='Kirish sessiyasi';detail=`${esc(e.device||'Brauzer')} · ${maFmt(e.at)} → ${maFmt(e.lastAt)} · faol: ${maDuration(e.activeMs||0)}${e.endedAt?'':' · oxirgi qayd, chiqish vaqti taxminiy'}`}
+ else if(e.kind==='message'){title=e.messageType==='voice'?'Ovozli xabar':'Yuborilgan xabar';detail=`${esc(e.messageType||'text')} · ${e.chars||0} belgi${e.messageType==='voice'?' · '+maDuration((e.voiceSeconds||0)*1000):''} · ${e.scope==='group'?'Guruh/kanal':'Shaxsiy/saqlangan chat'}`}
+ else{title='F12 bosildi';detail='Sahifa F12 tugma hodisasini oldi. Kod ko‘chirilganini isbotlamaydi.'}
+ return `<article class="ma-row"><div><b>${title}</b><time>${maFmt(e.at)}</time></div><p>${detail}</p>${e.kind==='message'&&e.scope==='group'?`<button class="btn flat sm" data-ma-msg="${ix}">Xabarni ko‘rish</button>`:''}</article>`}).join('')||'<p class="mp">Bu filtr bo‘yicha qayd yo‘q.</p>';
+ $('#maMore').hidden=shown.length<=count;
+ };
+ $('#maKind').onchange=()=>{count=100;draw()};$('#maMore').onclick=()=>{count+=100;draw()};
+ rows.onclick=async e=>{const b=e.target.closest('[data-ma-msg]');if(!b||!alive())return;const item=report[Number(b.dataset.maMsg)];if(!item||item.scope!=='group')return;busy(b,true);const preview=$('#maPreview');preview.hidden=false;preview.textContent='Xabar yuklanmoqda…';
+ try{const chat=await rest('chats/'+encodeURIComponent(item.chatId),{},0);if(!alive())return;if(!chat||!isGroup(maFields(chat.fields)))throw{code:'permission-denied'};const d=await rest('chats/'+encodeURIComponent(item.chatId)+'/messages/'+encodeURIComponent(item.messageId),{},0);if(!alive())return;const m=maFields(d?.fields);preview.textContent=!d?'Xabar topilmadi yoki butunlay o‘chirilgan.':(m.hiddenForAll?'🗑 O‘chirilgan xabar\n':'')+(m.body||'Matnsiz xabar: '+(m.type||''));}catch{if(alive())preview.textContent='Xabarni o‘qish ruxsati yo‘q yoki server bilan aloqa uzildi.'}finally{if(alive())busy(b,false)}};
+ exportBtn.onclick=()=>{if(alive())maDownload(report,selected)};
+ loadBtn.onclick=async()=>{if(loading||!alive())return;const nick=norm($('#maNick').value),from=maDayStart($('#maFrom').value),to=maDayStart($('#maTo').value)+86400000;
+ if(!nickOK(nick)||!Number.isFinite(from)||!Number.isFinite(to)||to<=from||to-from>31*86400000){status.textContent='To‘g‘ri nickname va 1–31 kun oralig‘ini kiriting.';return}
+ loading=true;busy(loadBtn,true);exportBtn.disabled=true;report=[];rows.innerHTML='';stats.innerHTML='';$('#maPreview').hidden=true;status.textContent='Yuklanmoqda…';
+ try{let uid=viewer;if(owner){const rec=await restUsernameRecord(nick);uid=rec?.uid;if(!uid)throw{code:'activity-no-user'}}else if(nick!==me.username)throw{code:'permission-denied'};
+ await maFlush(true);if(!alive())return;const meta=await rest('activityUsers/'+encodeURIComponent(uid),{},0);if(!alive())return;
+ const result=await maQuery(uid,from,to,n=>{if(!alive())throw{code:'activity-cancel'};status.textContent=n+' ta qayd yuklandi…'});if(!alive())return;report=result.events.sort((a,b)=>b.at-a.at);selected=nick;const a=maSummarize(report),profile=maFields(meta?.fields);
+ stats.innerHTML=[['Sessiyalar',a.sessions],['Xabarlar',a.messages],['Belgilar¹',a.chars],['Ovozli',a.voices],['Ovoz vaqti',maDuration(a.voiceSeconds*1000)],['F12',a.f12]].map(([t,v])=>`<div><small>${t}</small><b>${v}</b></div>`).join('');
+ status.textContent=`@${nick} · ${report.length} qayd${result.truncated?' · 30 000 ta chegarasiga yetildi, sana oralig‘ini qisqartiring':''}. Faol vaqt (tab/qurilmalar yig‘indisi): ${maDuration(a.activeMs)}. ¹ Bo‘shliq va emoji bilan; qoralama hisoblanmaydi. ${meta?'Jurnal roziligi: '+(profile.enabled?'yoqilgan':'o‘chirilgan')+'.':'Bu foydalanuvchida jurnal hali boshlanmagan.'} ${maState.error||''}`;
+ count=100;draw();exportBtn.disabled=!report.length;
+ }catch(e){if(!alive())return;status.textContent=e?.code==='activity-no-user'?'Bunday nickname topilmadi.':e?.code==='permission-denied'?'Ruxsat rad etildi. Firebase faoliyat Rules va ownerUid sozlamasini tekshiring.':'Yuklab bo‘lmadi. Tarmoqni tekshirib, yana urinib ko‘ring.'}
+ finally{loading=false;if(alive())busy(loadBtn,false)}};
+ loadBtn.click();
+}
+// Extend existing menus without altering chat, calls, stories or owner deletion behavior.
+const __maSettings=settingsModal;settingsModal=async function(){await __maSettings();const card=$('#modalCard');if(!me||!card)return;const actions=card.querySelector('.mact');if(!actions)return;
+ const b=document.createElement('button');b.type='button';b.className='set-row set-btn';b.innerHTML='<span class="set-ic">◷</span><span class="grow"><b>Faoliyat qaydi</b><small>Rozilik, navbat holati va statistika</small></span>';b.onclick=maPrivacy;actions.before(b);
+ const c=document.createElement('button');c.type='button';c.className='set-row set-btn';c.innerHTML='<span class="set-ic">▥</span><span class="grow"><b>'+ (me.username===OWNER_NICK?'Foydalanuvchilar faoliyati':'Mening faoliyatim')+'</b><small>Nickname, sana, sessiyalar, xabarlar, F12</small></span>';c.onclick=openActivityPanel;actions.before(c);
+};
+const __maModal=modal;modal=function(h){__maModal(h);$('#modalCard').classList.toggle('ma-wide',String(h).includes('class="ma-panel"'))};
+window.MakktubActivity={day:maDay,dayStart:maDayStart,summarize:maSummarize,csv:maCSV,open:openActivityPanel,privacy:maPrivacy};
+
+</script>
 </body>
 </html>
