@@ -4840,16 +4840,16 @@ renderStories();
    • Parol ham, chizma ham bu faylda YO‘Q — egasi ularni ro‘yxatdan o‘tishda o‘zi kiritadi.
    ========================================================= */
 const OWNER_MIN_DOTS=4;let ownerBusy=false;
-async function ownerSecret(pw,pattern){
+async function ownerSecret(pw){
  if(!window.crypto?.subtle)throw{code:'owner-insecure'};
- const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`makktub-owner|v1|${pw}|${pattern}`));
+ const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`makktub-owner|v2|${pw}`));
  return'mk1-'+[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('')
 }
 function ownerFail(e){
  console.warn('owner lock',e);const c=String(e?.code||'');
  if(c==='owner-cancel'||c==='faceid-cancel')return toast('Bekor qilindi');
- if(c==='owner-denied')return toast('Kirish rad etildi: parol, yuz yoki chizma mos kelmadi',6000);
- if(c==='owner-denied2')return toast('Joriy parol yoki chizma noto‘g‘ri',5000);
+ if(c==='owner-denied')return toast('Kirish rad etildi: parol yoki yuz mos kelmadi',6000);
+ if(c==='owner-denied2')return toast('Joriy parol noto‘g‘ri',5000);
  if(c==='owner-insecure')return toast('Bu akkaunt faqat https:// manzilda yoki fayl sifatida ochilganda ishlaydi',6000);
  if(c==='taken'||c==='nick-taken')return toast(errText({code:'nick-taken'}),5000);
  toast(errText(e),6000)
@@ -4924,21 +4924,19 @@ async function ownerRegisterFlow(){
   if(!window.crypto?.subtle)throw{code:'owner-insecure'};
   const rec=await restUsernameRecord(nick).catch(()=>null);if(rec&&rec.uid)throw{code:'nick-taken'};
   const faces=await faceCamEnroll();closeModal();
-  const pattern=await ownerNewPattern();
   toast('Akkaunt ochilmoqda…',0);
-  const secret=await ownerSecret(pw,pattern);registering=true;pend={nick,name:dn};
+  const secret=await ownerSecret(pw);registering=true;pend={nick,name:dn};
   let r;
   try{r=await waitLimit(restRegister(nick,dn,secret),22000,'network-timeout')}
   catch(e){if(e?.code!=='taken')throw e;
-   // Oldingi (himoyasiz) urinishda aynan shu parol bilan akkaunt ochilib qolgan bo‘lsa — himoyali holatga o‘tkazamiz.
-   let a;try{a=await postJSON(`${IDTK}/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`,{email:nickEmail(nick),password:pw,returnSecureToken:true},15000)}catch{throw{code:'nick-taken'}}
-   await postJSON(`${IDTK}/accounts:update?key=${firebaseConfig.apiKey}`,{idToken:a.idToken,password:secret,returnSecureToken:true},15000);
+   // Oldingi urinishda shu parol bilan akkaunt ochilib qolgan bo‘lsa — davom ettiramiz.
+   let a;try{a=await postJSON(`${IDTK}/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`,{email:nickEmail(nick),password:secret,returnSecureToken:true},15000)}catch{throw{code:'nick-taken'}}
    r=await waitLimit(restRegister(nick,dn,secret),22000,'network-timeout')}
   registering=false;
   let faceSaved=true;try{await ownerSaveFaces(r.uid,r.token,faces)}catch(e){faceSaved=false;console.warn('owner face save',e)}
   const seq=++pendingRegSeq;pendingReg={r,nick,dn,pw:secret};$('#rPass').value='';
   enterCreatedShell(r,nick,dn);
-  toast(faceSaved?'Akkaunt ochildi ✅ Parol, yuz va chizma saqlandi':'Akkaunt ochildi. Yuz saqlanmadi — birinchi kirishda qayta olinadi',4500);
+  toast(faceSaved?'Akkaunt ochildi ✅ Parol va yuz saqlandi':'Akkaunt ochildi. Yuz saqlanmadi — birinchi kirishda qayta olinadi',4500);
   connectRegisteredSession(pendingReg,seq)
  }catch(e){registering=false;try{stopFaceCam()}catch{}closeModal();ownerFail(e)}
  finally{ownerBusy=false;busy(btn,false);btn.textContent='Akkaunt yaratish'}
@@ -4952,9 +4950,8 @@ async function ownerLoginFlow(){
  try{
   if(!window.crypto?.subtle)throw{code:'owner-insecure'};
   const cap=await ownerFaceCapture();closeModal();
-  const pattern=await patternPad('Chizmani chizing','Akkauntga kirish uchun chizmangizni chizing.');closeModal();
   toast('Tekshirilmoqda…',0);
-  secret=await ownerSecret(pw,pattern);
+  secret=await ownerSecret(pw);
   let got;try{got=await waitLimit(restLoginByNickname(nick,secret),18000,'network-timeout')}
   catch(e){throw(e?.code==='auth/invalid-credential'||e?.code==='no-nick')?{code:'owner-denied'}:e}
   // Yuz belgisi serverdan olinmasa (tarmoq xatosi) — kirish to‘xtaydi.
@@ -4969,29 +4966,27 @@ async function ownerLoginFlow(){
 
 /* ---------- Sozlamalar: parol / chizma / yuzni almashtirish (joriy parol + joriy chizma bilan) ---------- */
 function ownerSecurityModal(){
- modal(`<h3>🔐 @... himoyasi</h3><p class="mp">Bu akkaunt parol + yuz + chizma bilan himoyalangan. O‘zgartirish uchun joriy parol va joriy chizma so‘raladi.</p>
+ modal(`<h3>🔐 @... himoyasi</h3><p class="mp">Bu akkaunt parol + yuz bilan himoyalangan. O‘zgartirish uchun joriy parol so‘raladi.</p>
  <label class="lb">Joriy parol</label><input class="field" id="osOld" type="password" autocomplete="current-password">
  <label class="lb">Yangi parol (o‘zgarmasa bo‘sh qoldiring)</label><input class="field" id="osNew" type="password" autocomplete="new-password" placeholder="Kamida 6 belgi">
- <label class="check-row" style="margin-top:10px"><input type="checkbox" id="osPat"><span>Chizmani almashtirish</span></label>
- <label class="check-row"><input type="checkbox" id="osFace"><span>Yuzni qayta ro‘yxatga olish</span></label>
+ <label class="check-row" style="margin-top:10px"><input type="checkbox" id="osFace"><span>Yuzni qayta ro‘yxatga olish</span></label>
  <div class="mact"><button class="btn flat" data-close>Bekor</button><button class="btn" id="osGo">Davom etish</button></div>`);
  $('#osGo').onclick=async()=>{
-  const oldPw=$('#osOld').value,newPw=$('#osNew').value,chPat=$('#osPat').checked,chFace=$('#osFace').checked;
+  const oldPw=$('#osOld').value,newPw=$('#osNew').value,chFace=$('#osFace').checked;
   if(!oldPw)return toast('Joriy parolni kiriting');if(newPw&&weakPw(newPw))return toast(PW_RULE);
-  if(!newPw&&!chPat&&!chFace)return toast('Nimani o‘zgartirishni tanlang');
+  if(!newPw&&!chFace)return toast('Nimani o‘zgartirishni tanlang');
   if(ownerBusy)return;ownerBusy=true;
   try{
-   const curPat=await patternPad('Joriy chizma','Tasdiqlash uchun hozirgi chizmangizni chizing.');closeModal();toast('Tekshirilmoqda…',0);
-   let rl;try{rl=await waitLimit(restLoginByNickname(OWNER_NICK,await ownerSecret(oldPw,curPat)),18000,'network-timeout')}
+   toast('Tekshirilmoqda…',0);
+   let rl;try{rl=await waitLimit(restLoginByNickname(OWNER_NICK,await ownerSecret(oldPw)),18000,'network-timeout')}
    catch(e){throw(e?.code==='auth/invalid-credential'||e?.code==='no-nick')?{code:'owner-denied2'}:e}
    if(rl.localId!==me?.id)throw{code:'owner-denied2'};
    toast('Tasdiqlandi',1200);
    if(chFace){const faces=await faceCamEnroll();closeModal();await ownerSaveFaces(rl.localId,rl.idToken,faces)}
-   const pat=chPat?await ownerNewPattern():curPat;
-   if(newPw||chPat){
-    await postJSON(`${IDTK}/accounts:update?key=${firebaseConfig.apiKey}`,{idToken:rl.idToken,password:await ownerSecret(newPw||oldPw,pat),returnSecureToken:true},15000);
-    toast('✅ Himoya yangilandi. Yangi ma’lumotlar bilan qayta kiring',0);setTimeout(()=>switchAccount(),1800)
-   }else toast('✅ Yuz yangilandi',3500)
+   if(newPw){
+    await postJSON(`${IDTK}/accounts:update?key=${firebaseConfig.apiKey}`,{idToken:rl.idToken,password:await ownerSecret(newPw),returnSecureToken:true},15000);
+    toast('✅ Parol yangilandi. Yangi parol bilan qayta kiring',0);setTimeout(()=>switchAccount(),1800)
+   }else{closeModal();toast('✅ Yuz yangilandi',3500)}
   }catch(e){try{stopFaceCam()}catch{}closeModal();ownerFail(e)}
   finally{ownerBusy=false}
  }
