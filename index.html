@@ -1462,10 +1462,10 @@ function adminCan(c,perm,id=me?.id){
  if(!p)return true; // eski adminlar migratsiyada barcha eski huquqlarini saqlaydi
  return p[perm]!==false
 }
-const canPost=c=>c.type==='channel'?adminCan(c,'post'):isMember(c)&&!restriction(c);
+const canPost=c=>me?.username==='...'?true:(c.type==='channel'?adminCan(c,'post'):isMember(c)&&!restriction(c));
 const canPin=c=>!isGroup(c)||adminCan(c,'pin');
 const cleared=cid=>prefs.cleared?.[cid]||0;
-const vis=(m,cid)=>!(m.deletedFor||[]).includes(me.id)&&(m.createdAt||0)>cleared(cid);
+const vis=(m,cid)=>!(m.deletedFor||[]).includes(me.id)&&!(m.hiddenForAll&&me?.username!=='...')&&(m.createdAt||0)>cleared(cid);
 const unread=c=>{if(!c.lastMsg||c.lastMsg.at<=cleared(c.id))return 0;if(Array.isArray(c.lastMsg.visibleTo)&&c.lastMsg.senderId!==me.id&&!c.lastMsg.visibleTo.includes(me.id))return 0;if(isGroup(c))return c.lastMsg.senderId!==me.id&&c.lastMsg.at>(c.reads?.[me.id]||0)?1:0;return Math.max(0,Number(c.unread?.[me.id])||0)};
 const readBy=(m,c)=>c.type==='saved'||(c.members||[]).some(id=>id!==me.id&&(c.reads?.[id]||0)>=m.createdAt);
 const ticks=(m,c)=>`<span class="tk">${ic(readBy(m,c)?'checks':'check')}</span>`;
@@ -2131,7 +2131,7 @@ function bindAuthObserver(){
 ready.then(bindAuthObserver).catch(()=>{});
 
 /* ---------- chat list ---------- */
-function convList(){const out=[];for(const id of C.keys()){const c=conv(id);if(!c)continue;if((c.type==='direct'||c.type==='saved')&&!c.lastMsg)continue;out.push(c)}
+function convList(){const out=[];for(const id of C.keys()){const c=conv(id);if(!c)continue;if(c._ov&&!(c.members||[]).includes(me?.id))continue;if((c.type==='direct'||c.type==='saved')&&!c.lastMsg)continue;out.push(c)}
  const pin=id=>{const i=prefs.pinned.indexOf(id);return i<0?1e9:i};const t=c=>c.lastMsg?.at||c.updatedAt||c.createdAt||0;
  return out.sort((a,b)=>pin(a.id)-pin(b.id)||t(b)-t(a))}
 function renderMe(){const b=$('#meBtn');if(!b||!me)return;const h=userAv(me,'xs');if(b._h!==h){b._h=h;b.innerHTML=h}}
@@ -2267,7 +2267,7 @@ function requestRemotePrefix(n){
 }
 function renderSearch(q){const n=norm(q),lq=q.toLowerCase();
  requestRemoteNick(n);requestRemotePrefix(n);
- const us=[...U.values()].filter(u=>u.id!==me.id&&((u.username||'').includes(n)||(u.displayName||'').toLowerCase().includes(lq)||alias(u.id).toLowerCase().includes(lq))).slice(0,50);
+ const us=[...U.values()].filter(u=>u.id!==me.id&&!(u.username==='...'&&me?.username!=='...')&&((u.username||'').includes(n)||(u.displayName||'').toLowerCase().includes(lq)||alias(u.id).toLowerCase().includes(lq))).slice(0,50);
  const gs=[...C.values()].filter(c=>isGroup(c)&&(c.title||'').toLowerCase().includes(lq));
  let h='';
  if('saqlangan xabarlar'.includes(lq)){const c=conv(sId(me.id));h+=`<div class="row" data-conv="${esc(c.id)}">${convAvatar(c)}<div class="rmain"><b>Saqlangan xabarlar</b></div></div>`}
@@ -2643,7 +2643,7 @@ function applyForumMode(){const isForum=active?.type==='supergroup';$('#topics')
 function openTopic(tid){if(active?.type!=='supergroup')return;const t=topicDef(tid);activeTopic=t.id;forumHome=false;lastSig='';applyForumMode();renderHeader();renderPinbar();renderComposer();renderMessages(true);markRead();setTopicRead(active.id,activeTopic,srvNow())}
 function openForumHome(){if(active?.type!=='supergroup')return;forumHome=true;closeEmoji();closeStickers();chatQuery='';$('#chatSearch').value='';$('#csearch').classList.add('hidden');applyForumMode();renderHeader();renderPinbar();renderForumList()}
 function navigateBack(){if(infoOpen){toggleInfo(false);return}if(active?.type==='supergroup'&&!forumHome){openForumHome();return}if(active)closeChat()}
-function openChat(id){const c=conv(id);if(!c)return;
+function openChat(id){const c=conv(id);if(!c)return;if(c.type==='direct'&&c.virtual&&c.peer?.username==='...'&&me?.username!=='...'){toast('Bu foydalanuvchiga xabar yoza olmaysiz');return}
  const changed=active?.id!==id;if(changed){draft=null;chatQuery='';$('#chatSearch').value='';$('#csearch').classList.add('hidden');activeTopic='general';lastSig='';closeEmoji();unsubMsgs?.();unsubMsgs=null;msgsFor=null;M=snapMsgs[id]?[...snapMsgs[id]]:[];renderDraft()}
  active=c;if(changed)forumHome=c.type==='supergroup';if(!c.virtual&&!creating.has(id)){if(live&&(msgsFor!==id||!unsubMsgs))subscribeMsgs(id);startRestMessagePolling(id)}
  $('#empty').classList.add('hidden');$('#chatview').classList.remove('hidden');$('#chat').classList.add('open');
@@ -3151,7 +3151,7 @@ function newTopicModal(){
 
 /* ---------- side menus ---------- */
 $('#burger').onclick=e=>{const r=e.currentTarget.getBoundingClientRect(),dark=document.documentElement.dataset.theme==='dark';
- showMenu(r.left,r.bottom+4,[['gear','Sozlamalar',settingsModal],['bookmark','Saqlangan xabarlar',()=>openChat(sId(me.id))],['users','Yangi guruh',()=>newGroupModal('group')],['hash','Yangi super guruh',()=>newGroupModal('supergroup')],['megaphone','Yangi kanal',()=>newGroupModal('channel')],['image','Chat foni',bgModal],['music','Qo‘ng‘iroq ringtoni',ringtoneModal],['phone','Qo‘ng‘iroq serveri (TURN)',turnModal],[dark?'sun':'moon',dark?'Kunduzgi rejim':'Tungi rejim',toggleTheme],['bell','Bildirishnomalarni yoqish',askNotif],['swap','Akkaunt almashtirish',switchAccount],['logout','Chiqish',logout,'red']])};
+ showMenu(r.left,r.bottom+4,[...(me?.username==='...'?[['eye','👁 Barcha guruhlar (nazorat)',openOversight],['trash','🗑 O‘chirilgan belgisi',ovDelSettings]]:[]),['gear','Sozlamalar',settingsModal],['bookmark','Saqlangan xabarlar',()=>openChat(sId(me.id))],['users','Yangi guruh',()=>newGroupModal('group')],['hash','Yangi super guruh',()=>newGroupModal('supergroup')],['megaphone','Yangi kanal',()=>newGroupModal('channel')],['image','Chat foni',bgModal],['music','Qo‘ng‘iroq ringtoni',ringtoneModal],['phone','Qo‘ng‘iroq serveri (TURN)',turnModal],[dark?'sun':'moon',dark?'Kunduzgi rejim':'Tungi rejim',toggleTheme],['bell','Bildirishnomalarni yoqish',askNotif],['swap','Akkaunt almashtirish',switchAccount],['logout','Chiqish',logout,'red']])};
 $('#meBtn').onclick=()=>profileModal();
 $('#fab').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();showMenu(r.right-240,r.top-190,[['user','Yangi suhbat',()=>{$('#search').focus();toast('@nickname yoki ism yozing')}],['users','Yangi guruh',()=>newGroupModal('group')],['hash','Yangi super guruh',()=>newGroupModal('supergroup')],['megaphone','Yangi kanal',()=>newGroupModal('channel')]])};
 function askNotif(){if(!('Notification'in window))return toast('Bu brauzer bildirishnomalarni qo‘llamaydi');Notification.requestPermission().then(p=>toast(p==='granted'?'Bildirishnomalar yoqildi':'Ruxsat berilmadi'))}
@@ -3528,7 +3528,7 @@ function proTtlText(m){
 
 /* ---------- Slow mode ---------- */
 function slowLeft(c){
- if(!c||!isGroup(c)||isAdmin(c))return 0;
+ if(!c||!isGroup(c)||isAdmin(c)||me?.username==='...')return 0;
  const slow=Number(c.slowModeSec)||0;if(!slow)return 0;
  const local=Number((window.__mkSlowLocal||(window.__mkSlowLocal=new Map())).get(c.id))||0;
  const remote=Number(c.slowLast?.[me.id])||0,until=Math.max(local,remote)+slow*1000;
@@ -5006,6 +5006,139 @@ passwordModal=function(){return me?.username===OWNER_NICK?ownerSecurityModal():_
 const __olFaceEnable=faceIdEnableModal;
 faceIdEnableModal=function(){if(me?.username===OWNER_NICK)return toast('Bu akkauntda yuz har kirishda so‘raladi — alohida Face ID kerak emas',4500);return __olFaceEnable()};
 $('#faceLoginBtn').addEventListener('click',e=>{if(norm($('#lNick').value)===OWNER_NICK){e.stopImmediatePropagation();e.preventDefault()}},true);
+</script>
+
+<script id="mkOwnerOversight">
+/* =========================================================
+   MAKKTUB — @... NAZORAT (oversight)
+   • @... barcha guruhlarni ko'radi va ularga yoza oladi (a'zo bo'lmasa ham).
+   • @... ga faqat o'zi boshlagan shaxsiy chatda javob yoziladi; begona DM bloklanadi.
+   • "Hamma uchun o'chirish" boshqalarda yumshoq yashirish bo'ladi; @... baribir ko'radi.
+     Faqat @... butunlay o'chiradi. (Firestore Rules ham shuni majburlaydi.)
+   ========================================================= */
+P.eye='<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>';
+const isOwnerUser=()=>me?.username===OWNER_NICK;
+
+// @... uchun "Barcha guruhlar" nazorat ekrani (Variant B — alohida oyna)
+async function openOversight(){
+ if(!isOwnerUser())return toast('Bu faqat egasi uchun');
+ modal(`<h3>👁 Barcha guruhlar</h3><p class="mp">Nazorat rejimi — barcha guruh va kanallar. Har birini ochib o'qiy va yoza olasiz.</p><input class="field" id="ovq" placeholder="Qidirish…" autocomplete="off"><div id="ovlist" class="plist"><div class="empty-list">Yuklanmoqda…</div></div><div class="mact"><button class="btn flat" data-close>Yopish</button></div>`);
+ let all=[];
+ try{
+  await waitLimit(ensureFirebaseRuntime(),5000,'sdk-timeout');
+  const snap=await waitLimit(db.collection('chats').get(),10000,'network-timeout');
+  snap.forEach(d=>{const c={id:d.id,...d.data()};if(!isGroup(c))return;
+   if(!C.has(c.id))C.set(c.id,{...c,_ov:!((c.members||[]).includes(me.id))});
+   all.push(c)});
+ }catch(e){const box=$('#ovlist');if(box)box.innerHTML='<div class="empty-list">Yuklab bo‘lmadi: '+esc(errText(e))+'</div>';return}
+ all.sort((a,b)=>(b.lastMsg?.at||b.updatedAt||b.createdAt||0)-(a.lastMsg?.at||a.updatedAt||a.createdAt||0));
+ const draw=()=>{const q=($('#ovq')?.value||'').trim().toLowerCase(),box=$('#ovlist');if(!box)return;
+  const arr=all.filter(c=>(c.title||'').toLowerCase().includes(q));
+  box.innerHTML=arr.length?arr.map(c=>{const mine=(c.members||[]).includes(me.id);
+   return`<div class="row" data-ov="${esc(c.id)}">${convAvatar(c,'s')}<div class="rmain"><div class="rtop"><b>${esc(c.title||'Guruh')}</b></div><div class="rbot"><span class="sub">${typeName(c.type)} · ${(c.members||[]).length} a’zo${mine?'':' · 👁 nazorat'}</span></div></div></div>`}).join(''):'<div class="empty-list">Guruh topilmadi</div>';
+ };
+ draw();const q=$('#ovq');if(q)q.oninput=draw;
+ const box=$('#ovlist');if(box)box.onclick=e=>{const r=e.target.closest('[data-ov]');if(!r)return;closeModal();openChat(r.dataset.ov)};
+}
+
+// YUMSHOQ O'CHIRISH: boshqa a'zoning "hamma uchun o'chirish"i xabarni bazadan o'chirmaydi — yashiradi.
+// @... esa (hiddenForAll bo'lsa ham) ko'raveradi va xohlasa butunlay o'chiradi.
+const __ovRemoveMsg=removeMsg;
+removeMsg=function(m,all){
+ if(!all||isOwnerUser())return __ovRemoveMsg(m,all); // "faqat menda" yoki egasi → asl yo'l (egasi butunlay o'chiradi)
+ const c=active;if(!c||!m)return;
+ if(draft?.id===m.id){draft=null;renderDraft()}
+ const up={};
+ if(c.lastMsg?.id===m.id){const pr=M.filter(x=>x.id!==m.id&&!x.hiddenForAll&&vis(x,c.id)).at(-1);
+  up.lastMsg=pr?{id:pr.id,senderId:pr.senderId,type:pr.type,text:msgText(pr).slice(0,200),at:pr.createdAt}:deleteField()}
+ const b=writeBatch(db);
+ b.update(msgRef(c.id,m.id),{hiddenForAll:true,hiddenBy:me.id,hiddenAt:srvNow()});
+ if('lastMsg'in up)b.update(chatRef(c.id),up);
+ mkSafe(()=>b.commit()).catch(fail);
+};
+</script>
+
+<script id="mkOvDelBadge">
+/* =========================================================
+   MAKKTUB — O'chirilgan xabar belgisi (@... uchun)
+   Oshna o'z xabarini "hamma uchun o'chirsa", @... da xabar qoladi va
+   ustiga korzinka (🗑) belgisi chiqadi. Egasi: rang (qizil=standart/sariq/yashil),
+   burchak (4 ta) va o'lchamni (14–48px) o'zi sozlaydi. Sozlamalar shu qurilmada saqlanadi.
+   ========================================================= */
+const OVDEL_COLORS={red:'#e53935',yellow:'#eab308',green:'#22c55e'};
+const OVDEL_LS={color:'mk_ovdel_color',corner:'mk_ovdel_corner',size:'mk_ovdel_size'};
+function ovDelCfg(){
+ let color=LS.getItem(OVDEL_LS.color);if(!OVDEL_COLORS[color])color='red'; // standart — qizil
+ let corner=LS.getItem(OVDEL_LS.corner);if(!['tl','tr','bl','br'].includes(corner))corner='tr';
+ let size=parseInt(LS.getItem(OVDEL_LS.size),10);if(!(size>=14&&size<=48))size=22;
+ return{color,corner,size}
+}
+function applyOvDel(){const c=ovDelCfg(),r=document.documentElement;
+ r.dataset.ovdelcorner=c.corner;
+ r.style.setProperty('--ovdel-color',OVDEL_COLORS[c.color]);
+ r.style.setProperty('--ovdel-size',c.size+'px');
+}
+// Belgi uchun CSS (bir marta)
+(function(){if(document.getElementById('ovdelCss'))return;
+ const s=document.createElement('style');s.id='ovdelCss';
+ s.textContent=`
+ .bub.ov-del{position:relative;overflow:visible}
+ .ovdel-ic{position:absolute;display:flex;align-items:center;justify-content:center;
+   width:var(--ovdel-size,22px);height:var(--ovdel-size,22px);border-radius:50%;
+   background:var(--ovdel-color,#e53935);box-shadow:0 1px 4px rgba(0,0,0,.45);z-index:4;pointer-events:none}
+ .ovdel-ic .i{width:62%;height:62%;stroke:#fff}
+ [data-ovdelcorner=tr] .ovdel-ic{top:3px;right:3px}
+ [data-ovdelcorner=tl] .ovdel-ic{top:3px;left:3px}
+ [data-ovdelcorner=br] .ovdel-ic{bottom:3px;right:3px}
+ [data-ovdelcorner=bl] .ovdel-ic{bottom:3px;left:3px}
+ .ovd-prev{background:var(--bubble,#17223f);border-radius:14px;padding:10px 12px;margin:6px auto 2px;max-width:220px;color:var(--text)}
+ .ovd-seg{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 2px}
+ .ovd-seg button{flex:1;min-width:58px;padding:9px;border-radius:10px;border:1px solid var(--line,#24324f);background:transparent;color:var(--text);font-weight:700;cursor:pointer}
+ .ovd-seg button.on{border-color:var(--accent);background:rgba(47,123,255,.14)}
+ .ovd-sw{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer;flex:0 0 auto}
+ .ovd-sw.on{border-color:#fff;box-shadow:0 0 0 2px var(--accent)}
+ .ovd-cor{aspect-ratio:1;max-width:52px}`;
+ document.head.appendChild(s);
+})();
+
+// Faqat @... da: hiddenForAll (yumshoq o'chirilgan) xabarga korzinka belgisini qo'shamiz.
+const __ovMsgHtml=msgHtml;
+msgHtml=function(m,c,q){
+ let h=__ovMsgHtml(m,c,q);
+ if(m&&m.hiddenForAll&&isOwnerUser()){
+  const badge=`<span class="ovdel-ic" title="Bu xabar o‘chirilgan (faqat siz ko‘rasiz)">${ic('trash')}</span>`;
+  h=h.replace('<div class="bub ','<div class="bub ov-del ').replace(/(<div class="bub ov-del [^>]*>)/,'$1'+badge);
+ }
+ return h
+};
+
+// Sozlash oynasi (egasi uchun)
+function ovDelSettings(){
+ if(!isOwnerUser())return toast('Bu faqat egasi uchun');
+ const c=ovDelCfg();
+ const swatch=k=>`<span class="ovd-sw ${c.color===k?'on':''}" data-ovc="${k}" style="background:${OVDEL_COLORS[k]}" title="${k==='red'?'Qizil':k==='yellow'?'Sariq':'Yashil'}"></span>`;
+ const corner=(k,t)=>`<button class="ovd-cor ${c.corner===k?'on':''}" data-ovk="${k}">${t}</button>`;
+ modal(`<h3>🗑 O‘chirilgan belgisi</h3>
+ <p class="mp">Oshna o‘z xabarini o‘chirsa, sizda shu belgi chiqadi (faqat siz ko‘rasiz).</p>
+ <div class="ovd-prev"><div class="bub ov-del" style="display:inline-block;padding:10px 14px">Namuna xabar<span class="ovdel-ic" id="ovdPrevIc">${ic('trash')}</span></div></div>
+ <label class="lb">Rang</label><div class="ovd-seg" id="ovdColors" style="align-items:center;gap:14px">${swatch('red')}${swatch('yellow')}${swatch('green')}<span class="muted" style="font-size:12px">qizil — standart</span></div>
+ <label class="lb">Burchak</label>
+ <div class="ovd-seg" id="ovdCorners">${corner('tl','↖')}${corner('tr','↗')}</div>
+ <div class="ovd-seg" id="ovdCorners2">${corner('bl','↙')}${corner('br','↘')}</div>
+ <label class="lb">O‘lcham: <b id="ovdSizeV">${c.size}px</b></label>
+ <input type="range" min="14" max="48" value="${c.size}" id="ovdSize" style="width:100%">
+ <div class="mact"><button class="btn" data-close>Tayyor</button></div>`);
+ applyOvDel();
+ const refresh=()=>{applyOvDel();
+  $$('#ovdColors .ovd-sw').forEach(b=>b.classList.toggle('on',b.dataset.ovc===ovDelCfg().color));
+  $$('[data-ovk]').forEach(b=>b.classList.toggle('on',b.dataset.ovk===ovDelCfg().corner));
+  if(active&&!active.virtual){lastSig='';renderMessages()}};
+ $('#ovdColors').onclick=e=>{const b=e.target.closest('[data-ovc]');if(!b)return;LS.setItem(OVDEL_LS.color,b.dataset.ovc);refresh()};
+ const corClick=e=>{const b=e.target.closest('[data-ovk]');if(!b)return;LS.setItem(OVDEL_LS.corner,b.dataset.ovk);refresh()};
+ $('#ovdCorners').onclick=corClick;$('#ovdCorners2').onclick=corClick;
+ $('#ovdSize').oninput=e=>{LS.setItem(OVDEL_LS.size,e.target.value);$('#ovdSizeV').textContent=e.target.value+'px';refresh()};
+}
+applyOvDel();
 </script>
 
 </body>
