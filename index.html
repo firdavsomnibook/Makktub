@@ -4878,7 +4878,8 @@ function patternPad(title,sub){return new Promise((res,rej)=>{
 async function ownerNewPattern(){
  for(;;){
   const a=await patternPad('Chizma o‘rnatish',`Kamida ${OWNER_MIN_DOTS} ta nuqtani ulab, o‘z chizmangizni chizing.`);
-  const b=await patternPad('Chizmani tasdiqlang','Xuddi shu chizmani yana bir marta chizing.');
+  toast('✓ Chizma olindi. Tasdiqlash uchun xuddi shu chizmani qaytadan chizing',2600);
+  const b=await patternPad('Chizmani tasdiqlang','✓ Chizma olindi — endi xuddi shu chizmani yana bir marta chizing.');
   if(a===b){closeModal();return a}
   toast('Chizmalar mos kelmadi. Qaytadan chizing',3000)
  }
